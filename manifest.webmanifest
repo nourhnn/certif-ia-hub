@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "Certif-IA Hub — Démonstration V1.7.1",
+  "short_name": "Certif-IA Hub",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f7fa",
+  "theme_color": "#171719",
+  "icons": [
+    {
+      "src": "assets/certifia-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
