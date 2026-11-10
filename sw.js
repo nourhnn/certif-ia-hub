@@ -1,4 +1,4 @@
-const CACHE = 'certifia-hub-v171-static';
+const CACHE = 'certifia-hub-v18-static';
 const STATIC_FILES = ['./', './index.html', './manifest.webmanifest', './assets/certifia-icon.png', './assets/certifia-logo.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(STATIC_FILES)));
