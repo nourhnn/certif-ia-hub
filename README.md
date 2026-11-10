@@ -53,3 +53,15 @@ Version HTML interactive **V1.7 démo**, non mise en production. Aucune modifica
 Le fichier `index.html` à la racine est la **version HTML autonome V1.7.1 corrigée**, incluant directement scripts, styles et logo. Elle remplace l'ancienne maquette. Le dépôt contient aussi le manifeste, les icônes et le service worker pour la démo PWA ; aucun `npm install` n'est nécessaire.
 
 Données et actions **100 % fictives** : aucune authentification, connexion HubSpot/Notion/Drive/Google Agenda ou WhatsApp effective. La sauvegarde navigateur n'est pas une base de données sécurisée.
+
+
+## V1.8 — Expérience PWA mobile premium
+
+- Interface desktop et tablette identique visuellement à V1.7.1.
+- Téléphone (≤640 px) : navigation fixe à cinq onglets par rôle.
+- AMO : Accueil, Agenda, Staffing, Livrables, Plus (Formations, Formateurs, Clients, Monthly AMO).
+- Formateur : Accueil, Missions, Agenda, Livrables, Profil.
+- Header compact et safe areas iOS, KPI 2×2, tableaux transformés en cartes, bottom sheets, transitions discrètes.
+- Respect de `prefers-reduced-motion`; données et actions toujours fictives.
+- Vérifications automatisées Chromium à 390, 768 et 1440 px ; aucun débordement du document ni erreur JS sur les parcours testés. Tests sur iPhone réel et installation PWA à confirmer.
+- Spécification archivée dans AMO Hub sur Notion.
