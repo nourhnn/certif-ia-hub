@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v19-mobile';
+const CACHE='certifia-hub-demo-v20-workflows';
 const URLS=['./','./index.html','./hub.js','./extra.css','./assets/certifia-logo.png','./assets/certifia-icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(URLS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))));
