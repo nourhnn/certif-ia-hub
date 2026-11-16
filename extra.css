@@ -290,3 +290,26 @@ button.agenda-event:hover{filter:brightness(.95)}
 
 .linked-table-row{cursor:pointer}
 .linked-table-row:hover>td{background:#f8f4ff}
+
+.overview-metrics{margin:0 0 16px}
+@media(max-width:1050px){
+  .agenda-mobile-views{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;margin-bottom:12px;background:#f2eef8;border-radius:12px}
+  .agenda-mobile-views button{min-height:36px;border:0;box-shadow:none}
+  .agenda-mobile-views .secondary{background:transparent;color:#574c65}
+  .agenda-mobile-nav{min-height:44px;text-align:center}
+  .agenda-mobile-nav>strong::first-letter{text-transform:uppercase}
+  .agenda-mobile-nav button{min-width:44px;min-height:44px;font-size:20px}
+  .agenda-month-picker{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;padding:9px 0;border-bottom:1px solid #eeeaf3;text-align:center}
+  .agenda-month-picker>small{color:#645a70;font-weight:700;padding:4px 0}
+  .agenda-month-picker button,.agenda-week-strip button{display:grid;justify-items:center;align-content:center;gap:2px;min-width:0;min-height:44px;border:0;border-radius:10px;background:transparent;color:#534463}
+  .agenda-week-strip button{min-height:60px}
+  .agenda-month-picker button strong,.agenda-week-strip button strong{display:grid;place-items:center;width:26px;height:26px}
+  .agenda-month-picker button.selected,.agenda-week-strip button.selected{background:#f4edff}
+  .agenda-month-picker button.selected strong,.agenda-week-strip button.selected strong{background:#7141cd;color:#fff;border-radius:50%}
+  .agenda-date-dot{height:5px;width:5px;border-radius:50%}
+  .agenda-date-dot.has-events{background:#7141cd}
+  .agenda-month-picker button:focus-visible,.agenda-mobile-views button:focus-visible{outline:2px solid #7440c6;outline-offset:-2px}
+  .agenda-day-summary+.agenda-day-summary{border-top:1px solid #eeeaf3;margin-top:12px;padding-top:1px}
+  .agenda-mobile-heading button{min-height:44px;min-width:44px}
+  .agenda-mobile-heading button.secondary{font-size:19px}
+}

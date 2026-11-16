@@ -195,7 +195,8 @@ function homePage(){
   const sessions=db.sessions.filter(s=>s.status!=='Réalisée').sort((a,b)=>a.date.localeCompare(b.date));
   const incomplete=sessions.filter(s=>openCount(s)>0);
   const docs=db.deliverables.filter(d=>['À fournir','Correction demandée','En vérification'].includes(d.status));
-  return `<h1 class="headline">Vue d’ensemble</h1>
+  return `<h1 class="headline">Bonjour <em>Nour</em></h1>
+    <div class="overview-metrics">${metric('Formations',formations.length,'Dossiers à suivre','formations')}${metric('Staffing',incomplete.length,'Sessions à compléter','staffing')}${metric('Formateurs',trainers.length,'Profils référencés','trainers')}${metric('Livrables',docs.length,'Documents à suivre','documents','open')}</div>
     <div class="overview-grid">
       <section class="card">${cardTitle('À traiter en priorité')}
         ${incomplete.slice(0,3).map(s=>`<div class="priority-row"><div><strong>${esc(clientOf(formOf(s)).name)}</strong><div class="item-sub">${openCount(s)} poste(s) à pourvoir · ${fmtDate(s.date)}</div></div><button class="primary tiny" onclick="staffFor(${s.id})">Gérer le staffing</button></div>`).join('')}
@@ -206,8 +207,7 @@ function homePage(){
         ${sessions.slice(0,5).map(s=>`<button class="line-item clickable-row" onclick="openSession(${s.id})"><span class="datebox"><strong>${s.date.slice(8)}</strong><small>${fmtDate(s.date,{month:'short'})}</small></span><span class="grow"><strong>${esc(clientOf(formOf(s)).name)}</strong><span class="item-sub">${esc(formOf(s).title)} · ${esc(s.city)} · ${s.start}–${s.end}</span></span>${badge(staffingLabel(s))}<span aria-hidden="true" class="row-chevron">›</span></button>`).join('')}
         <button class="ghost" onclick="go('formations')">Voir toutes les formations</button>
       </section>
-    </div>
-    <div class="overview-metrics">${metric('Formations',formations.length,'Dossiers à suivre','formations')}${metric('Staffing',incomplete.length,'Sessions à compléter','staffing')}${metric('Formateurs',trainers.length,'Profils référencés','trainers')}${metric('Livrables',docs.length,'Documents à suivre','documents','open')}</div>`;
+    </div>`;
 }
 function formationsPage(){let rows=formations.filter(f=>{let client=clientOf(f).name,st=db.sessions.filter(s=>s.formationId===f.id);return(client+' '+f.title).toLowerCase().includes(state.search.toLowerCase())&&(state.filter==='all'||(state.filter==='open'&&st.some(s=>openCount(s)>0))||f.status===state.filter)});return `${intro('Les <em>formations.</em>','Une formation regroupe une ou plusieurs sessions, des documents et ses jalons.')}${filtersBar('Client ou formation…',[['all','Tous les dossiers'],['open','Staffing incomplet'],['En préparation','En préparation'],['Planifiée','Planifiée'],['À qualifier','À qualifier']])}<div class="table-wrap"><table class="tbl"><thead><tr><th>Client / Formation</th><th>Sessions</th><th>Dates</th><th>Staffing</th><th>Statut</th><th></th></tr></thead><tbody>${rows.map(f=>{let ss=db.sessions.filter(s=>s.formationId===f.id);return `<tr class="linked-table-row" onclick="openFormation('${f.id}')"><td><strong>${esc(clientOf(f).name)}</strong><div class="item-sub">${esc(f.title)}</div></td><td>${ss.length} session(s)</td><td>${ss.map(s=>fmtDate(s.date,{day:'numeric',month:'short'})).join(' · ')}</td><td>${ss.filter(s=>openCount(s)===0).length}/${ss.length} session(s) staffées</td><td>${badge(f.status)}</td><td><button class="ghost" aria-label="Ouvrir la formation ${esc(clientOf(f).name)}" onclick="event.stopPropagation();openFormation('${f.id}')"><span aria-hidden="true">›</span></button></td></tr>`}).join('')}</tbody></table>${rows.length?'':'<div class="empty">Aucune formation trouvée.</div>'}</div><p class="footnote">Une formation n’est pas dupliquée par ses sessions. Les statuts de staffing sont calculés à partir des affectations confirmées.</p>`}
 const milestones=[['J-28','Audit'],['J-14','Cadrage'],['J-7','Programme PDF'],['J-3','Feu vert'],['J-1','Vérifications'],['Jour J','Questionnaire'],['J+1','Débrief'],['J+7','Bilan / passation']];
@@ -251,7 +251,8 @@ function calendarUI(person){
   const monthOffset=(first.getDay()+6)%7;
   const monthLength=new Date(month.getFullYear(),month.getMonth()+1,0).getDate();
   const weekDays=Array.from({length:7},(_,i)=>shiftDate(toISO(week),i));
-  const days=view==='day'?[date]:view==='week'?weekDays:Array.from({length:monthLength},(_,i)=>shiftDate(toISO(first),i));
+  const monthDays=Array.from({length:monthLength},(_,i)=>shiftDate(toISO(first),i));
+  const days=view==='day'?[date]:view==='week'?weekDays:monthDays;
   const personal=person?trainerMissionsInCalendar(state.trainerId):[];
   const meetings=(person||state.contactAgenda?db.calendarEvents||[]:[]).filter(e=>e.trainerId===(person?state.trainerId:null));
   const availability=db.availability.filter(a=>person?a.trainerId===state.trainerId:state.agendaShow!=='missions'&&state.selectedAgendaIds.includes(a.trainerId));
@@ -266,16 +267,37 @@ function calendarUI(person){
   };
   const dayButton=(day,cls='',label='')=>`<button class="agenda-day-button ${cls}" aria-label="Ajouter un événement le ${fmtDate(day,{weekday:'long',day:'numeric',month:'long'})}" onclick="openCalendarEvent('${day}')">${label||fmtDate(day,{weekday:'short',day:'numeric'})}<span aria-hidden="true">＋</span></button>`;
   const pager=(inc,label,cls='')=>`<button class="secondary tiny ${cls}" aria-label="${label}" onclick="changeCalendar(${inc},${person})">${inc<0?'‹':'›'}</button>`;
+  const views=[['month','Mois'],['week','Semaine'],['day','Jour']];
+  const viewPicker=className=>`<div class="${className}" role="group" aria-label="Vue de l’agenda">${views.map(([key,label])=>`<button class="${view===key?'primary':'secondary'} tiny" aria-pressed="${view===key}" onclick="setCalendar('${key}',${person})">${label}</button>`).join('')}</div>`;
+  const fullDay=day=>fmtDate(day,{weekday:'long',day:'numeric',month:'long'});
+  const shortDay=day=>fmtDate(day,{day:'numeric',month:'short'});
+  const hasEvents=day=>dayEvents(day).length>0;
+  const displayDate=view==='week'?`${shortDay(weekDays[0])} – ${shortDay(weekDays[6])}`:view==='day'?fullDay(date):fmtDate(date,{month:'long',year:'numeric'});
+  const mobileDateButton=(day,showWeekday=false)=>{
+    const count=dayEvents(day).length;
+    const label=fullDay(day)+(count?`, ${count} événement${count>1?'s':''}`:'');
+    return `<button class="${day===date?'selected':''}" aria-pressed="${day===date}" aria-label="${label}" onclick="pickAgendaDay('${day}')">
+      ${showWeekday?`<small>${fmtDate(day,{weekday:'short'})}</small>`:''}
+      <strong>${Number(day.slice(8))}</strong><span class="agenda-date-dot ${count?'has-events':''}" aria-hidden="true"></span></button>`;
+  };
+  const addButton=(day,compact=false)=>`<button class="${compact?'secondary':'primary'} tiny" aria-label="Ajouter un événement le ${fullDay(day)}" onclick="openCalendarEvent('${day}')">${compact?'+':'+ Ajouter'}</button>`;
+  const mobileDay=day=>`<section class="agenda-day-summary ${day===date?'selected':''}">
+    <div class="agenda-mobile-heading"><strong>${fullDay(day)}</strong>${addButton(day,view==='week')}</div>
+    <div class="agenda-timeline">${dayEvents(day).map(e=>eventMarkup(e,true)).join('')||'<p class="empty">Aucun événement prévu.</p>'}</div></section>`;
+  const weeklyDays=weekDays.filter(day=>day===date||hasEvents(day));
   return `<div class="agenda-shell card">
     <div class="agenda-toolbar"><div class="group agenda-desktop">${pager(-1,'Période précédente')}<strong>${fmtDate(date,{month:'long',year:'numeric'})}</strong>${pager(1,'Période suivante')}</div>
-      <div class="agenda-desktop group">${[['month','Mois'],['week','Semaine'],['day','Jour']].map(([v,l])=>`<button class="${view===v?'primary':'secondary'} tiny" aria-pressed="${view===v}" onclick="setCalendar('${v}',${person})">${l}</button>`).join('')}</div>
+      ${viewPicker('agenda-desktop group')}
       <button class="primary tiny agenda-desktop" onclick="openCalendarEvent('${date}')">+ Ajouter</button></div>
     <div class="agenda-desktop agenda-grid agenda-${view}">${view==='month'?'<span class="agenda-pad"></span>'.repeat(monthOffset):''}${days.map(day=>`<div class="agenda-cell ${day===date?'selected':''}">${dayButton(day)}${dayEvents(day).map(e=>eventMarkup(e)).join('')}</div>`).join('')}</div>
     <div class="agenda-mobile">
-      <div class="agenda-mobile-nav"><button class="secondary tiny" aria-label="Semaine précédente" onclick="pickAgendaDay('${shiftDate(date,-7)}')">‹</button><strong>${fmtDate(date,{month:'long',year:'numeric'})}</strong><button class="secondary tiny" aria-label="Semaine suivante" onclick="pickAgendaDay('${shiftDate(date,7)}')">›</button></div>
-      <div class="agenda-week-strip">${weekDays.map(day=>`<button class="${day===date?'selected':''}" aria-pressed="${day===date}" aria-label="${fmtDate(day,{weekday:'long',day:'numeric',month:'long'})}" onclick="${day===date?`openCalendarEvent('${day}')`:`pickAgendaDay('${day}')`}"><small>${fmtDate(day,{weekday:'short'})}</small><strong>${Number(day.slice(8))}</strong></button>`).join('')}</div>
-      <div class="agenda-mobile-heading"><strong>${fmtDate(date,{weekday:'long',day:'numeric',month:'long'})}</strong><button class="primary tiny" onclick="openCalendarEvent('${date}')">+ Ajouter</button></div>
-      <div class="agenda-timeline">${dayEvents(date).map(e=>eventMarkup(e,true)).join('')||'<p class="empty">Aucun événement prévu.</p>'}</div>
+      ${viewPicker('agenda-mobile-views')}
+      <div class="agenda-mobile-nav">${pager(-1,'Période précédente')}<strong>${displayDate}</strong>${pager(1,'Période suivante')}</div>
+      ${view==='month'?`<div class="agenda-month-picker">
+        ${weekDays.map(day=>`<small>${fmtDate(day,{weekday:'short'})}</small>`).join('')}
+        ${'<span aria-hidden="true"></span>'.repeat(monthOffset)}${monthDays.map(day=>mobileDateButton(day)).join('')}
+      </div>`:view==='week'?`<div class="agenda-week-strip">${weekDays.map(day=>mobileDateButton(day,true)).join('')}</div>`:''}
+      ${view==='week'?weeklyDays.map(mobileDay).join(''):mobileDay(date)}
     </div></div>`;
 }
 function openSessionFromCalendar(id,person){
