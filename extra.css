@@ -549,6 +549,7 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
 :root[data-hub-tone="dark"] .trainer-stats strong{color:var(--dark-text)}
 :root[data-hub-tone="dark"] .agenda-shell .agenda-event small{color:inherit}
 :root[data-hub-tone="dark"] .trainer-photo{color:#2f2452!important}
+:root[data-hub-tone="dark"] .profile-columns .info p{color:var(--dark-text)}
 
 @media(max-width:640px){
   :root[data-hub-tone="dark"] .table-wrap{background:transparent}
