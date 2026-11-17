@@ -348,3 +348,24 @@
 
 :root[data-proposal][data-hub-tone] .pd-page-heading h1>.pd-greeting-name{color:#442ffa;background:linear-gradient(100deg,#292577 0%,#442ffa 35%,#bc3afe 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 :root[data-proposal][data-hub-tone="dark"] .pd-page-heading h1>.pd-greeting-name{background-image:linear-gradient(100deg,#ba8bfd 0%,#ae9aff 40%,#d66aff 100%)}
+
+/* Staffing: compact profiles, clear evidence and a dedicated action row. */
+:root[data-proposal][data-hub-tone] .staffing-layout{align-items:start;grid-template-columns:minmax(0,1.8fr) minmax(240px,1fr)}
+:root[data-proposal][data-hub-tone] .staffing-suggestions{min-height:0}
+:root[data-proposal][data-hub-tone] .staffing-profile{border:1px solid var(--pd-line);border-radius:7px;padding:18px;margin-top:12px;background:var(--pd-panel)}
+.staffing-profile-head{display:flex;align-items:center;gap:12px}
+.staffing-profile-name{font-size:15px;font-weight:600;letter-spacing:-.02em;line-height:1.5}
+.staffing-location{display:flex;align-items:center;gap:4px;color:var(--pd-muted);font-size:11px;margin-top:3px}
+.staffing-rate{display:grid;gap:3px;text-align:right;flex-shrink:0}
+.staffing-rate strong{font-size:16px;font-weight:550;letter-spacing:-.03em}
+.staffing-rate span{font-size:10px;color:var(--pd-muted)}
+.staffing-availability{display:flex;align-items:center;gap:6px;color:var(--pd-green);font-size:11px;margin-top:18px}
+.staffing-criteria{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 18px;color:var(--pd-muted);font-size:11px;line-height:1.6}
+.staffing-criteria span+span::before{content:'·';margin-right:12px;opacity:.6}
+.staffing-profile-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:14px;border-top:1px solid var(--pd-line)}
+:root[data-proposal][data-hub-tone] .staffing-match{display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:4px 0;color:var(--pd-muted);min-width:0;text-align:left}
+.staffing-match>span{font-size:10px}
+.staffing-match strong{font-size:19px;font-weight:550;color:var(--pd-ink);letter-spacing:-.04em}
+.staffing-match small{font-size:11px;margin-left:2px}
+@media(max-width:900px){:root[data-proposal][data-hub-tone] .staffing-layout{grid-template-columns:1fr}}
+@media(max-width:640px){:root[data-proposal][data-hub-tone] .staffing-profile{padding:15px}.staffing-profile-footer{flex-wrap:wrap}.staffing-profile-footer>.primary{width:100%}.staffing-profile-name{font-size:14px}.staffing-criteria span+span::before{display:none}}

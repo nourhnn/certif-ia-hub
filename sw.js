@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v45-certifia-design';
+const CACHE='certifia-hub-demo-v46-staffing-design';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
