@@ -1,6 +1,6 @@
-const CACHE='certifia-hub-demo-v44-demo-tests-utf8';
+const CACHE='certifia-hub-demo-v45-certifia-design';
 const URLS=[
-  './', './index.html', './hub.js', './extra.css', './manifest.webmanifest', './assets/certifia-logo.png',
+  './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
   './assets/icons/apple-touch-icon.png',
   './assets/icons/favicon-16.png',
