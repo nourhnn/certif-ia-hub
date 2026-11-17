@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v35-mobile-table-and-form-fit';
+const CACHE='certifia-hub-demo-v36-dark-directory-stats';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
