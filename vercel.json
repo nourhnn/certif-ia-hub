@@ -9,5 +9,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/retours-formateur/synthese.js": {
+      "maxDuration": 30
+    }
+  }
 }
