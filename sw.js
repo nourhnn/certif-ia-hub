@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v23-amo-workflows';
+const CACHE='certifia-hub-demo-v24-google-calendar-entry';
 const URLS=['./','./index.html','./hub.js','./extra.css','./assets/certifia-logo.png','./assets/certifia-icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(URLS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))));
