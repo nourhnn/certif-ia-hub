@@ -413,3 +413,16 @@ button.agenda-event:hover{filter:brightness(.95)}
 .profile-editor .profile-actions{position:sticky;bottom:12px;z-index:3;background:#fcf9ff;padding:10px;border:1px solid #ece2f5;border-radius:12px}
 @media(max-width:800px){.mission-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.profile-editor .profile-actions{bottom:calc(77px + env(safe-area-inset-bottom))}.profile-editor .profile-actions button{flex:1}}
+
+.choice-pills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.proposal-choice{position:relative;display:flex;align-items:center;gap:8px;min-height:48px;padding:0 12px;background:#fff;border:1px solid #e4d9ed;border-radius:10px;touch-action:manipulation}
+.proposal-choice:has(input:checked){background:#f1e8ff;border-color:#9a6fe0;color:#502b85}
+.proposal-choice input[type=checkbox]{position:relative;z-index:2;width:20px;height:20px;flex:0 0 20px;margin:0;accent-color:#7134f5;cursor:pointer}
+.proposal-choice label{flex:1;margin:0;padding:8px 0;border:0;display:block}
+.proposal-choice label::after{content:"";position:absolute;inset:0}
+.proposal-choice:focus-within{outline:2px solid #7440c6;outline-offset:2px}
+.profile-photo-upload{display:grid;gap:6px;margin-top:12px;padding:12px;border-radius:10px;background:#f8f4ff}
+.profile-photo-upload label{font-weight:700}
+.profile-photo-upload input{max-width:100%;font-size:13px}
+.profile-photo-upload input::file-selector-button{border:0;border-radius:8px;padding:9px;background:#e9ddff;color:#502b85;font-weight:700;cursor:pointer}
+.profile-photo-upload small{color:#595066}
