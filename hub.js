@@ -18,7 +18,7 @@ const formations=[
 {id:'F4',clientId:'C4',title:'ChatGPT pour les managers',status:'À qualifier',owner:'AMO',sessionIds:[104]}
 ];
 const seedSessions=[
-{id:101,formationId:'F1',date:'2026-11-12',start:'09:00',end:'17:00',city:'Paris',people:14,required:1,status:'Planifiée',topic:'IA générative',modality:'Présentiel'},
+{id:101,formationId:'F1',date:'2026-11-12',feedbackDays:2,start:'09:00',end:'17:00',city:'Paris',people:14,required:1,status:'Planifiée',topic:'IA générative',modality:'Présentiel'},
 {id:102,formationId:'F2',date:'2026-11-16',start:'09:30',end:'17:30',city:'Lyon',people:10,required:2,status:'Planifiée',topic:'Claude',modality:'Présentiel'},
 {id:103,formationId:'F3',date:'2026-11-19',start:'09:00',end:'17:00',city:'Bordeaux',people:18,required:1,status:'Planifiée',topic:'Automatisation',modality:'Présentiel'},
 {id:104,formationId:'F4',date:'2026-11-24',start:'10:00',end:'17:00',city:'Paris',people:12,required:1,status:'Brouillon',topic:'ChatGPT',modality:'Présentiel'},
@@ -417,6 +417,7 @@ function documentsPage(){
  return `${intro('Livrables <em>& bilans.</em>','Dossiers clients, à préparer et à boucler : présence, conformité, validation et relances.')}
  <div class="toolbar"><span class="badge purple">Données fictives · Google Drive non connecté</span></div>
  ${totalCards}
+ ${amoTrainerFeedback()}
  ${filtersBar('Rechercher un client ou une formation…',opts)}${buttons}
  <div class="v19-doc-desktop"><div class="table-wrap"><table class="tbl v19-matrix"><thead><tr><th>Client</th>${documentColumns.map(x=>`<th>${esc(x[1])}</th>`).join('')}<th>Complétude</th></tr></thead><tbody>${list.map(docGridRow).join('')||'<tr><td colspan="7">Aucun dossier.</td></tr>'}</tbody></table></div></div>
  <div class="v19-doc-mobile">${grouped('À venir, à préparer',coming)}${grouped('Déjà formés',past)}${list.length?'':'<div class="empty">Aucun dossier.</div>'}</div>
@@ -436,10 +437,10 @@ function docFolder(id,person=false){
  const items=(person?docs.map(d=>({d,key:docCategory(d),label:d.title,status:docConformity(d)})):st.matrix);
  return top+items.map(item=>{const d=item.d;let detail=d?.versions.at(-1),isOwner=d?.owner==='formateur'&&d.trainerId===state.trainerId;
  return `<div class="doc-row"><span>${matrixStatus(item)}</span><div class="grow"><button class="document-title" onclick="openDocumentCell('${f.id}','${item.key}')">${esc(item.label)}</button><div class="item-sub">${d?esc(d.status)+' · '+d.versions.length+' version(s) · Échéance '+fmtDate(d.dueDate):'Aucun livrable référencé dans cette catégorie'}</div>${detail?`<div class="item-sub">Dernière version : ${esc(detail.filename)}</div>`:''}</div><div class="action-wrap">${person?(isOwner?`<button class="secondary tiny" onclick="openModal('upload','${d.id}')">Déposer</button>`:''):d?`<button class="secondary tiny" onclick="openModal('upload-internal','${d.id}')">Déposer</button>${d.versions.length?`<button class="secondary tiny" onclick="openModal('review','${d.id}')">Vérifier</button>`:''}${d.owner==='formateur'&&d.status==='À fournir'?`<button class="secondary tiny" onclick="simulatePwaReminder('${d.id}')">Rappel PWA</button>`:''}`:`<button class="secondary tiny" onclick="prepareMissingDoc('${f.id}','${item.key}')">Créer et déposer</button>`}</div></div>`;
- }).join('')+`<p class="footnote">Les fichiers déposés sont conservés dans ce navigateur.</p>`;
+ }).join('')+(person?'':amoTrainerFeedback(id))+`<p class="footnote">Les fichiers déposés sont conservés dans ce navigateur.</p>`;
 }
 function prepareMissingDoc(id,key,sessionId){if(state.role==='formateur')return flash('Accès réservé à l’équipe interne');let f=formations.find(x=>x.id===id),type=documentColumns.find(x=>x[0]===key);if(!f||!type||(sessionId&&sessionById(sessionId)?.formationId!==id))return flash('Type inconnu');let existing=db.deliverables.find(d=>d.formationId===id&&(!sessionId||d.sessionId===sessionId)&&docCategory(d)===key);if(existing)return openModal('upload-internal',existing.id);let did='D'+(Math.max(0,...db.deliverables.map(d=>Number(String(d.id).slice(1))||0))+1);db.deliverables.push({id:did,formationId:id,sessionId:sessionId||f.sessionIds[0],title:type[1],type:key,owner:'interne',status:'À fournir',versions:[]});log('Livrable manquant créé en démo',`${did} · ${key}`);openModal('upload-internal',did);}
-function reportingPage(){let report=monthlyReport(),month=state.monthlyMonth,within=s=>s.date?.startsWith(month),ss=db.sessions.filter(within),aa=db.assignments.filter(a=>ss.some(s=>s.id===a.sessionId)&&['Confirmée','Réalisée'].includes(a.status)),d=db.deliverables.filter(x=>ss.some(s=>s.id===x.sessionId)),delivered=d.filter(x=>x.versions.length>0),onTime=delivered.filter(x=>x.versions.at(-1)?.at&&x.versions.at(-1).at.slice(0,10)<=x.dueDate).length;let perTrainer=trainers.map(t=>{let assignments=aa.filter(a=>a.trainerId===t.id),rate=reliabilityScore(t);return {t,assignments,rate}}).filter(x=>x.assignments.length>0);return `${intro('Monthly <em>AMO.</em>','Reporting mensuel des formations, du staffing, du NPS, des cartons et de la ponctualité documentaire.')}<div class="toolbar"><div class="group"><label for="report-month">Période</label><input id="report-month" class="field" type="month" value="${esc(month)}" onchange="state.monthlyMonth=this.value;render()"><button class="primary tiny" onclick="exportMonthlyChart()">Télécharger le rapport animé</button><button class="secondary tiny" onclick="exportMonthlyTable()">Télécharger le tableau</button><button class="secondary tiny" onclick="exportMonthly()">Exporter le CSV</button></div><span class="badge purple">Données fictives · pondérations non validées</span></div><div class="cards">${metric('Sessions',ss.length,'Dans la période')}${metric('Affectations',aa.length,'Confirmées / réalisées')}${metric('Formateurs mobilisés',perTrainer.length,'Profils distincts')}${metric('Livrables déposés',delivered.length+'/'+d.length,'Sur la période')}${metric('Bonus du mois',report.bonuses.length,report.bonusPoints+' points attribués')}</div>${monthlyBonusPanel(report)}<div class="two-col"><div class="card">${cardTitle('Activité des formateurs','Missions et clients couverts sur la période')}<div class="table-wrap"><table class="tbl"><thead><tr><th>Formateur</th><th>Missions</th><th>Clients</th><th>NPS indicatif</th></tr></thead><tbody>${perTrainer.map(x=>`<tr><td>${trainerName(x.t)}</td><td>${x.assignments.length}</td><td>${[...new Set(x.assignments.map(a=>clientOf(formOf(sessionById(a.sessionId))).name))].map(esc).join(', ')}</td><td>${trainerProfileField(x.t.id).nps??'Non renseigné'}</td></tr>`).join('')||'<tr><td colspan="4">Aucune affectation dans la période</td></tr>'}</tbody></table></div></div><div class="card">${cardTitle('Ponctualité et fiabilité','Échantillon fictif, ne sert pas à évaluer des personnes réelles')}<div class="line-item"><div class="grow">Livrables déposés avant échéance (données disponibles)</div><strong>${delivered.length?Math.round(onTime/delivered.length*100)+'%':'Non mesurable'}</strong></div><div class="line-item"><div class="grow">Pool Numéro 10 (référentiel fictif)</div><strong>${trainers.filter(t=>t.rating.includes('Numéro 10')).length}</strong></div><div class="line-item"><div class="grow">Cartons rouges</div><strong>${trainers.filter(t=>trainerProfileField(t.id).redCard).length}</strong></div><p class="footnote">Le score de fiabilité avec bonus/malus est une grille proposée, non validée ni appliquée. Les évaluations par mission et causes des retards restent nécessaires pour des résultats fiables.</p></div></div><div class="card" style="margin-top:18px">${cardTitle('Grille proposée de fiabilité','À valider métier avant tout score calculé ou décision')}<div class="table-wrap"><table class="tbl"><thead><tr><th>Critère</th><th>Poids proposé</th><th>Base de calcul attendue</th></tr></thead><tbody><tr><td>Ponctualité des livrables</td><td>30 %</td><td>Versions déposées avant échéance et responsabilités identifiées</td></tr><tr><td>NPS et satisfaction</td><td>40 %</td><td>Évaluations contextualisées par session</td></tr><tr><td>Retours de mission</td><td>10 %</td><td>Débriefs et incidents vérifiés</td></tr><tr><td>Incidents vérifiés</td><td>20 %</td><td>Justifications, sources et possibilité de rectification</td></tr></tbody></table></div><p class="footnote">Aucun bonus ou malus réel calculé ou appliqué. Les critères peuvent être modifiés après concertation.</p></div>`}
+function reportingPage(){let report=monthlyReport(),month=state.monthlyMonth,within=s=>s.date?.startsWith(month),ss=db.sessions.filter(within),aa=db.assignments.filter(a=>ss.some(s=>s.id===a.sessionId)&&['Confirmée','Réalisée'].includes(a.status)),d=db.deliverables.filter(x=>ss.some(s=>s.id===x.sessionId)),delivered=d.filter(x=>x.versions.length>0),onTime=delivered.filter(x=>x.versions.at(-1)?.at&&x.versions.at(-1).at.slice(0,10)<=x.dueDate).length;let perTrainer=trainers.map(t=>{let assignments=aa.filter(a=>a.trainerId===t.id),rate=reliabilityScore(t);return {t,assignments,rate}}).filter(x=>x.assignments.length>0);return `${intro('Monthly <em>AMO.</em>','Reporting mensuel des formations, du staffing, du NPS, des cartons et de la ponctualité documentaire.')}<div class="toolbar"><div class="group"><label for="report-month">Période</label><input id="report-month" class="field" type="month" value="${esc(month)}" onchange="state.monthlyMonth=this.value;render()"><button class="primary tiny" onclick="exportMonthlyChart()">Télécharger le rapport animé</button><button class="secondary tiny" onclick="exportMonthlyTable()">Télécharger le tableau</button><button class="secondary tiny" onclick="exportMonthly()">Exporter le CSV</button></div><span class="badge purple">Données fictives · pondérations non validées</span></div><div class="cards">${metric('Sessions',ss.length,'Dans la période')}${metric('Affectations',aa.length,'Confirmées / réalisées')}${metric('Formateurs mobilisés',perTrainer.length,'Profils distincts')}${metric('Livrables déposés',delivered.length+'/'+d.length,'Sur la période')}${metric('Bonus du mois',report.bonuses.length,report.bonusPoints+' points attribués')}</div>${monthlyBonusPanel(report)}<div class="two-col"><div class="card">${cardTitle('Activité des formateurs','Missions et clients couverts sur la période')}<div class="table-wrap"><table class="tbl monthly-report-table"><thead><tr><th>Formateur</th><th>Missions</th><th>Clients</th><th>NPS indicatif</th></tr></thead><tbody>${perTrainer.map(x=>`<tr><td>${trainerName(x.t)}</td><td>${x.assignments.length}</td><td>${[...new Set(x.assignments.map(a=>clientOf(formOf(sessionById(a.sessionId))).name))].map(esc).join(', ')}</td><td>${trainerProfileField(x.t.id).nps??'Non renseigné'}</td></tr>`).join('')||'<tr><td colspan="4">Aucune affectation dans la période</td></tr>'}</tbody></table></div></div><div class="card">${cardTitle('Ponctualité et fiabilité','Échantillon fictif, ne sert pas à évaluer des personnes réelles')}<div class="line-item"><div class="grow">Livrables déposés avant échéance (données disponibles)</div><strong>${delivered.length?Math.round(onTime/delivered.length*100)+'%':'Non mesurable'}</strong></div><div class="line-item"><div class="grow">Pool Numéro 10 (référentiel fictif)</div><strong>${trainers.filter(t=>t.rating.includes('Numéro 10')).length}</strong></div><div class="line-item"><div class="grow">Cartons rouges</div><strong>${trainers.filter(t=>trainerProfileField(t.id).redCard).length}</strong></div><p class="footnote">Le score de fiabilité avec bonus/malus est une grille proposée, non validée ni appliquée. Les évaluations par mission et causes des retards restent nécessaires pour des résultats fiables.</p></div></div><div class="card" style="margin-top:18px">${cardTitle('Grille proposée de fiabilité','À valider métier avant tout score calculé ou décision')}<div class="table-wrap"><table class="tbl monthly-report-table"><thead><tr><th>Critère</th><th>Poids proposé</th><th>Base de calcul attendue</th></tr></thead><tbody><tr><td>Ponctualité des livrables</td><td>30 %</td><td>Versions déposées avant échéance et responsabilités identifiées</td></tr><tr><td>NPS et satisfaction</td><td>40 %</td><td>Évaluations contextualisées par session</td></tr><tr><td>Retours de mission</td><td>10 %</td><td>Débriefs et incidents vérifiés</td></tr><tr><td>Incidents vérifiés</td><td>20 %</td><td>Justifications, sources et possibilité de rectification</td></tr></tbody></table></div><p class="footnote">Aucun bonus ou malus réel calculé ou appliqué. Les critères peuvent être modifiés après concertation.</p></div>`}
 function trainerHome(){
   const t=trainerById(state.trainerId);
   const today=parisToday();
@@ -502,6 +503,7 @@ else if(m.kind==='whatsapp-draft'&&state.role==='amo'){out=whatsAppPanel(m.id)}
 else if(m.kind==='amo-milestones'&&state.role==='amo'){out=amoMilestonesPanel()}
 else if(m.kind==='hub-settings'){out=hubSettingsPanel()}
 else if(m.kind==='google-calendar'&&state.role==='formateur'){out=modalBox('Connexion Google Agenda','La connexion à un compte Google sera disponible quand la synchronisation aura été configurée.',`<div class="modal-actions"><button class="primary" onclick="closeModal()">Fermer</button></div>`)}
+else if(m.kind==='trainer-feedback'){out=trainerFeedbackModal(m.id)}
 else if(m.kind==='document-preview'){out=documentPreview(m.id)}
 else if(m.kind==='amo-notifications'){out=amoNotificationsPanel()}
 else if(m.kind==='trainer-notifications'&&state.role==='formateur'){out=trainerNotificationPanel()}
@@ -1204,11 +1206,12 @@ function trainerDocs(){
   const sessions=db.sessions.filter(s=>trainerSessionAccess(s.id)&&s.status!=='Annulée').sort((a,b)=>b.date.localeCompare(a.date));
   return `<h1 class="headline">Mes livrables</h1>
     <div class="tabs">${[['all','Tous les dossiers'],['open','À compléter']].map(([key,label])=>`<button class="${state.trainerDocsFilter===key?'selected':''}" onclick="changeTab('trainerDocsFilter','${key}')">${label}</button>`).join('')}</div>
-    <div class="folder-grid">${sessions.filter(s=>!open||trainerMissionDocuments(s).some(d=>d.owner==='formateur'&&trainerDocPending(d))).map(s=>{
+    <div class="folder-grid">${sessions.filter(s=>!open||trainerMissionDocuments(s).some(d=>d.owner==='formateur'&&trainerDocPending(d))||trainerFeedbackDays(s).some(day=>!feedbackRecord(s.id,day,state.trainerId)?.sentAt)).map(s=>{
       const f=formOf(s),items=trainerMissionDocuments(s);
       return `<section class="card folder-card">${cardTitle(esc(clientOf(f).name),esc(f.title))}<p class="item-sub">${fmtDate(s.date)}</p>
         ${missionDocumentSummary(s)}
         <ul class="doc-preview">${items.map(d=>`<li><span>${esc(d.title)} <small class="item-sub">· ${d.owner==='interne'||d.versions.at(-1)?.uploader==='amo'?'AMO':'Formateur'}</small></span>${badge(!d.versions.length&&d.status!=='Non applicable'?'Non déposé':d.status)}</li>`).join('')}</ul>
+        ${trainerFeedbackRows(s)}
         <button class="primary tiny" onclick="openTrainerFolder(${s.id})">Ouvrir le dossier</button>
       </section>`;
     }).join('')||'<p class="empty">Aucun dossier dans cette vue.</p>'}</div>`;
@@ -1221,7 +1224,327 @@ function trainerFolder(){
   if(!formation||!sessions.length)return '<p class="empty">Aucun dossier accessible pour cette mission.</p>';
   return `<h1 class="headline">${esc(clientOf(formation).name)}</h1><p class="subtitle">${esc(formation.title)}</p>
     ${sessions.map(s=>`<section class="card mission-documents">${cardTitle('Session du '+fmtDate(s.date))}${missionDocumentSummary(s)}
-    ${trainerMissionDocuments(s).map(trainerSessionDocumentRow).join('')}</section>`).join('')}`;
+    ${trainerMissionDocuments(s).map(trainerSessionDocumentRow).join('')}${trainerFeedbackRows(s)}</section>`).join('')}`;
+}
+
+function trainerFeedbackDays(session){
+  if(!session||session.status==='Annulée')return [];
+  // Explicit second day for the demo session, including browser data saved before this feature.
+  const duration=session.feedbackDays??seedSessions.find(item=>item.id===session.id)?.feedbackDays;
+  return duration===2?[1,2]:[1];
+}
+
+function feedbackRecord(sessionId,day,trainerId){
+  return (db.trainerFeedback||[]).find(item=>item.sessionId===sessionId&&item.day===day&&item.trainerId===trainerId);
+}
+
+function trainerFeedbackRows(session){
+  if(state.role!=='formateur'||!trainerSessionAccess(session.id))return '';
+  return trainerFeedbackDays(session).map(day=>{
+    const feedback=feedbackRecord(session.id,day,state.trainerId);
+    return `<div class="doc-row"><span class="doc-icon">${mobileIcon('docs',16)}</span>
+      <div class="grow"><strong>Retour formateur J${day}</strong>
+      <div class="item-sub">${fmtDate(shiftDate(session.date,day-1))} · ${feedback?.sentAt?'Envoyé à l’AMO':feedback?'Brouillon':'À compléter'}</div></div>
+      <button class="secondary tiny" onclick="openModal('trainer-feedback','${session.id}:${day}:${state.trainerId}')">${feedback?.sentAt?'Consulter':feedback?'Reprendre':'Rédiger'}</button>
+    </div>`;
+  }).join('');
+}
+
+function amoTrainerFeedback(formationId){
+  if(state.role!=='amo')return '';
+  const entries=(db.trainerFeedback||[]).filter(item=>item.sentAt&&(!formationId||sessionById(item.sessionId)?.formationId===formationId))
+    .sort((a,b)=>b.sentAt.localeCompare(a.sentAt));
+  return `<section class="card trainer-feedback-list">${cardTitle('Retours formateurs','Débriefs J1 et J2 transmis par les formateurs')}
+    ${entries.map(item=>{
+      const session=sessionById(item.sessionId);
+      const formation=session&&formOf(session);
+      return `<div class="doc-row"><div class="grow"><strong>Retour formateur J${item.day}</strong>
+        <div class="item-sub">${formation?esc(clientOf(formation).name)+' · ':''}${esc(trainerById(item.trainerId)?.name||'Formateur')} · ${session?fmtDate(shiftDate(session.date,item.day-1)):''}</div></div>
+        ${badge('Reçu')}<button class="secondary tiny" onclick="openModal('trainer-feedback','${item.sessionId}:${item.day}:${item.trainerId}')">Lire</button></div>`;
+    }).join('')||'<p class="empty">Aucun retour transmis.</p>'}</section>`;
+}
+
+function trainerFeedbackContext(id){
+  const [sessionId,day,trainerId]=String(id).split(':').map(Number);
+  const session=sessionById(sessionId);
+  const feedback=feedbackRecord(sessionId,day,trainerId);
+  const trainer=state.role==='formateur'&&trainerId===state.trainerId&&trainerSessionAccess(sessionId);
+  if(state.role==='amo'&&feedback?.sentAt)return {sessionId,day,trainerId,feedback};
+  if(!trainer||!trainerFeedbackDays(session).includes(day))return null;
+  return {sessionId,day,trainerId,feedback};
+}
+
+const feedbackMinLength=100;
+
+function feedbackTopics(day){
+  return [
+    'Déroulé et participation',
+    'Ce qui a bien fonctionné',
+    'Difficultés et points de vigilance',
+    day===1?'Ajustements proposés pour J2':'Points à reprendre dans le bilan de formation'
+  ];
+}
+
+function feedbackSummaryLines(text){
+  return text.split(/\r?\n/).map(line=>{
+    const trimmed=line.trim();
+    const markdownHeading=/^#{1,6} +/.test(trimmed);
+    const clean=trimmed.replace(/^#{1,6} +/,'').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/__([^_]+)__/g,'$1');
+    const bullet=/^(?:[-*+•] +|\d+[.)] +)/.test(clean);
+    const heading=clean.replace(/^\d+[.)] +/,'').replace(/ *:$/,'');
+    if(/^synthèse(?: interne| du retour formateur)?$/i.test(heading)&&markdownHeading)return {text:''};
+    if(markdownHeading||[...feedbackTopics(1),...feedbackTopics(2)].some(topic=>topic.toLowerCase()===heading.toLowerCase())){
+      return {heading:true,text:heading};
+    }
+    return {bullet,text:clean.replace(/^(?:[-*+•] +|\d+[.)] +)/,'')};
+  });
+}
+
+function renderFeedbackSummary(text){
+  const lines=feedbackSummaryLines(text);
+  const html=[];
+  let list=[];
+  const flush=()=>{
+    if(list.length)html.push('<ul>'+list.map(line=>'<li>'+esc(line)+'</li>').join('')+'</ul>');
+    list=[];
+  };
+  for(const line of lines){
+    if(line.bullet&&line.text){list.push(line.text);continue;}
+    flush();
+    if(line.text)html.push(line.heading?'<h3>'+esc(line.text)+'</h3>':'<p>'+esc(line.text)+'</p>');
+  }
+  flush();
+  return html.join('');
+}
+
+function updateFeedbackCount(form){
+  const length=form.elements.source.value.trim().length;
+  const enough=length>=feedbackMinLength;
+  form.querySelector('[data-feedback-count]').textContent=
+    enough?`${length} caractères`:`${length} / ${feedbackMinLength} caractères minimum`;
+  const generate=form.querySelector('[data-feedback-generate]');
+  if(generate)generate.disabled=!enough||form.dataset.generating==='true'||form.dataset.editing==='true';
+  const edit=form.querySelector('[data-feedback-edit]');
+  if(edit)edit.disabled=form.dataset.generating==='true';
+  form.querySelector('[value="send"]').disabled=!enough;
+}
+
+function updateFeedbackPreview(field){
+  field.form.querySelector('[data-feedback-preview]').innerHTML=renderFeedbackSummary(field.value);
+  field.form.querySelector('[data-feedback-result]').hidden=!field.value.trim();
+}
+
+function syncFeedbackSummary(preview){
+  preview.closest('form').elements.summary.value=Array.from(preview.querySelectorAll('h3, p, li'),block=>{
+    const text=block.innerText.trim();
+    if(!text)return '';
+    if(block.tagName==='H3')return '### '+text.replace(/\s+/g,' ');
+    return block.tagName==='LI'?text.split(/\n+/).filter(Boolean).map(line=>'• '+line).join('\n'):text;
+  }).filter(Boolean).join('\n');
+}
+
+function toggleFeedbackEditing(button){
+  const form=button.form;
+  const preview=form.querySelector('[data-feedback-preview]');
+  const editing=button.getAttribute('aria-pressed')!=='true';
+  button.setAttribute('aria-pressed',String(editing));
+  button.setAttribute('aria-label',editing?'Terminer la modification':'Modifier la synthèse');
+  button.title=editing?'Terminer la modification':'Modifier la synthèse';
+  button.querySelector('[data-edit-pencil]').hidden=editing;
+  button.querySelector('[data-edit-done]').hidden=!editing;
+  preview.classList.toggle('is-editing',editing);
+  form.dataset.editing=String(editing);
+  if(form.elements.source)updateFeedbackCount(form);
+  if(!editing){
+    syncFeedbackSummary(preview);
+    updateFeedbackPreview(form.elements.summary);
+    if(!form.elements.summary.value.trim())form.querySelector('[data-feedback-generate]')?.focus();
+    return;
+  }
+  preview.querySelectorAll('p, li').forEach(block=>block.setAttribute('contenteditable','plaintext-only'));
+  preview.querySelector('li, p')?.focus();
+}
+
+function insertFeedbackBullet(event){
+  const enter=event.type==='keydown'?event.key==='Enter'&&!event.shiftKey:event.inputType==='insertParagraph';
+  if(!enter||event.isComposing)return;
+  const bullet=event.target.closest('li[contenteditable="plaintext-only"]');
+  if(!bullet)return;
+  event.preventDefault();
+  const next=document.createElement('li');
+  next.setAttribute('contenteditable','plaintext-only');
+  const selection=window.getSelection();
+  if(selection?.rangeCount){
+    const range=selection.getRangeAt(0);
+    if(bullet.contains(range.startContainer)&&bullet.contains(range.endContainer)){
+      range.deleteContents();
+      const tail=range.cloneRange();
+      tail.setEnd(bullet,bullet.childNodes.length);
+      next.textContent=tail.toString();
+      tail.deleteContents();
+    }
+  }
+  bullet.after(next);
+  next.focus();
+  selection?.collapse(next,0);
+  syncFeedbackSummary(event.currentTarget);
+}
+
+function feedbackEditor(summary){
+  return `<section class="trainer-feedback-result" data-feedback-result ${summary?'':'hidden'}>
+    <div class="trainer-feedback-result-header">
+      <h2>Synthèse</h2>
+      <button type="button" class="ghost tiny trainer-feedback-edit" aria-label="Modifier la synthèse"
+        data-feedback-edit aria-pressed="false" title="Modifier la synthèse" onclick="toggleFeedbackEditing(this)">
+        <span data-edit-pencil aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20H4v-4L16 4l4 4-8 8-4 4M14 6l4 4"/></svg></span>
+        <span data-edit-done hidden>Terminer</span>
+      </button>
+    </div>
+    <div class="trainer-feedback-text" data-feedback-preview oninput="syncFeedbackSummary(this)"
+      onkeydown="insertFeedbackBullet(event)" onbeforeinput="insertFeedbackBullet(event)">${renderFeedbackSummary(summary)}</div>
+    <input type="hidden" name="summary" value="${esc(summary)}">
+  </section>`;
+}
+
+async function copyTrainerFeedback(){
+  const context=trainerFeedbackContext(state.modal?.id);
+  if(!context?.feedback?.sentAt)return;
+  const {source,summary}=context.feedback;
+  const text=summary?feedbackSummaryLines(summary).map(line=>line.bullet&&line.text?'• '+line.text:line.text).join('\n').trim():source;
+  try{
+    await navigator.clipboard.writeText(text);
+    flash('Retour copié.');
+  }catch{
+    flash('Copie indisponible dans ce navigateur.');
+  }
+}
+
+function trainerFeedbackModal(id){
+  const context=trainerFeedbackContext(id);
+  if(!context)return modalBox('Retour formateur','Retour inaccessible.', '');
+  const {day,feedback}=context;
+  const title='Retour formateur J'+day;
+  if(feedback?.sentAt){
+    const canEdit=state.role==='formateur'&&!!feedback.summary;
+    const copy=`<button type="button" class="ghost tiny trainer-feedback-edit" aria-label="Copier le texte" title="Copier le texte" onclick="copyTrainerFeedback()">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
+      </svg></button>`;
+    const actions=`<div class="modal-actions">${copy}${state.role==='amo'?'<button class="secondary" onclick="openFolder(\''+(sessionById(context.sessionId)?.formationId||'')+'\')">Ouvrir le dossier</button>':''}</div>`;
+    const content=canEdit?`<form class="trainer-feedback-form" onsubmit="submitTrainerFeedback(event)">
+      ${feedbackEditor(feedback.summary)}
+      <div class="modal-actions">${copy}<button type="submit" class="primary" name="action" value="update">Enregistrer les modifications</button></div>
+    </form>`:`<div class="trainer-feedback-text">${feedback.summary?renderFeedbackSummary(feedback.summary):esc(feedback.source)}</div>${actions}`;
+    return modalBox(title,'Retour transmis à l’AMO',content);
+  }
+  const summary=feedback?.summary||'';
+  const length=feedback?.source?.trim().length||0;
+  const enough=length>=feedbackMinLength;
+  const localSynthesis=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
+  return modalBox(title,'Partagez votre retour sur la journée.',`
+    <div class="trainer-feedback-guide">
+      <p>Dans votre retour, pensez à aborder les points suivants.</p>
+      <ul>${feedbackTopics(day).map(topic=>`<li>${esc(topic)}</li>`).join('')}</ul>
+    </div>
+    <form class="trainer-feedback-form" onsubmit="submitTrainerFeedback(event)">
+      <label class="form-label" for="feedback-source">Votre retour</label>
+      <textarea class="field" id="feedback-source" name="source" rows="6" maxlength="12000" required
+        aria-describedby="feedback-help feedback-count" oninput="updateFeedbackCount(this.form)">${esc(feedback?.source||'')}</textarea>
+      <p class="item-sub" id="feedback-help">Écrivez, collez ou dictez votre retour avec le micro du clavier.</p>
+      <p class="item-sub" id="feedback-count" data-feedback-count>${length}${enough?' caractères':` / ${feedbackMinLength} caractères minimum`}</p>
+      ${localSynthesis?`<button type="button" class="secondary" data-feedback-generate ${enough?'':'disabled'} onclick="generateTrainerFeedback(this)">Générer la synthèse</button>
+      <span class="trainer-feedback-progress" data-feedback-progress role="progressbar" aria-label="Avancement estimé de la synthèse" aria-valuemin="0" aria-valuemax="100" hidden></span>
+      <p class="item-sub" data-feedback-status role="status"></p>`:'<p class="item-sub">La synthèse IA est disponible dans la version locale avec Ollama. Vous pouvez transmettre votre retour écrit dans cette démo.</p>'}
+      ${feedbackEditor(summary)}
+      ${localSynthesis||summary?'<p class="item-sub">Relisez la synthèse avant l’envoi. Si elle est vide, le texte saisi sera transmis.</p>':''}
+      <div class="modal-actions"><button type="submit" name="action" value="draft" class="secondary">Enregistrer le brouillon</button>
+        <button type="submit" name="action" value="send" class="primary" ${enough?'':'disabled'}>Envoyer à l’AMO</button></div>
+    </form>`);
+}
+
+function submitTrainerFeedback(event){
+  event.preventDefault();
+  if(state.role!=='formateur'||state.modal?.kind!=='trainer-feedback')return;
+  const context=trainerFeedbackContext(state.modal.id);
+  if(!context)return;
+  const form=event.currentTarget;
+  if(form.dataset.editing==='true')syncFeedbackSummary(form.querySelector('[data-feedback-preview]'));
+  const summary=form.elements.summary.value.trim();
+  if(context.feedback?.sentAt){
+    if(event.submitter?.value!=='update'||!context.feedback.summary)return;
+    if(!summary||!feedbackSummaryLines(summary).some(line=>line.text&&!line.heading))return flash('Saisissez le contenu de la synthèse.');
+    context.feedback.summary=summary;
+    save();
+    render();
+    return flash('Synthèse mise à jour pour l’AMO.');
+  }
+  const source=form.elements.source.value.trim();
+  if(!source)return flash('Saisissez votre retour.');
+  const sending=event.submitter?.value==='send';
+  if(sending&&source.length<feedbackMinLength)return flash('Le retour doit contenir au moins '+feedbackMinLength+' caractères.');
+  const {sessionId,day,trainerId,feedback}=context;
+  const entries=db.trainerFeedback??=[];
+  const record={sessionId,day,trainerId,source,summary,sentAt:sending?new Date().toISOString():null};
+  if(feedback)Object.assign(feedback,record);
+  else entries.push(record);
+  save();
+  closeModal();
+  flash(sending?'Retour envoyé à l’AMO dans cette démo.':'Brouillon enregistré.');
+}
+
+async function generateTrainerFeedback(button){
+  const form=button.form;
+  const context=state.role==='formateur'&&trainerFeedbackContext(state.modal?.id);
+  if(!context||context.feedback?.sentAt)return;
+  const source=form.elements.source.value.trim();
+  const summary=form.elements.summary;
+  const status=form.querySelector('[data-feedback-status]');
+  if(source.length<feedbackMinLength||form.dataset.editing==='true')return;
+  const previous=summary.value;
+  const progress=form.querySelector('[data-feedback-progress]');
+  const started=Date.now();
+  const displayProgress=value=>{
+    progress.textContent=value+' %';
+    progress.setAttribute('aria-valuenow',value);
+  };
+  form.dataset.generating='true';
+  updateFeedbackCount(form);
+  status.textContent='';
+  progress.hidden=false;
+  displayProgress(0);
+  const timer=setInterval(()=>{
+    displayProgress(Math.min(95,Math.floor(100*(1-Math.exp(-(Date.now()-started)/5000)))));
+  },150);
+  try{
+    const response=await fetch('/api/retours-formateur/synthese',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({day:context.day,text:source}),signal:AbortSignal.timeout(120000)
+    });
+    const data=await response.json();
+    if(response.status===422){
+      status.textContent=data.error;
+      return;
+    }
+    if(!response.ok)throw new Error('Synthèse indisponible');
+    if(typeof data.summary!=='string'||!data.summary.trim())throw new Error('Synthèse vide');
+    if(form.elements.source.value.trim()!==source||summary.value!==previous){
+      status.textContent='Le retour a changé pendant la génération. Relancez la synthèse si nécessaire.';
+      return;
+    }
+    summary.value=feedbackSummaryLines(data.summary).map(line=>line.heading?'### '+line.text:line.bullet&&line.text?'• '+line.text:line.text).join('\n').trim();
+    updateFeedbackPreview(summary);
+    displayProgress(100);
+    status.textContent='Synthèse prête à relire.';
+  }catch{
+    status.textContent='Synthèse indisponible. Vous pouvez conserver un brouillon ou envoyer votre texte.';
+  }finally{
+    clearInterval(timer);
+    form.dataset.generating='false';
+    updateFeedbackCount(form);
+    if(progress.getAttribute('aria-valuenow')==='100'){
+      setTimeout(()=>{if(form.dataset.generating!=='true')progress.hidden=true;},450);
+    }else progress.hidden=true;
+  }
 }
 
 const hubAppearance={

@@ -596,3 +596,30 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
     overflow:hidden;
   }
 }
+
+.trainer-feedback-list { margin-block: 16px; }
+.trainer-feedback-form .field { display: block; width: 100%; resize: vertical; }
+.trainer-feedback-form button { margin-block: 6px; }
+.trainer-feedback-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.trainer-feedback-guide,
+.trainer-feedback-result {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-block: 14px;
+}
+.trainer-feedback-guide p,
+.trainer-feedback-guide ul,
+.trainer-feedback-text p,
+.trainer-feedback-text ul { margin-block: 0 8px; }
+.trainer-feedback-guide ul,
+.trainer-feedback-text ul { padding-inline-start: 20px; }
+.trainer-feedback-text h3 { margin-block: 14px 5px; font-size: 1rem; }
+.trainer-feedback-text h3:first-child { margin-block-start: 0; }
+.trainer-feedback-result-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.trainer-feedback-result-header h2 { margin: 0; }
+.trainer-feedback-edit { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; }
+.trainer-feedback-edit svg { display: block; }
+.trainer-feedback-text.is-editing [contenteditable] { border-radius: 4px; cursor: text; }
+.trainer-feedback-text.is-editing [contenteditable]:focus { outline: 2px solid var(--purple); outline-offset: 3px; }
+.trainer-feedback-progress { margin-inline-start: 8px; font-variant-numeric: tabular-nums; }

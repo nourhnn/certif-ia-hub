@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v37-dark-professional-profile';
+const CACHE='certifia-hub-demo-v43-trainer-feedback';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
