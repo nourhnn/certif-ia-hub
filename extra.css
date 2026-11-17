@@ -549,8 +549,8 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
     border-color:var(--border);
     box-shadow:none;
   }
-  :root[data-hub-tone="dark"] .tbl tbody tr td,
-  :root[data-hub-tone="dark"] .tbl tbody tr:hover td{
+  :root[data-hub-tone="dark"] .table-wrap .tbl tbody tr td,
+  :root[data-hub-tone="dark"] .table-wrap .tbl tbody tr:hover td{
     background:transparent;
   }
   :root[data-hub-tone="dark"] .tbl tbody td:not(:last-child){
