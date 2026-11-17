@@ -173,7 +173,7 @@ function restoreHash(){
   if(route[2]==='trainer-folder'&&route[3])state.selectedDocGroup=route[3];
 }
 function validPages(role){return role==='formateur'?['trainer-home','trainer-missions','trainer-calendar','trainer-docs','trainer-profile','trainer-folder']:['home','planning','formations','formation-detail','session-detail','trainers','trainer-detail','clients','client-detail','staffing','documents','reporting']}
-const mobileSymbols={settings:'<path d="M10 2h4l.6 2.5 1.6.9 2.5-.7 2 3.5-1.8 1.8v2l1.8 1.8-2 3.5-2.5-.7-1.6.9L14 20h-4l-.6-2.5-1.6-.9-2.5.7-2-3.5L5.1 12v-2L3.3 8.2l2-3.5 2.5.7 1.6-.9z" transform="translate(0 1)"/><circle cx="12" cy="12" r="3"/>',bonus:'<path d="M12 2l2.6 5.4 6 .8-4.3 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.4 8.2l6-.8z"/>',check:'<path d="m5 12 4 4L19 6"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',trainers:'<circle cx="9" cy="7" r="3"/><path d="M2 20v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2M17 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>',clients:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h2m4 0h2M8 11h2m4 0h2M8 15h2m4 0h2m-6 6v-3h4v3"/>',reporting:'<path d="M3 3v18h18M8 16v-5m5 5V7m5 9v-8"/>',pin:'<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/>',home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',staff:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 8h5M19.5 5.5v5"/>',docs:'<path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 13h10M7 17h7"/>',more:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',missions:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h6"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',back:'<path d="m14 6-6 6 6 6"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',chevron:'<path d="m9 18 6-6-6-6"/>',close:'<path d="M18 6 6 18M6 6l12 12"/>'};
+const mobileSymbols={sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19m0-14-1.5 1.5m-11 11L5 19"/>',moon:'<path d="M20.9 14.3A9 9 0 0 1 9.7 3.1 9 9 0 1 0 20.9 14.3Z"/>',display:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/>',download:'<path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/>',settings:'<path d="M10 2h4l.6 2.5 1.6.9 2.5-.7 2 3.5-1.8 1.8v2l1.8 1.8-2 3.5-2.5-.7-1.6.9L14 20h-4l-.6-2.5-1.6-.9-2.5.7-2-3.5L5.1 12v-2L3.3 8.2l2-3.5 2.5.7 1.6-.9z" transform="translate(0 1)"/><circle cx="12" cy="12" r="3"/>',bonus:'<path d="M12 2l2.6 5.4 6 .8-4.3 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.4 8.2l6-.8z"/>',check:'<path d="m5 12 4 4L19 6"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',trainers:'<circle cx="9" cy="7" r="3"/><path d="M2 20v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2M17 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>',clients:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h2m4 0h2M8 11h2m4 0h2M8 15h2m4 0h2m-6 6v-3h4v3"/>',reporting:'<path d="M3 3v18h18M8 16v-5m5 5V7m5 9v-8"/>',pin:'<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/>',home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',staff:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 8h5M19.5 5.5v5"/>',docs:'<path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 13h10M7 17h7"/>',more:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',missions:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h6"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',back:'<path d="m14 6-6 6 6 6"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',chevron:'<path d="m9 18 6-6-6-6"/>',close:'<path d="M18 6 6 18M6 6l12 12"/>'};
 function mobileIcon(name,size=21){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${mobileSymbols[name]||mobileSymbols.more}</svg>`}
 function mobileIsDetail(page){return ['formation-detail','session-detail','trainer-detail','client-detail','trainer-folder','trainer-profile'].includes(page)}
 function mobileBackTarget(page){return ({'formation-detail':'formations','session-detail':'formations','trainer-detail':'trainers','client-detail':'clients','trainer-folder':'trainer-docs','trainer-profile':'trainer-home'})[page]||'home'}
@@ -501,7 +501,6 @@ else if(m.kind==='prepare-proposal'&&state.role==='amo'){out=proposalModal()}
 else if(m.kind==='whatsapp-draft'&&state.role==='amo'){out=whatsAppPanel(m.id)}
 else if(m.kind==='amo-milestones'&&state.role==='amo'){out=amoMilestonesPanel()}
 else if(m.kind==='hub-settings'){out=hubSettingsPanel()}
-else if(m.kind==='hub-charter'){out=hubCharterPanel()}
 else if(m.kind==='google-calendar'&&state.role==='formateur'){out=modalBox('Connexion Google Agenda','La connexion à un compte Google sera disponible quand la synchronisation aura été configurée.',`<div class="modal-actions"><button class="primary" onclick="closeModal()">Fermer</button></div>`)}
 else if(m.kind==='document-preview'){out=documentPreview(m.id)}
 else if(m.kind==='amo-notifications'){out=amoNotificationsPanel()}
@@ -512,7 +511,7 @@ else if(m.kind==='folder'||m.kind==='trainer-folder'){out=modalBox('Dossier de l
 else if(m.kind==='mission-info'){let s=sessionById(m.id),f=formOf(s),c=clientOf(f),d=clientDetails[c.id];out=modalBox('Informations client pour la mission','Uniquement les informations utiles au formateur, sans notes internes confidentielles.',`<div class="info-grid">${[['Client',c.name],['Formation',f.title],['Date',fmtDate(s.date)],['Horaires',s.start+'–'+s.end],['Participants',s.people??'À préciser'],['Lieu',s.address||s.city],['Contact',d.contact],['Consignes',d.notesTrainer]].map(([k,v])=>`<div class="info"><small>${esc(k)}</small><strong>${esc(v)}</strong></div>`).join('')}</div><div class="v19-mission-extra">${missionAuditDisplay(s)}${missionPublicFeedback(s)}</div><div class="modal-actions"><a class="btn" target="_blank" rel="noopener noreferrer" href="${esc(mapsUrl(s.address,s.city))}">Ouvrir l'itinéraire ↗</a><button class="secondary" onclick="closeModal()">Fermer</button></div><p class="footnote">L’adresse précise est à renseigner ; ici le lien indique une ville fictive.</p>`)}
 else if(m.kind==='upload'||m.kind==='upload-internal'){out=uploadPanel(m.id,m.kind==='upload-internal')}
 else if(m.kind==='review'){let d=db.deliverables.find(x=>x.id===m.id);out=modalBox('Vérifier un livrable','Choisissez une décision pour la version déposée.',`<div class="info"><small>Livrable</small><strong>${esc(d.title)}</strong></div><label class="form-label" for="review-comment">Motif du refus (facultatif)</label><textarea class="field" id="review-comment" placeholder="Ajouter un motif…"></textarea><div class="modal-actions"><button class="secondary" onclick="closeModal()">Annuler</button><button class="secondary" onclick="reviewDoc('${d.id}','Refusé')">Refuser</button><button class="primary" onclick="reviewDoc('${d.id}','Validé')">Valider (démo)</button></div>`)}
-return `<div class="modal-back" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal ${m.kind==='hub-charter'?'charter-modal':''}" role="dialog" aria-modal="true" aria-label="${({'trainer-notifications':'Notifications','amo-notifications':'Notifications AMO','prepare-proposal':'Préparer une proposition','whatsapp-draft':'Brouillon WhatsApp','amo-milestones':'Jalons AMO','document-preview':'Détail du document','google-calendar':'Connexion Google Agenda','hub-settings':'Réglages','hub-charter':'Charte de collaboration Certif-IA'})[m.kind]||esc(m.kind)}"><button class="modal-close" aria-label="Fermer" onclick="closeModal()">×</button>${out}</div></div>`}
+return `<div class="modal-back" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal" role="dialog" aria-modal="true" aria-label="${({'trainer-notifications':'Notifications','amo-notifications':'Notifications AMO','prepare-proposal':'Préparer une proposition','whatsapp-draft':'Brouillon WhatsApp','amo-milestones':'Jalons AMO','document-preview':'Détail du document','google-calendar':'Connexion Google Agenda','hub-settings':'Réglages'})[m.kind]||esc(m.kind)}"><button class="modal-close" aria-label="Fermer" onclick="closeModal()">×</button>${out}</div></div>`}
 function saveSessionEdit(id){let s=sessionById(id),date=$('new-date')?.value,start=$('new-start')?.value,end=$('new-end')?.value,city=$('new-city')?.value.trim(),address=$('new-address')?.value.trim(),modality=$('new-modality')?.value,tid=Number($('new-trainer')?.value||0);if(!date||!start||!end||!city||end<=start)return flash('Date, horaires et lieu valides requis');let prev=JSON.stringify([s.date,s.start,s.end,s.city,s.address||'',s.modality]);let next=JSON.stringify([date,start,end,city,address,modality]);let changed=prev!==next;let current=activeAssignments(id);if(!changed&&(!tid||current.some(a=>a.trainerId===tid)))return flash('Aucune modification');const entry={date,start,end};const trainersToCheck=new Set([...current.map(a=>a.trainerId),...db.proposals.filter(p=>p.sessionId===s.id&&p.status==='Acceptée').map(p=>p.trainerId),...(tid?[tid]:[])]);if(date!==s.date||start!==s.start||end!==s.end){const conflict=calendarConflict(entry,null,{sessionId:s.id});if(conflict)return flash(conflict)}for(const trainerId of trainersToCheck){const conflict=calendarConflict(entry,trainerId,{sessionId:s.id,allowAvailable:true});if(conflict)return flash(conflict)}Object.assign(s,{date,start,end,city,address,modality});if(changed||tid){current.forEach(a=>a.status='À revalider');if(tid&&!db.assignments.some(a=>a.sessionId===id&&a.trainerId===tid&&a.status==='À revalider'))db.assignments.push({id:'A'+Date.now(),sessionId:id,trainerId:tid,status:'À revalider'});}log('Modification de session démo',id+' · contrôle de revalidation requis');closeModal();flash('Modification simulée ; affectations à revalider')}
 function modalBox(title,desc,content){return `<h2>${title}</h2><p>${desc}</p>${content}`}
 function rescheduleSession(id){let el=$('new-date'),date=el?.value,s=sessionById(id);if(!date||!s)return flash('Date requise');if(s.date===date)return flash('La date est inchangée');let previous=s.date;s.date=date;db.assignments.filter(a=>a.sessionId===s.id&&a.status==='Confirmée').forEach(a=>a.status='À revalider');log('Report de session (démo)',`session ${id} : ${previous} → ${date}`);closeModal();flash('Session reportée ; affectations à revalider')}
@@ -1275,6 +1274,7 @@ function settingsButton(){
 }
 
 function openHubSettings(){
+  prepareHubCharterDownload();
   openModal('hub-settings');
   $('settings-heading')?.focus();
 }
@@ -1283,7 +1283,7 @@ function hubSettingsPanel(){
   const selected=currentHubAppearance(),theme=currentHubTheme();
   return `<h2 id="settings-heading" tabindex="-1">Réglages</h2>
     <fieldset class="theme-field"><legend>Thème</legend>
-      <div class="theme-options">${[['light','Clair'],['dark','Sombre'],['auto','Automatique']].map(([key,label])=>`<label><input id="hub-theme-${key}" name="hub-theme" type="radio" value="${key}" ${theme===key?'checked':''} onchange="chooseHubTheme(this.value)">${label}</label>`).join('')}</div>
+      <div class="theme-options">${[['light','Clair','sun'],['dark','Sombre','moon'],['auto','Automatique','display']].map(([key,label,icon])=>`<label class="theme-option"><input id="hub-theme-${key}" name="hub-theme" type="radio" value="${key}" ${theme===key?'checked':''} onchange="chooseHubTheme(this.value)"><span class="theme-option-content">${mobileIcon(icon,21)}<strong>${label}</strong></span></label>`).join('')}</div>
       <p class="item-sub">Automatique suit le thème de ton appareil. Tes réglages sont enregistrés sur cet appareil.</p>
     </fieldset>
     <fieldset class="appearance-field"><legend>Icône et couleur du Hub</legend>
@@ -1301,13 +1301,12 @@ function hubSettingsPanel(){
         <div class="settings-terms-body"><p>Ce Hub permet de tester les parcours AMO et formateur avec des données fictives. Utilisez des informations et des fichiers de démonstration.</p>
         <p>Les réglages, les modifications et les fichiers importés sont conservés dans le navigateur de cet appareil. Les propositions et notifications sont simulées dans le Hub.</p></div>
       </details>
-      <button type="button" class="settings-document charter-open" onclick="openHubCharter(1)"><span>${mobileIcon('docs',18)}</span><span><strong>Charte de collaboration Certif-IA</strong><small>PDF · Version 2026</small></span>${mobileIcon('chevron',18)}</button>
+      <a class="settings-document" href="${hubCharterFile}" download="${hubCharterFilename}" onclick="saveHubCharter(event)"><span>${mobileIcon('docs',18)}</span><div><strong>Charte de collaboration Certif-IA</strong><small>Télécharger le PDF · Version 2026</small></div>${mobileIcon('download',18)}</a>
     </section>`;
 }
 
 const hubSystemTheme=window.matchMedia('(prefers-color-scheme: dark)');
 const hubThemes=['light','dark','auto'];
-const hubCharterPages=13;
 const hubCharterFile='assets/documents/charte-collaboration-certif-ia-2026.pdf';
 
 function currentHubTheme(){
@@ -1330,23 +1329,33 @@ function chooseHubTheme(value){
   try{localStorage.setItem('certifia-hub-theme',value)}catch(e){}
 }
 
-function openHubCharter(page){
-  openModal('hub-charter',Math.max(1,Math.min(hubCharterPages,page)));
-  $('charter-heading')?.focus({preventScroll:true});
+let hubCharterDownload;
+let hubCharterShareFile;
+const hubCharterFilename='Charte-Collaboration-Certif-IA-2026.pdf';
+
+function prepareHubCharterDownload(){
+  if(!navigator.canShare||!navigator.share||!isAppleMobile())return;
+  hubCharterDownload||=fetch(hubCharterFile).then(response=>{
+    if(!response.ok)throw new Error('Charte indisponible');
+    return response.blob();
+  }).then(blob=>{
+    hubCharterShareFile=new File([blob],hubCharterFilename,{type:'application/pdf'});
+  }).catch(()=>{hubCharterDownload=null});
 }
 
-function hubCharterPanel(){
-  const page=state.modal.id;
-  const text=typeof hubCharterTextPages!=='undefined'?hubCharterTextPages[page-1]:'';
-  return `<div class="charter-controls"><h2 id="charter-heading" tabindex="-1">Charte de collaboration</h2>
-    <div class="charter-action-row"><button type="button" class="secondary tiny" onclick="openHubSettings()">← Retour aux réglages</button>
-      <a class="primary tiny" href="${hubCharterFile}" download="Charte-Collaboration-Certif-IA-2026.pdf">Télécharger le PDF</a></div>
-    <div class="charter-pagination" aria-label="Navigation dans la charte">
-      <button type="button" class="secondary tiny" onclick="openHubCharter(${page-1})" ${page===1?'disabled':''}>Précédente</button>
-      <span aria-live="polite">Page ${page} / ${hubCharterPages}</span>
-      <button type="button" class="secondary tiny" onclick="openHubCharter(${page+1})" ${page===hubCharterPages?'disabled':''}>Suivante</button>
-    </div></div>
-    <article class="charter-page charter-text" aria-label="Texte de la page ${page}">${text?esc(text):'Le texte de cette page est disponible dans le PDF à télécharger.'}</article>`;
+function isAppleMobile(){
+  return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+}
+
+function saveHubCharter(event){
+  if(!hubCharterShareFile||!isAppleMobile()||!navigator.canShare?.({files:[hubCharterShareFile]}))return;
+  event.preventDefault();
+  const link=event.currentTarget;
+  navigator.share({files:[hubCharterShareFile]}).catch(error=>{
+    if(error.name==='AbortError')return;
+    hubCharterShareFile=null;
+    link.click();
+  });
 }
 
 function monthlyBonusPanel(report){

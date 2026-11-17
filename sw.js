@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v31-hub-theme-and-charter';
+const CACHE='certifia-hub-demo-v32-contrast-and-charter-download';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
@@ -30,8 +30,7 @@ const URLS=[
   './assets/icons/white/pwa-192.png',
   './assets/icons/white/pwa-512.png',
   './assets/icons/white/pwa-maskable-192.png',
-  './assets/icons/white/pwa-maskable-512.png',
-  './assets/documents/charte-pages.js'
+  './assets/icons/white/pwa-maskable-512.png'
 ];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(URLS))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))));
