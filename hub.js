@@ -71,6 +71,7 @@ let a=eligible?30:0;
 let l=t.city===s.city?20:8;
 let ex=t.missions>=10?10:t.missions>=5?7:4;
 return {total:matches+a+l+ex,eligible,parts:[['Expertise et formation',matches,40],['Disponibilité connue',a,30],['Zone géographique',l,20],['Expérience',ex,10]],reasons:[matches===40?'Expertise exacte':matches===30?'Expertise apparentée':'Expertise à vérifier',a===30?'Disponible déclaré':a===0?'Indisponibilité signalée':'Disponibilité non vérifiée',l===20?'Même ville':'Mobilité à confirmer',`${t.missions} missions indiquées (démo)`]};}
+const trainerBonusValue=5;
 function reliabilityScore(t){
  const delivered=db.deliverables.filter(d=>d.trainerId===t.id);
  const punctuality=delivered.length?Math.round(100*delivered.filter(d=>d.versions?.length&&d.versions.some(v=>v.at&&d.dueDate&&v.at.slice(0,10)<=d.dueDate)).length/delivered.length):null;
@@ -83,7 +84,7 @@ function reliabilityScore(t){
  const complete=parts.every(x=>x[1]!==null);
  const base=complete?Math.round(parts.reduce((n,x)=>n+x[1]*x[2],0)/100):({1:92,2:74,3:58,4:89,5:62,6:81})[t.id]??null;
  const bonuses=db.internalReviews.filter(r=>r.trainerId===t.id&&r.kind==='bonus').length;
- const total=base===null?null:Math.min(100,base+bonuses*5);
+ const total=base===null?null:Math.min(100,base+bonuses*trainerBonusValue);
  return {total,parts,complete,base,bonuses,bonusPoints:total===null?0:total-base};
 }
 
@@ -438,7 +439,7 @@ function docFolder(id,person=false){
  }).join('')+`<p class="footnote">Les fichiers déposés sont conservés dans ce navigateur.</p>`;
 }
 function prepareMissingDoc(id,key,sessionId){if(state.role==='formateur')return flash('Accès réservé à l’équipe interne');let f=formations.find(x=>x.id===id),type=documentColumns.find(x=>x[0]===key);if(!f||!type||(sessionId&&sessionById(sessionId)?.formationId!==id))return flash('Type inconnu');let existing=db.deliverables.find(d=>d.formationId===id&&(!sessionId||d.sessionId===sessionId)&&docCategory(d)===key);if(existing)return openModal('upload-internal',existing.id);let did='D'+(Math.max(0,...db.deliverables.map(d=>Number(String(d.id).slice(1))||0))+1);db.deliverables.push({id:did,formationId:id,sessionId:sessionId||f.sessionIds[0],title:type[1],type:key,owner:'interne',status:'À fournir',versions:[]});log('Livrable manquant créé en démo',`${did} · ${key}`);openModal('upload-internal',did);}
-function reportingPage(){let month=state.monthlyMonth,within=s=>s.date?.startsWith(month),ss=db.sessions.filter(within),aa=db.assignments.filter(a=>ss.some(s=>s.id===a.sessionId)&&['Confirmée','Réalisée'].includes(a.status)),d=db.deliverables.filter(x=>ss.some(s=>s.id===x.sessionId)),delivered=d.filter(x=>x.versions.length>0),onTime=delivered.filter(x=>x.versions.at(-1)?.at&&x.versions.at(-1).at.slice(0,10)<=x.dueDate).length;let perTrainer=trainers.map(t=>{let assignments=aa.filter(a=>a.trainerId===t.id),rate=reliabilityScore(t);return {t,assignments,rate}}).filter(x=>x.assignments.length>0);return `${intro('Monthly <em>AMO.</em>','Reporting mensuel des formations, du staffing, du NPS, des cartons et de la ponctualité documentaire.')}<div class="toolbar"><div class="group"><label for="report-month">Période</label><input id="report-month" class="field" type="month" value="${esc(month)}" onchange="state.monthlyMonth=this.value;render()"><button class="primary tiny" onclick="exportMonthlyChart()">Télécharger le rapport animé</button><button class="secondary tiny" onclick="exportMonthlyTable()">Télécharger le tableau</button><button class="secondary tiny" onclick="exportMonthly()">Exporter le CSV</button></div><span class="badge purple">Données fictives · pondérations non validées</span></div><div class="cards">${metric('Sessions',ss.length,'Dans la période')}${metric('Affectations',aa.length,'Confirmées / réalisées')}${metric('Formateurs mobilisés',perTrainer.length,'Profils distincts')}${metric('Livrables déposés',delivered.length+'/'+d.length,'Sur la période')}</div><div class="two-col"><div class="card">${cardTitle('Activité des formateurs','Missions et clients couverts sur la période')}<div class="table-wrap"><table class="tbl"><thead><tr><th>Formateur</th><th>Missions</th><th>Clients</th><th>NPS indicatif</th></tr></thead><tbody>${perTrainer.map(x=>`<tr><td>${trainerName(x.t)}</td><td>${x.assignments.length}</td><td>${[...new Set(x.assignments.map(a=>clientOf(formOf(sessionById(a.sessionId))).name))].map(esc).join(', ')}</td><td>${trainerProfileField(x.t.id).nps??'Non renseigné'}</td></tr>`).join('')||'<tr><td colspan="4">Aucune affectation dans la période</td></tr>'}</tbody></table></div></div><div class="card">${cardTitle('Ponctualité et fiabilité','Échantillon fictif, ne sert pas à évaluer des personnes réelles')}<div class="line-item"><div class="grow">Livrables déposés avant échéance (données disponibles)</div><strong>${delivered.length?Math.round(onTime/delivered.length*100)+'%':'Non mesurable'}</strong></div><div class="line-item"><div class="grow">Pool Numéro 10 (référentiel fictif)</div><strong>${trainers.filter(t=>t.rating.includes('Numéro 10')).length}</strong></div><div class="line-item"><div class="grow">Cartons rouges</div><strong>${trainers.filter(t=>trainerProfileField(t.id).redCard).length}</strong></div><p class="footnote">Le score de fiabilité avec bonus/malus est une grille proposée, non validée ni appliquée. Les évaluations par mission et causes des retards restent nécessaires pour des résultats fiables.</p></div></div><div class="card" style="margin-top:18px">${cardTitle('Grille proposée de fiabilité','À valider métier avant tout score calculé ou décision')}<div class="table-wrap"><table class="tbl"><thead><tr><th>Critère</th><th>Poids proposé</th><th>Base de calcul attendue</th></tr></thead><tbody><tr><td>Ponctualité des livrables</td><td>30 %</td><td>Versions déposées avant échéance et responsabilités identifiées</td></tr><tr><td>NPS et satisfaction</td><td>40 %</td><td>Évaluations contextualisées par session</td></tr><tr><td>Retours de mission</td><td>10 %</td><td>Débriefs et incidents vérifiés</td></tr><tr><td>Incidents vérifiés</td><td>20 %</td><td>Justifications, sources et possibilité de rectification</td></tr></tbody></table></div><p class="footnote">Aucun bonus ou malus réel calculé ou appliqué. Les critères peuvent être modifiés après concertation.</p></div>`}
+function reportingPage(){let report=monthlyReport(),month=state.monthlyMonth,within=s=>s.date?.startsWith(month),ss=db.sessions.filter(within),aa=db.assignments.filter(a=>ss.some(s=>s.id===a.sessionId)&&['Confirmée','Réalisée'].includes(a.status)),d=db.deliverables.filter(x=>ss.some(s=>s.id===x.sessionId)),delivered=d.filter(x=>x.versions.length>0),onTime=delivered.filter(x=>x.versions.at(-1)?.at&&x.versions.at(-1).at.slice(0,10)<=x.dueDate).length;let perTrainer=trainers.map(t=>{let assignments=aa.filter(a=>a.trainerId===t.id),rate=reliabilityScore(t);return {t,assignments,rate}}).filter(x=>x.assignments.length>0);return `${intro('Monthly <em>AMO.</em>','Reporting mensuel des formations, du staffing, du NPS, des cartons et de la ponctualité documentaire.')}<div class="toolbar"><div class="group"><label for="report-month">Période</label><input id="report-month" class="field" type="month" value="${esc(month)}" onchange="state.monthlyMonth=this.value;render()"><button class="primary tiny" onclick="exportMonthlyChart()">Télécharger le rapport animé</button><button class="secondary tiny" onclick="exportMonthlyTable()">Télécharger le tableau</button><button class="secondary tiny" onclick="exportMonthly()">Exporter le CSV</button></div><span class="badge purple">Données fictives · pondérations non validées</span></div><div class="cards">${metric('Sessions',ss.length,'Dans la période')}${metric('Affectations',aa.length,'Confirmées / réalisées')}${metric('Formateurs mobilisés',perTrainer.length,'Profils distincts')}${metric('Livrables déposés',delivered.length+'/'+d.length,'Sur la période')}${metric('Bonus du mois',report.bonuses.length,report.bonusPoints+' points attribués')}</div>${monthlyBonusPanel(report)}<div class="two-col"><div class="card">${cardTitle('Activité des formateurs','Missions et clients couverts sur la période')}<div class="table-wrap"><table class="tbl"><thead><tr><th>Formateur</th><th>Missions</th><th>Clients</th><th>NPS indicatif</th></tr></thead><tbody>${perTrainer.map(x=>`<tr><td>${trainerName(x.t)}</td><td>${x.assignments.length}</td><td>${[...new Set(x.assignments.map(a=>clientOf(formOf(sessionById(a.sessionId))).name))].map(esc).join(', ')}</td><td>${trainerProfileField(x.t.id).nps??'Non renseigné'}</td></tr>`).join('')||'<tr><td colspan="4">Aucune affectation dans la période</td></tr>'}</tbody></table></div></div><div class="card">${cardTitle('Ponctualité et fiabilité','Échantillon fictif, ne sert pas à évaluer des personnes réelles')}<div class="line-item"><div class="grow">Livrables déposés avant échéance (données disponibles)</div><strong>${delivered.length?Math.round(onTime/delivered.length*100)+'%':'Non mesurable'}</strong></div><div class="line-item"><div class="grow">Pool Numéro 10 (référentiel fictif)</div><strong>${trainers.filter(t=>t.rating.includes('Numéro 10')).length}</strong></div><div class="line-item"><div class="grow">Cartons rouges</div><strong>${trainers.filter(t=>trainerProfileField(t.id).redCard).length}</strong></div><p class="footnote">Le score de fiabilité avec bonus/malus est une grille proposée, non validée ni appliquée. Les évaluations par mission et causes des retards restent nécessaires pour des résultats fiables.</p></div></div><div class="card" style="margin-top:18px">${cardTitle('Grille proposée de fiabilité','À valider métier avant tout score calculé ou décision')}<div class="table-wrap"><table class="tbl"><thead><tr><th>Critère</th><th>Poids proposé</th><th>Base de calcul attendue</th></tr></thead><tbody><tr><td>Ponctualité des livrables</td><td>30 %</td><td>Versions déposées avant échéance et responsabilités identifiées</td></tr><tr><td>NPS et satisfaction</td><td>40 %</td><td>Évaluations contextualisées par session</td></tr><tr><td>Retours de mission</td><td>10 %</td><td>Débriefs et incidents vérifiés</td></tr><tr><td>Incidents vérifiés</td><td>20 %</td><td>Justifications, sources et possibilité de rectification</td></tr></tbody></table></div><p class="footnote">Aucun bonus ou malus réel calculé ou appliqué. Les critères peuvent être modifiés après concertation.</p></div>`}
 function trainerHome(){
   const t=trainerById(state.trainerId);
   const today=parisToday();
@@ -500,6 +501,7 @@ else if(m.kind==='prepare-proposal'&&state.role==='amo'){out=proposalModal()}
 else if(m.kind==='whatsapp-draft'&&state.role==='amo'){out=whatsAppPanel(m.id)}
 else if(m.kind==='amo-milestones'&&state.role==='amo'){out=amoMilestonesPanel()}
 else if(m.kind==='hub-settings'){out=hubSettingsPanel()}
+else if(m.kind==='hub-charter'){out=hubCharterPanel()}
 else if(m.kind==='google-calendar'&&state.role==='formateur'){out=modalBox('Connexion Google Agenda','La connexion à un compte Google sera disponible quand la synchronisation aura été configurée.',`<div class="modal-actions"><button class="primary" onclick="closeModal()">Fermer</button></div>`)}
 else if(m.kind==='document-preview'){out=documentPreview(m.id)}
 else if(m.kind==='amo-notifications'){out=amoNotificationsPanel()}
@@ -510,7 +512,7 @@ else if(m.kind==='folder'||m.kind==='trainer-folder'){out=modalBox('Dossier de l
 else if(m.kind==='mission-info'){let s=sessionById(m.id),f=formOf(s),c=clientOf(f),d=clientDetails[c.id];out=modalBox('Informations client pour la mission','Uniquement les informations utiles au formateur, sans notes internes confidentielles.',`<div class="info-grid">${[['Client',c.name],['Formation',f.title],['Date',fmtDate(s.date)],['Horaires',s.start+'–'+s.end],['Participants',s.people??'À préciser'],['Lieu',s.address||s.city],['Contact',d.contact],['Consignes',d.notesTrainer]].map(([k,v])=>`<div class="info"><small>${esc(k)}</small><strong>${esc(v)}</strong></div>`).join('')}</div><div class="v19-mission-extra">${missionAuditDisplay(s)}${missionPublicFeedback(s)}</div><div class="modal-actions"><a class="btn" target="_blank" rel="noopener noreferrer" href="${esc(mapsUrl(s.address,s.city))}">Ouvrir l'itinéraire ↗</a><button class="secondary" onclick="closeModal()">Fermer</button></div><p class="footnote">L’adresse précise est à renseigner ; ici le lien indique une ville fictive.</p>`)}
 else if(m.kind==='upload'||m.kind==='upload-internal'){out=uploadPanel(m.id,m.kind==='upload-internal')}
 else if(m.kind==='review'){let d=db.deliverables.find(x=>x.id===m.id);out=modalBox('Vérifier un livrable','Choisissez une décision pour la version déposée.',`<div class="info"><small>Livrable</small><strong>${esc(d.title)}</strong></div><label class="form-label" for="review-comment">Motif du refus (facultatif)</label><textarea class="field" id="review-comment" placeholder="Ajouter un motif…"></textarea><div class="modal-actions"><button class="secondary" onclick="closeModal()">Annuler</button><button class="secondary" onclick="reviewDoc('${d.id}','Refusé')">Refuser</button><button class="primary" onclick="reviewDoc('${d.id}','Validé')">Valider (démo)</button></div>`)}
-return `<div class="modal-back" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal" role="dialog" aria-modal="true" aria-label="${({'trainer-notifications':'Notifications','amo-notifications':'Notifications AMO','prepare-proposal':'Préparer une proposition','whatsapp-draft':'Brouillon WhatsApp','amo-milestones':'Jalons AMO','document-preview':'Détail du document','google-calendar':'Connexion Google Agenda','hub-settings':'Réglages'})[m.kind]||esc(m.kind)}"><button class="modal-close" aria-label="Fermer" onclick="closeModal()">×</button>${out}</div></div>`}
+return `<div class="modal-back" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal ${m.kind==='hub-charter'?'charter-modal':''}" role="dialog" aria-modal="true" aria-label="${({'trainer-notifications':'Notifications','amo-notifications':'Notifications AMO','prepare-proposal':'Préparer une proposition','whatsapp-draft':'Brouillon WhatsApp','amo-milestones':'Jalons AMO','document-preview':'Détail du document','google-calendar':'Connexion Google Agenda','hub-settings':'Réglages','hub-charter':'Charte de collaboration Certif-IA'})[m.kind]||esc(m.kind)}"><button class="modal-close" aria-label="Fermer" onclick="closeModal()">×</button>${out}</div></div>`}
 function saveSessionEdit(id){let s=sessionById(id),date=$('new-date')?.value,start=$('new-start')?.value,end=$('new-end')?.value,city=$('new-city')?.value.trim(),address=$('new-address')?.value.trim(),modality=$('new-modality')?.value,tid=Number($('new-trainer')?.value||0);if(!date||!start||!end||!city||end<=start)return flash('Date, horaires et lieu valides requis');let prev=JSON.stringify([s.date,s.start,s.end,s.city,s.address||'',s.modality]);let next=JSON.stringify([date,start,end,city,address,modality]);let changed=prev!==next;let current=activeAssignments(id);if(!changed&&(!tid||current.some(a=>a.trainerId===tid)))return flash('Aucune modification');const entry={date,start,end};const trainersToCheck=new Set([...current.map(a=>a.trainerId),...db.proposals.filter(p=>p.sessionId===s.id&&p.status==='Acceptée').map(p=>p.trainerId),...(tid?[tid]:[])]);if(date!==s.date||start!==s.start||end!==s.end){const conflict=calendarConflict(entry,null,{sessionId:s.id});if(conflict)return flash(conflict)}for(const trainerId of trainersToCheck){const conflict=calendarConflict(entry,trainerId,{sessionId:s.id,allowAvailable:true});if(conflict)return flash(conflict)}Object.assign(s,{date,start,end,city,address,modality});if(changed||tid){current.forEach(a=>a.status='À revalider');if(tid&&!db.assignments.some(a=>a.sessionId===id&&a.trainerId===tid&&a.status==='À revalider'))db.assignments.push({id:'A'+Date.now(),sessionId:id,trainerId:tid,status:'À revalider'});}log('Modification de session démo',id+' · contrôle de revalidation requis');closeModal();flash('Modification simulée ; affectations à revalider')}
 function modalBox(title,desc,content){return `<h2>${title}</h2><p>${desc}</p>${content}`}
 function rescheduleSession(id){let el=$('new-date'),date=el?.value,s=sessionById(id);if(!date||!s)return flash('Date requise');if(s.date===date)return flash('La date est inchangée');let previous=s.date;s.date=date;db.assignments.filter(a=>a.sessionId===s.id&&a.status==='Confirmée').forEach(a=>a.status='À revalider');log('Report de session (démo)',`session ${id} : ${previous} → ${date}`);closeModal();flash('Session reportée ; affectations à revalider')}
@@ -910,12 +912,15 @@ function monthlyReport(){
   const onTime=punctual.filter(d=>d.versions[0].at.slice(0,10)<=d.dueDate).length;
   const cards=db.internalReviews.filter(r=>r.kind==='carton'&&r.createdAt?.startsWith(month));
   const bonuses=db.internalReviews.filter(r=>r.kind==='bonus'&&r.createdAt?.startsWith(month));
+  const bonusCounts=new Map();
+  for(const b of bonuses)bonusCounts.set(b.trainerId,(bonusCounts.get(b.trainerId)||0)+1);
+  const bonusByTrainer=[...bonusCounts].map(([id,count])=>({id,name:trainerById(id)?.name||'Formateur',count,points:count*trainerBonusValue})).sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,'fr'));
   const trainersByMission=[...new Set(assignments.map(a=>a.trainerId))].map(id=>{
     const list=assignments.filter(a=>a.trainerId===id);
     const scores=list.map(a=>missionRatings[a.id]?.nps).filter(Number.isFinite);
     return {name:trainerById(id).name,count:list.length,done:list.filter(a=>a.status==='Réalisée').length,nps:scores.length?scores.reduce((sum,n)=>sum+n,0)/scores.length:null};
   }).sort((a,b)=>b.count-a.count);
-  return {month,sessions,assignments,proposals,docs,onTime,punctual,cards,bonuses,trainersByMission,
+  return {month,sessions,assignments,proposals,docs,onTime,punctual,cards,bonuses,bonusByTrainer,bonusPoints:bonuses.length*trainerBonusValue,trainersByMission,
     nps:assessed.length?assessed.reduce((sum,n)=>sum+n,0)/assessed.length:null,npsCount:assessed.length,
     participants:sessions.reduce((sum,s)=>sum+Number(s.people||0),0),
     staffed:sessions.filter(s=>openCount(s)===0).length,
@@ -932,11 +937,13 @@ function monthlyTableRows(){
   const rows=[['Mois','Type de ligne','Client','Formation','Date de session','Formateur','Statut','Indicateur','Valeur']];
   const row=(type,{s,t,status,label,value}={})=>[r.month,type,s?clientOf(formOf(s)).name:'',s?formOf(s).title:'',s?.date||'',t||'',status||'',label||'',value??''];
   rows.push(row('Synthèse',{label:'Sessions',value:r.sessions.length}),row('Synthèse',{label:'Participants prévus',value:r.participants}),row('Synthèse',{label:'Sessions entièrement staffées',value:r.staffed}),row('Synthèse',{label:'Formateurs mobilisés',value:r.trainersByMission.length}),row('Synthèse',{label:'NPS moyen / 10',value:r.nps===null?'Non mesuré':reportNumber(r.nps)}),row('Synthèse',{label:'Ponctualité documentaire',value:r.punctual.length?reportNumber(r.onTime/r.punctual.length*100)+' %':'Non mesurée'}));
+  rows.push(row('Synthèse',{label:'Bonus du mois',value:r.bonuses.length}),row('Synthèse',{label:'Points de bonus attribués',value:r.bonusPoints}));
+  r.bonusByTrainer.forEach(t=>rows.push(row('Synthèse formateur',{t:t.name,label:'Bonus du mois',value:t.count}),row('Synthèse formateur',{t:t.name,label:'Points de bonus attribués',value:t.points})));
   r.sessions.forEach(s=>rows.push(row('Session',{s,status:staffingLabel(s),label:'Participants',value:s.people})));
   r.assignments.forEach(a=>rows.push(row('Affectation',{s:sessionById(a.sessionId),t:trainerById(a.trainerId).name,status:a.status,label:'NPS / 10',value:missionRatings[a.id]?.nps})));
   r.proposals.forEach(p=>rows.push(row('Proposition',{s:sessionById(p.sessionId),t:trainerById(p.trainerId).name,status:p.status,label:'Conditions',value:p.conditions})));
   r.docs.forEach(d=>rows.push(row('Livrable',{s:sessionById(d.sessionId),t:trainerById(d.trainerId)?.name,status:d.status,label:d.title,value:d.dueDate})));
-  r.bonuses.forEach(b=>rows.push(row('Bonus',{t:trainerById(b.trainerId)?.name,label:'Date',value:b.createdAt.slice(0,10)})));
+  r.bonuses.forEach(b=>rows.push(row('Bonus',{t:trainerById(b.trainerId)?.name,status:b.createdAt.slice(0,10),label:'Points attribués',value:trainerBonusValue})));
   r.cards.forEach(c=>rows.push(row('Carton',{t:trainerById(c.trainerId)?.name,status:c.level,label:'Date',value:c.createdAt.slice(0,10)})));
   return rows;
 }
@@ -951,7 +958,7 @@ async function exportMonthlyChart(){
   const r=monthlyReport();
   if(!/^\d{4}-\d{2}$/.test(r.month))return flash('Choisissez un mois.');
   const period=fmtDate(r.month+'-01',{month:'long',year:'numeric'});
-  const stats=[['Sessions',r.sessions.length],['Participants prévus',r.participants],['Affectations',r.assignments.length],['Formateurs mobilisés',r.trainersByMission.length],['Livrables déposés',r.deposited+'/'+r.docs.length],['NPS moyen',r.nps===null?'—':reportNumber(r.nps)+' / 10']];
+  const stats=[['Sessions',r.sessions.length],['Participants prévus',r.participants],['Affectations',r.assignments.length],['Formateurs mobilisés',r.trainersByMission.length],['Livrables déposés',r.deposited+'/'+r.docs.length],['Bonus du mois',r.bonuses.length],['Points de bonus attribués',r.bonusPoints],['NPS moyen',r.nps===null?'—':reportNumber(r.nps)+' / 10']];
   const palette=['#a48aff','#52d7b2','#ffc475','#f196b3','#87baff'];
   const statusRows=(items,key)=>Object.entries(items.reduce((acc,item)=>{const label=key(item);acc[label]=(acc[label]||0)+1;return acc},Object.create(null)));
   const bars=(title,rows)=>{const max=Math.max(1,...rows.map(x=>x[1]));return `<section><h2>${title}</h2>${rows.map(([label,n],i)=>`<div class="bar-label"><span>${esc(label)}</span><b>${n}</b></div><div class="rail"><div class="bar" style="--width:${n/max*100}%;--i:${i};--color:${palette[i%palette.length]}"></div></div>`).join('')||'<p>Aucune donnée sur la période.</p>'}</section>`};
@@ -973,6 +980,7 @@ async function exportMonthlyChart(){
   ${bars('Livrables par statut',statusRows(r.docs,d=>d.status))}
   ${ring('Ponctualité documentaire',r.onTime,r.punctual.length,`${r.onTime} dépôt(s) à temps sur ${r.punctual.length} daté(s)`)}
   ${bars('Suivi interne sur la période',[['Bonus',r.bonuses.length],['Cartons jaunes',r.cards.filter(c=>c.level==='jaune').length],['Cartons rouges',r.cards.filter(c=>c.level==='rouge').length]])}
+  ${bars('Bonus par formateur',r.bonusByTrainer.map(t=>[t.name,t.count]))}
   ${bars('Affectations par formateur',r.trainersByMission.map(t=>[t.name,t.count]))}
   <section><h2>Évaluations des missions</h2><p>${r.npsCount} mission(s) évaluée(s) sur ${r.assignments.length} affectation(s).</p><table><thead><tr><th>Formateur</th><th>Terminées</th><th>NPS / 10</th></tr></thead><tbody>${r.trainersByMission.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.done}</td><td>${t.nps===null?'—':reportNumber(t.nps)}</td></tr>`).join('')||'<tr><td colspan="3">Aucune mission</td></tr>'}</tbody></table></section>
   </div><p>Données de démonstration · Rapport autonome</p></main></html>`;
@@ -1227,7 +1235,7 @@ function applyHubAppearance(key){
   const choice=Object.hasOwn(hubAppearance,key)?key:'violet';
   const appearance=hubAppearance[choice];
   document.documentElement.dataset.hubAppearance=choice;
-  document.querySelector('meta[name="theme-color"]').content=appearance.color;
+  applyHubTheme(currentHubTheme());
   document.querySelector('link[rel="manifest"]').setAttribute('href',appearance.manifest);
   if(!document.querySelector('link[data-hub-icon]')){
     document.querySelectorAll('link[rel="icon"],link[rel="apple-touch-icon"]').forEach(link=>link.remove());
@@ -1272,14 +1280,18 @@ function openHubSettings(){
 }
 
 function hubSettingsPanel(){
-  const selected=currentHubAppearance();
+  const selected=currentHubAppearance(),theme=currentHubTheme();
   return `<h2 id="settings-heading" tabindex="-1">Réglages</h2>
+    <fieldset class="theme-field"><legend>Thème</legend>
+      <div class="theme-options">${[['light','Clair'],['dark','Sombre'],['auto','Automatique']].map(([key,label])=>`<label><input id="hub-theme-${key}" name="hub-theme" type="radio" value="${key}" ${theme===key?'checked':''} onchange="chooseHubTheme(this.value)">${label}</label>`).join('')}</div>
+      <p class="item-sub">Automatique suit le thème de ton appareil. Tes réglages sont enregistrés sur cet appareil.</p>
+    </fieldset>
     <fieldset class="appearance-field"><legend>Icône et couleur du Hub</legend>
       <div class="appearance-options">${Object.entries(hubAppearance).map(([key,item])=>`<label class="appearance-option" for="hub-icon-${key}">
         <input id="hub-icon-${key}" name="hub-icon" type="radio" value="${key}" ${selected===key?'checked':''} onchange="chooseHubAppearance(this.value)">
         <img src="${item.folder}pwa-192.png" width="64" height="64" alt=""><strong>${item.label}</strong>
       </label>`).join('')}</div>
-      <p class="item-sub">Ce choix s’applique sur cet appareil. L’icône d’une app déjà installée peut nécessiter une réinstallation.</p>
+      <p class="item-sub">Sur mobile, pour changer l’icône de l’écran d’accueil, supprime le raccourci du Hub, retourne sur le site dans ton navigateur, puis réinstalle l’application depuis le site web.</p>
       <div class="sr-announcement" id="appearance-status" role="status"></div>
     </fieldset>
     <section class="settings-documents" aria-label="Informations et documents">
@@ -1289,9 +1301,63 @@ function hubSettingsPanel(){
         <div class="settings-terms-body"><p>Ce Hub permet de tester les parcours AMO et formateur avec des données fictives. Utilisez des informations et des fichiers de démonstration.</p>
         <p>Les réglages, les modifications et les fichiers importés sont conservés dans le navigateur de cet appareil. Les propositions et notifications sont simulées dans le Hub.</p></div>
       </details>
-      <a class="settings-document" href="assets/documents/charte-collaboration-certif-ia-2026.pdf" target="_blank" rel="noopener noreferrer"><span>${mobileIcon('docs',18)}</span><div><strong>Charte de collaboration Certif-IA</strong><small>PDF · Version 2026</small></div>${mobileIcon('chevron',18)}</a>
+      <button type="button" class="settings-document charter-open" onclick="openHubCharter(1)"><span>${mobileIcon('docs',18)}</span><span><strong>Charte de collaboration Certif-IA</strong><small>PDF · Version 2026</small></span>${mobileIcon('chevron',18)}</button>
     </section>`;
 }
+
+const hubSystemTheme=window.matchMedia('(prefers-color-scheme: dark)');
+const hubThemes=['light','dark','auto'];
+const hubCharterPages=13;
+const hubCharterFile='assets/documents/charte-collaboration-certif-ia-2026.pdf';
+
+function currentHubTheme(){
+  return document.documentElement.dataset.hubTheme||'auto';
+}
+
+function applyHubTheme(value){
+  const preference=hubThemes.includes(value)?value:'auto';
+  const dark=preference==='dark'||(preference==='auto'&&hubSystemTheme.matches);
+  const root=document.documentElement;
+  root.dataset.hubTheme=preference;
+  root.dataset.hubTone=dark?'dark':'light';
+  const appearance=hubAppearance[root.dataset.hubAppearance]||hubAppearance.violet;
+  document.querySelector('meta[name="theme-color"]').content=dark?'#20182d':appearance.color;
+}
+
+function chooseHubTheme(value){
+  if(!hubThemes.includes(value))return;
+  applyHubTheme(value);
+  try{localStorage.setItem('certifia-hub-theme',value)}catch(e){}
+}
+
+function openHubCharter(page){
+  openModal('hub-charter',Math.max(1,Math.min(hubCharterPages,page)));
+  $('charter-heading')?.focus({preventScroll:true});
+}
+
+function hubCharterPanel(){
+  const page=state.modal.id;
+  const text=typeof hubCharterTextPages!=='undefined'?hubCharterTextPages[page-1]:'';
+  return `<div class="charter-controls"><h2 id="charter-heading" tabindex="-1">Charte de collaboration</h2>
+    <div class="charter-action-row"><button type="button" class="secondary tiny" onclick="openHubSettings()">← Retour aux réglages</button>
+      <a class="primary tiny" href="${hubCharterFile}" download="Charte-Collaboration-Certif-IA-2026.pdf">Télécharger le PDF</a></div>
+    <div class="charter-pagination" aria-label="Navigation dans la charte">
+      <button type="button" class="secondary tiny" onclick="openHubCharter(${page-1})" ${page===1?'disabled':''}>Précédente</button>
+      <span aria-live="polite">Page ${page} / ${hubCharterPages}</span>
+      <button type="button" class="secondary tiny" onclick="openHubCharter(${page+1})" ${page===hubCharterPages?'disabled':''}>Suivante</button>
+    </div></div>
+    <article class="charter-page charter-text" aria-label="Texte de la page ${page}">${text?esc(text):'Le texte de cette page est disponible dans le PDF à télécharger.'}</article>`;
+}
+
+function monthlyBonusPanel(report){
+  return `<section class="card monthly-bonus-panel">${cardTitle('Bonus attribués sur la période',trainerBonusValue+' points par bonus. Le score individuel reste plafonné à 100.')}
+    ${report.bonusByTrainer.length?report.bonusByTrainer.map(t=>`<div class="line-item"><div class="grow"><strong>${trainerName(trainerById(t.id))}</strong><div class="item-sub">${t.count} bonus</div></div><span class="badge green">+${t.points} points attribués</span></div>`).join(''):'<p class="empty">Aucun bonus attribué ce mois-ci.</p>'}</section>`;
+}
+
+let savedTheme='auto';
+try{savedTheme=localStorage.getItem('certifia-hub-theme')}catch(e){}
+applyHubTheme(savedTheme);
+hubSystemTheme.addEventListener('change',()=>{if(currentHubTheme()==='auto')applyHubTheme('auto')});
 
 let savedAppearance='violet';try{savedAppearance=localStorage.getItem('certifia-hub-appearance')}catch(e){}applyHubAppearance(savedAppearance);
 initV17();state.calendarDate=parisToday();const upcomingStaffing=db.sessions.filter(s=>s.date>=state.calendarDate&&s.status!=='Annulée'&&openCount(s)>0).sort((a,b)=>a.date.localeCompare(b.date))[0];if(upcomingStaffing)state.selectedSession=upcomingStaffing.id;try{const id=Number(localStorage.getItem(DEMO_KEY+'-active-trainer'));if(trainerById(id))state.trainerId=id}catch(e){}simulateDueReminders(true);restoreHash();render();setInterval(()=>{if(simulateDueReminders(true))render()},60000);
