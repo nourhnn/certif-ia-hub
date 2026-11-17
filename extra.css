@@ -326,9 +326,8 @@ button.agenda-event:hover{filter:brightness(.95)}
 .amo-next span{font-size:12px;color:#f2e7ff}
 .amo-next button{margin-top:5px}
 .home-shortcuts{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}
-.home-shortcuts button,.desktop-notifications,.favicon-download{display:inline-flex;align-items:center;gap:7px}
+.home-shortcuts button,.desktop-notifications{display:inline-flex;align-items:center;gap:7px}
 .home-shortcuts .count{background:#eadcff;color:#4d268e;padding:2px 6px;border-radius:8px}
-.favicon-download{color:#ded3f1;font-size:11px}
 .agenda-today-row{display:flex;justify-content:flex-end;margin-bottom:3px}
 .agenda-today-row button{min-height:36px}
 .formation-client{display:block;font-family:Manrope,Arial,sans-serif;font-size:17px;color:#332350;margin-bottom:3px}

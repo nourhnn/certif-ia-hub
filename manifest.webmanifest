@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "Certif-IA Hub — PWA V1.9",
+  "name": "Certif-IA Hub — Démonstration",
   "short_name": "Certif-IA Hub",
   "start_url": "./index.html",
   "scope": "./",
@@ -9,10 +9,28 @@
   "theme_color": "#171719",
   "icons": [
     {
-      "src": "assets/certifia-icon.png",
+      "src": "assets/icons/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/pwa-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "assets/icons/pwa-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icons/pwa-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
