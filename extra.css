@@ -426,3 +426,14 @@ button.agenda-event:hover{filter:brightness(.95)}
 .profile-photo-upload input{max-width:100%;font-size:13px}
 .profile-photo-upload input::file-selector-button{border:0;border-radius:8px;padding:9px;background:#e9ddff;color:#502b85;font-weight:700;cursor:pointer}
 .profile-photo-upload small{color:#595066}
+
+.bonus-review{background:#edf8f1!important;border:1px solid #bfe2cc;border-radius:11px;padding:12px}
+.bonus-review strong:first-child{color:#195a36}
+.bonus-review svg{vertical-align:middle;margin-right:3px;fill:#b5edc8}
+.bonus-reveal{animation:bonus-reveal .75s ease-out both}
+@keyframes bonus-reveal{0%{opacity:.5;transform:scale(.98);box-shadow:0 0 0 0 #56bd82a0}60%{opacity:1;transform:scale(1.01);box-shadow:0 0 0 9px #56bd8220}100%{transform:none;box-shadow:none}}
+.mobile-more-list button .more-section-icon{display:grid;place-items:center;width:39px;height:39px;flex:none;background:#f0e6ff;color:#6535b0;border-radius:10px}
+.mission-doc-count{display:block;margin:6px 0;line-height:1.5}
+.mission-documents+.mission-documents{margin-top:14px}
+.mission-document-row .badge{flex-shrink:0}
+@media(max-width:600px){.mission-document-row .grow{min-width:calc(100% - 55px)}.mission-document-row .secondary{margin-left:auto}}

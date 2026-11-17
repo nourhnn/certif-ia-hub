@@ -81,17 +81,19 @@ function reliabilityScore(t){
  const incidentQuality=incidents.length?Math.max(0,100-incidents.reduce((v,r)=>v+(r.level==='rouge'?45:15),0)):null;
  const parts=[['Ponctualité documentaire',punctuality,30],['Satisfaction contextualisée',satisfaction,40],['Retours des missions',feedback,10],['Incidents vérifiés',incidentQuality,20]];
  const complete=parts.every(x=>x[1]!==null);
- const total=complete?Math.round(parts.reduce((n,x)=>n+x[1]*x[2],0)/100):null;
- return {total,parts,complete};
+ const base=complete?Math.round(parts.reduce((n,x)=>n+x[1]*x[2],0)/100):({1:92,2:74,3:58,4:89,5:62,6:81})[t.id]??null;
+ const bonuses=db.internalReviews.filter(r=>r.trainerId===t.id&&r.kind==='bonus').length;
+ const total=base===null?null:Math.min(100,base+bonuses*5);
+ return {total,parts,complete,base,bonuses,bonusPoints:total===null?0:total-base};
 }
 
-function reliabilityBadge(t){let o=reliabilityScore(t);let illustrative={1:92,2:74,3:58,4:89,5:62,6:81};let score=o.total===null?illustrative[t.id]:o.total;if(score===undefined)return '<span class="badge">Fiabilité · non évaluée</span>';let color=score>=85?'green':score>=60?'amber':'red';return `<span class="badge ${color}" title="Score fictif illustratif — calcul métier non validé">Fiabilité ${score}% · démo</span>`;}
+function reliabilityBadge(t){const {total:score}=reliabilityScore(t);if(score===null)return '<span class="badge">Fiabilité · non évaluée</span>';let color=score>=85?'green':score>=60?'amber':'red';return `<span class="badge ${color}" title="Score fictif illustratif — calcul métier non validé">Fiabilité ${score}% · démo</span>`;}
 function gainsEstimate(t){return t.rate*t.missions;}
 function money(n){return Number(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});}
 function safeContact(value,type){if(!value)return '<span class="item-sub">Non renseigné</span>';let href=type==='phone'?'tel:'+String(value).replace(/[^+0-9]/g,''):'mailto:'+value;return `<a class="text-link" href="${esc(href)}">${esc(value)}</a>`;}
 function responseRate(t){let p=db.proposals.filter(x=>x.trainerId===t.id&&['Envoyée','Acceptée','Refusée'].includes(x.status));let a=p.filter(x=>['Acceptée','Refusée'].includes(x.status));return p.length?`${Math.round(100*a.length/p.length)} % (${a.length}/${p.length} propositions démo)`:'Aucune sollicitation mesurable';}
-function submitInternalReview(id){if(state.role==='formateur')return flash('Action interne uniquement');let kind=$('review-kind')?.value,level=$('review-level')?.value,memo=$('review-reason')?.value.trim();if(!['observation','carton','bonus'].includes(kind))return flash('Choisissez une nature.');if(!memo||memo.length<10)return flash('Un justificatif de 10 caractères minimum est obligatoire');db.internalReviews.push({id:'IR'+Date.now(),trainerId:id,kind,level:kind==='carton'?level:null,reason:memo,verified:false,public:false,createdAt:new Date().toISOString(),author:'AMO (démonstration)'});if(kind==='carton')state.freshCard=id;log(kind==='bonus'?'Bonus enregistré':'Observation interne simulée',`${id} · ${kind}`);render();flash(kind==='bonus'?'Bonus enregistré dans la fiche interne.':'Observation enregistrée en démo');}
-function internalReviewsCard(t){let items=db.internalReviews.filter(r=>r.trainerId===t.id);return `<div class="card" style="margin-top:16px"><h3 class="section-title">Gestion interne · accès AMO uniquement</h3><p class="section-caption">Observations, bonus, cartons motivés et taux de réponse. Aucune de ces notes n'est communiquée au portail Formateur.</p><div class="info" style="margin:12px 0"><small>Taux de réponse (propositions démo)</small><strong>${esc(responseRate(t))}</strong></div><div class="form-grid"><label>Nature<select class="field" id="review-kind" onchange="document.getElementById('review-level-field').hidden=this.value!=='carton'"><option value="observation">Observation AMO</option><option value="carton">Carton avec justificatif</option><option value="bonus">Bonus</option></select></label><label id="review-level-field" hidden>Type de carton<select class="field" id="review-level"><option value="jaune">Jaune</option><option value="rouge">Rouge</option></select></label></div><label class="form-label" for="review-reason">Justificatif / contexte</label><textarea class="field" id="review-reason" placeholder="Faits précis, mission, date, actions correctives…"></textarea><button class="primary" style="margin-top:10px" onclick="submitInternalReview(${t.id})">Enregistrer</button><div class="stack" style="margin-top:16px">${items.slice().reverse().map(r=>`<div class="info"><strong>${r.kind==='carton'?'Carton '+esc(r.level):r.kind==='bonus'?'Bonus':'Observation'} · ${esc(r.createdAt.slice(0,10))}</strong><p>${esc(r.reason)}</p><small>${esc(r.author)} · ${r.kind==='bonus'?'Reconnaissance interne':r.verified?'Vérifié':'Non vérifié — aucune pénalité'}</small></div>`).join('')||'<p class="item-sub">Aucune observation enregistrée dans cette démo.</p>'}</div><p class="footnote">La validation métier, les recours et l’accès serveur sécurisé restent à définir. Les faits non vérifiés ne modifient pas la fiabilité.</p></div>`;}
+function submitInternalReview(id){if(state.role==='formateur')return flash('Action interne uniquement');let kind=$('review-kind')?.value,level=$('review-level')?.value,memo=$('review-reason')?.value.trim();if(!['observation','carton','bonus'].includes(kind))return flash('Choisissez une nature.');if(!memo||memo.length<10)return flash('Un justificatif de 10 caractères minimum est obligatoire');db.internalReviews.push({id:'IR'+Date.now(),trainerId:id,kind,level:kind==='carton'?level:null,reason:memo,verified:false,public:false,createdAt:new Date().toISOString(),author:'AMO (démonstration)'});if(kind==='carton')state.freshCard=id;if(kind==='bonus')state.freshBonus=db.internalReviews.at(-1).id;log(kind==='bonus'?'Bonus enregistré':'Observation interne simulée',`${id} · ${kind}`);render();flash(kind==='bonus'?'Bonus enregistré dans la fiche interne.':'Observation enregistrée en démo');}
+function internalReviewsCard(t){let items=db.internalReviews.filter(r=>r.trainerId===t.id);return `<div class="card" style="margin-top:16px"><h3 class="section-title">Gestion interne · accès AMO uniquement</h3><p class="section-caption">Observations, bonus, cartons motivés et taux de réponse. Aucune de ces notes n'est communiquée au portail Formateur.</p><div class="info" style="margin:12px 0"><small>Taux de réponse (propositions démo)</small><strong>${esc(responseRate(t))}</strong></div><div class="form-grid"><label>Nature<select class="field" id="review-kind" onchange="document.getElementById('review-level-field').hidden=this.value!=='carton'"><option value="observation">Observation AMO</option><option value="carton">Carton avec justificatif</option><option value="bonus">Bonus</option></select></label><label id="review-level-field" hidden>Type de carton<select class="field" id="review-level"><option value="jaune">Jaune</option><option value="rouge">Rouge</option></select></label></div><label class="form-label" for="review-reason">Justificatif / contexte</label><textarea class="field" id="review-reason" placeholder="Faits précis, mission, date, actions correctives…"></textarea><button class="primary" style="margin-top:10px" onclick="submitInternalReview(${t.id})">Enregistrer</button><div class="stack" style="margin-top:16px">${items.slice().reverse().map(r=>`<div class="info ${r.kind==='bonus'?'bonus-review':''} ${state.freshBonus===r.id?'bonus-reveal':''}"><strong>${r.kind==='bonus'?mobileIcon('bonus',16):''} ${r.kind==='carton'?'Carton '+esc(r.level):r.kind==='bonus'?'Bonus':'Observation'} · ${esc(r.createdAt.slice(0,10))}</strong><p>${esc(r.reason)}</p><small>${esc(r.author)} · ${r.kind==='bonus'?'Reconnaissance interne':r.verified?'Vérifié':'Non vérifié — aucune pénalité'}</small></div>`).join('')||'<p class="item-sub">Aucune observation enregistrée dans cette démo.</p>'}</div><p class="footnote">La validation métier, les recours et l’accès serveur sécurisé restent à définir. Les faits non vérifiés ne modifient pas la fiabilité.</p></div>`;}
 
 function clone(x){return JSON.parse(JSON.stringify(x))}
 function loadData(){try{let raw=JSON.parse(localStorage.getItem(DEMO_KEY));if(raw&&raw.version===1&&raw.data&&Array.isArray(raw.data.sessions))return raw.data;}catch(e){}return clone(initialData)}
@@ -170,7 +172,7 @@ function restoreHash(){
   if(route[2]==='trainer-folder'&&route[3])state.selectedDocGroup=route[3];
 }
 function validPages(role){return role==='formateur'?['trainer-home','trainer-missions','trainer-calendar','trainer-docs','trainer-profile','trainer-folder']:['home','planning','formations','formation-detail','session-detail','trainers','trainer-detail','clients','client-detail','staffing','documents','reporting']}
-const mobileSymbols={check:'<path d="m5 12 4 4L19 6"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',trainers:'<circle cx="9" cy="7" r="3"/><path d="M2 20v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2M17 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>',clients:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h2m4 0h2M8 11h2m4 0h2M8 15h2m4 0h2m-6 6v-3h4v3"/>',reporting:'<path d="M3 3v18h18M8 16v-5m5 5V7m5 9v-8"/>',pin:'<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/>',home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',staff:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 8h5M19.5 5.5v5"/>',docs:'<path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 13h10M7 17h7"/>',more:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',missions:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h6"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',back:'<path d="m14 6-6 6 6 6"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',chevron:'<path d="m9 18 6-6-6-6"/>',close:'<path d="M18 6 6 18M6 6l12 12"/>'};
+const mobileSymbols={bonus:'<path d="M12 2l2.6 5.4 6 .8-4.3 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.4 8.2l6-.8z"/>',check:'<path d="m5 12 4 4L19 6"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',trainers:'<circle cx="9" cy="7" r="3"/><path d="M2 20v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2M17 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>',clients:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h2m4 0h2M8 11h2m4 0h2M8 15h2m4 0h2m-6 6v-3h4v3"/>',reporting:'<path d="M3 3v18h18M8 16v-5m5 5V7m5 9v-8"/>',pin:'<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/>',home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',staff:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 8h5M19.5 5.5v5"/>',docs:'<path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 13h10M7 17h7"/>',more:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',missions:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h6"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',back:'<path d="m14 6-6 6 6 6"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',chevron:'<path d="m9 18 6-6-6-6"/>',close:'<path d="M18 6 6 18M6 6l12 12"/>'};
 function mobileIcon(name,size=21){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${mobileSymbols[name]||mobileSymbols.more}</svg>`}
 function mobileIsDetail(page){return ['formation-detail','session-detail','trainer-detail','client-detail','trainer-folder','trainer-profile'].includes(page)}
 function mobileBackTarget(page){return ({'formation-detail':'formations','session-detail':'formations','trainer-detail':'trainers','client-detail':'clients','trainer-folder':'trainer-docs','trainer-profile':'trainer-home'})[page]||'home'}
@@ -188,7 +190,7 @@ function trainerNotifications(){
   }));
   const reminders=db.reminders.filter(r=>r.channel==='PWA').flatMap(r=>{
     const doc=db.deliverables.find(d=>d.id===r.deliverableId&&d.trainerId===id&&d.owner==='formateur');
-    return doc?[{key:'reminder:'+r.id,title:'Rappel de livrable',detail:doc.title,action:`openTrainerFolder('${doc.formationId}')`,label:'Voir le dossier'}]:[];
+    return doc?[{key:'reminder:'+r.id,title:'Rappel de livrable',detail:doc.title,action:`openTrainerFolder(${doc.sessionId})`,label:'Voir le dossier'}]:[];
   });
   const refusals=db.deliverables.filter(d=>d.trainerId===id&&d.owner==='formateur'&&d.status==='Refusé').map(d=>({
     key:'refusal:'+d.id+':'+(d.versions.at(-1)?.number||0),
@@ -221,7 +223,7 @@ function trainerNotificationPanel(){
 function mobileHead(trainer,title){const back=mobileIsDetail(state.page);return `<div class="mobile-app-head"><button class="mobile-brand-button" aria-label="${back?'Retour à la liste':'Aller à l’accueil'}" onclick="go('${back?mobileBackTarget(state.page):trainer?'trainer-home':'home'}')">${back?mobileIcon('back',22):'<img src="assets/certifia-icon.png" width="33" height="33" alt=""/>'}</button><div class="mobile-head-center"><span class="mobile-head-eyebrow">${trainer?'PORTAIL FORMATEUR':'CERTIF-IA HUB · AMO'}</span><strong>${esc(title)}</strong></div>${trainer?`${trainerNotificationBell()}<button class="avatar profile-trigger" aria-label="Mon profil" onclick="go('trainer-profile')">${photoContent(trainerById(state.trainerId))}</button>`:`<button class="mobile-bell" title="Notifications de démonstration" aria-label="Notifications" onclick="openAmoNotifications()">${mobileIcon('bell',21)}${amoNotifications().length?'<span class="mobile-bell-dot" aria-hidden="true"></span>':''}</button>`}</div>`}
 function openMobileMore(){state.mobileMore=true;render()}
 function closeMobileMore(){state.mobileMore=false;render()}
-function mobileMoreSheet(){if(!state.mobileMore||state.role==='formateur')return '';const choices=[['formations','Formations','Dossiers et sessions'],['trainers','Formateurs','Annuaire & profils'],['clients','Clients','Annuaire & historique'],['reporting','Monthly AMO','Rapport mensuel']];return `<div class="mobile-sheet-overlay" role="presentation" onclick="if(event.target===this)closeMobileMore()"><section class="mobile-more-sheet" role="dialog" aria-modal="true" aria-label="Tous les modules"><div class="mobile-sheet-grip" aria-hidden="true"></div><div class="mobile-sheet-heading"><h2>Explorer le Hub</h2><button type="button" aria-label="Fermer" class="mobile-sheet-close" onclick="closeMobileMore()">${mobileIcon('close',20)}</button></div><div class="mobile-more-list">${choices.map(([page,title,desc])=>`<button type="button" onclick="go('${page}')"><span><strong>${title}</strong><small>${desc}</small></span>${mobileIcon('chevron',19)}</button>`).join('')}</div><div class="mobile-more-settings"><label for="mobile-role-switch">Changer de profil démo</label><select class="field" id="mobile-role-switch" onchange="setRole(this.value)"><option value="amo">AMO / Interne</option>${trainers.map(t=>`<option value="trainer-${t.id}">${trainerName(t)} · Formateur</option>`).join('')}</select><button type="button" onclick="resetDemo()">Réinitialiser les données fictives</button></div></section></div>`}
+function mobileMoreSheet(){if(!state.mobileMore||state.role==='formateur')return '';const choices=[['formations','missions','Formations','Dossiers et sessions'],['trainers','trainers','Formateurs','Annuaire & profils'],['clients','clients','Clients','Annuaire & historique'],['reporting','reporting','Monthly AMO','Rapport mensuel']];return `<div class="mobile-sheet-overlay" role="presentation" onclick="if(event.target===this)closeMobileMore()"><section class="mobile-more-sheet" role="dialog" aria-modal="true" aria-label="Tous les modules"><div class="mobile-sheet-grip" aria-hidden="true"></div><div class="mobile-sheet-heading"><h2>Explorer le Hub</h2><button type="button" aria-label="Fermer" class="mobile-sheet-close" onclick="closeMobileMore()">${mobileIcon('close',20)}</button></div><div class="mobile-more-list">${choices.map(([page,icon,title,desc])=>`<button type="button" onclick="go('${page}')"><span class="more-section-icon">${mobileIcon(icon,20)}</span><span class="grow"><strong>${title}</strong><small>${desc}</small></span>${mobileIcon('chevron',19)}</button>`).join('')}</div><div class="mobile-more-settings"><label for="mobile-role-switch">Changer de profil démo</label><select class="field" id="mobile-role-switch" onchange="setRole(this.value)"><option value="amo">AMO / Interne</option>${trainers.map(t=>`<option value="trainer-${t.id}">${esc(trainerOptionLabel(t))} · Formateur</option>`).join('')}</select><button type="button" onclick="resetDemo()">Réinitialiser les données fictives</button></div></section></div>`}
 function decorateMobileTables(){document.querySelectorAll('.tbl').forEach(table=>{const th=[...table.querySelectorAll('thead th')].map(x=>x.textContent.trim());table.querySelectorAll('tbody tr').forEach(row=>{[...row.children].forEach((td,i)=>{if(td.tagName==='TD')td.setAttribute('data-mobile-label',th[i]||'Détail')})})})}
 
 function render(){const frame=$('document-file-frame');if(frame)URL.revokeObjectURL(frame.src);let trainer=state.role==='formateur';if(!validPages(state.role).includes(state.page))state.page=trainer?'trainer-home':'home';let nav=trainer?[
@@ -277,7 +279,7 @@ function trainerDetail(){
  else content=`${availabilityBadge(t)}<div class="info" style="margin:16px 0"><small>Calendrier</small><strong>${esc(t.city)} · ${esc(x.domain)}</strong><p>Google Agenda non connecté.</p></div>${db.availability.filter(a=>a.trainerId===t.id).map(a=>`<div class="line-item">${fmtDate(a.date)} · ${esc(a.start||'Journée')} ${badge(a.status)}</div>`).join('')||'<div class="empty">Aucun créneau déclaré.</div>'}<button class="primary" onclick="selectTrainerForStaff(${t.id})">Préparer un staffing →</button>`;
  return `<button class="ghost" onclick="go('trainers')">← Retour à l’annuaire</button><div class="card profile-fiche ${trainerCardClass(t)}"><div class="trainer-top fiche-hero">${trainerAvatar(t,70)}<div><h1 class="headline" style="font-size:28px;margin:0">${trainerName(t)}</h1><div class="trainer-meta">${esc(t.city)} · ${esc(t.rating)}</div>${reliabilityBadge(t)}</div><div class="grow"></div>${availabilityBadge(t)}</div><div class="tabs tabs-scroll">${tabs.map(([key,label])=>`<button class="${key===tab?'selected':''}" onclick="changeTab('trainerDetailTab','${key}')">${label}</button>`).join('')}</div>${content}</div>`;
 }
-function reliabilityCard(t){let score=reliabilityScore(t);return `<div class="card" style="margin-top:16px"><div class="card-head"><div><h3 class="section-title">Fiabilité · grille proposée V1.9</h3><p class="section-caption">Satisfaction 40 %, ponctualité 30 %, incidents vérifiés 20 %, retours de missions 10 %</p></div>${badge('À valider métier')}</div>${score.parts.map(([label,value,weight])=>`<div class="line-item"><div class="grow"><strong>${esc(label)}</strong> <small>(${weight} %)</small></div><strong>${value==null?'Données insuffisantes':value+'/100'}</strong></div>`).join('')}<p class="footnote">${score.total===null?'Fiabilité non évaluée : des critères ne sont pas renseignés.':'Indice de démonstration : '+score.total+'/100.'} Pas de bonus/malus appliqué à une personne réelle. Les données manquantes ne sont jamais considérées comme zéro.</p></div>`;}
+function reliabilityCard(t){let score=reliabilityScore(t);return `<div class="card" style="margin-top:16px"><div class="card-head"><div><h3 class="section-title">Fiabilité · grille proposée V1.9</h3><p class="section-caption">Satisfaction 40 %, ponctualité 30 %, incidents vérifiés 20 %, retours de missions 10 %</p></div>${badge('À valider métier')}</div>${score.parts.map(([label,value,weight])=>`<div class="line-item"><div class="grow"><strong>${esc(label)}</strong> <small>(${weight} %)</small></div><strong>${value==null?'Données insuffisantes':value+'/100'}</strong></div>`).join('')}<div class="line-item bonus-review"><div class="grow"><strong>${mobileIcon('bonus',16)} Bonus AMO</strong><div class="item-sub">${score.bonuses} bonus · 5 points par bonus, score plafonné à 100</div></div><strong>+${score.bonusPoints}</strong></div><p class="footnote">${score.total===null?'Fiabilité non évaluée.':(score.complete?'Base calculée':'Base illustrative')+' : '+score.base+'/100 · Score avec bonus : '+score.total+'/100.'} Les données manquantes ne sont jamais considérées comme zéro.</p></div>`;}
 function openClient(id){state.selectedClient=id;go('client-detail')}
 function clientsPage(){let rows=clients.filter(c=>(state.filter==='all'||clientDetails[c.id]?.city===state.filter)&&(c.name+' '+(clientDetails[c.id]?.industry||'')).toLowerCase().includes(state.search.toLowerCase()));return `${intro('Annuaire <em>clients.</em>','Un espace pour relier les dossiers HubSpot, les formations et les formateurs déjà mobilisés.')}${filtersBar('Client, secteur…',[['all','Tous les clients'],['Paris','Paris'],['Lyon','Lyon'],['Bordeaux','Bordeaux']])}<div class="toolbar"><div class="group"><button class="${state.clientView==='cards'?'primary':'secondary'} tiny" onclick="changeTab('clientView','cards')">${mobileIcon('grid',16)} Cartes</button><button class="${state.clientView==='table'?'primary':'secondary'} tiny" onclick="changeTab('clientView','table')">${mobileIcon('list',16)} Tableau</button></div><span class="badge purple">HubSpot non connecté · clients fictifs</span></div>${state.clientView==='cards'?`<div class="trainer-grid">${rows.map(c=>{let d=clientDetails[c.id],fs=formations.filter(f=>f.clientId===c.id),ts=assignedTrainersOfClient(c.id);return `<div class="trainer-card"><div class="trainer-top"><span class="client-avatar">${esc(c.name.slice(0,2).toUpperCase())}</span><div><div class="trainer-name">${esc(c.name)}</div><div class="trainer-meta">${esc(d.city)} · ${esc(d.industry)}</div></div></div><div class="tags">${ts.map(t=>`<span class="tag">${trainerName(t)}</span>`).join('')||'<span class="tag">Aucun formateur confirmé</span>'}</div><div class="trainer-stats"><div><small>Formations</small><strong>${fs.length}</strong></div><div><small>Formateurs intervenus</small><strong>${ts.length}</strong></div></div><button class="primary" onclick="openClient('${c.id}')">Voir la fiche client →</button></div>`}).join('')}</div>`:`<div class="table-wrap"><table class="tbl"><thead><tr><th>Client</th><th>Secteur</th><th>Ville</th><th>Formations</th><th>Formateurs associés</th><th></th></tr></thead><tbody>${rows.map(c=>`<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(clientDetails[c.id].industry)}</td><td>${esc(clientDetails[c.id].city)}</td><td>${formations.filter(f=>f.clientId===c.id).length}</td><td>${assignedTrainersOfClient(c.id).length}</td><td><button class="ghost" onclick="openClient('${c.id}')">Voir ↗</button></td></tr>`).join('')}</tbody></table></div>`}<p class="footnote">Données fictives : les informations HubSpot, interlocuteurs et contacts réels ne sont pas intégrés à cette démo.</p>`}
 function clientDetail(){
@@ -385,7 +387,7 @@ function docMobileCard(f){let st=docStatsFor(f),name=clientOf(f).name;return `<d
 function docDate(f){let dates=db.sessions.filter(s=>s.formationId===f.id).map(s=>s.date).sort();let later=dates.filter(d=>d>=parisToday());return later[0]||dates.at(-1)||'';}
 function setDocSort(value){state.docSort=value;render();}
 
-function docLine(d,person=false){let latest=d.versions.at(-1),canUpload=person&&d.owner==='formateur'&&d.trainerId===state.trainerId;return `<div class="doc-row"><span class="doc-icon">${mobileIcon('docs',16)}</span><div class="grow"><button class="document-title" onclick="openModal('document-preview','${d.id}')">${esc(d.title)}</button><div class="item-sub">${esc(d.type)} · ${latest?'Version '+latest.number+' · '+esc(latest.filename):'Aucune version déposée'}</div></div>${badge(d.status)}${canUpload?`<button class="ghost" onclick="openModal('upload','${d.id}')">${latest?'Nouvelle version':'Déposer'} ↗</button>`:!person&&['Déposé','En vérification','Refusé'].includes(d.status)?`<button class="ghost" onclick="openModal('review','${d.id}')">Vérifier ↗</button>`:''}</div>`}
+function docLine(d,person=false){let latest=d.versions.at(-1),canUpload=person&&d.owner==='formateur'&&d.trainerId===state.trainerId;return `<div class="doc-row"><span class="doc-icon">${mobileIcon('docs',16)}</span><div class="grow"><button class="document-title" onclick="openModal('document-preview','${d.id}')">${esc(d.title)}</button><div class="item-sub">${person?(d.owner==='interne'?'AMO':latest?.uploader==='amo'?'Déposé par l’AMO':'Formateur'):esc(d.type)} · ${latest?'Version '+latest.number+' · '+esc(latest.filename):'Aucune version déposée'}</div></div>${badge(d.status)}${canUpload?`<button class="ghost" onclick="openModal('upload','${d.id}')">${latest?'Nouvelle version':'Déposer'} ↗</button>`:!person&&['Déposé','En vérification','Refusé'].includes(d.status)?`<button class="ghost" onclick="openModal('review','${d.id}')">Vérifier ↗</button>`:''}</div>`}
 function documentsPage(){
  const ds=db.deliverables;
  const opts=[['all','Tous les dossiers'],['open','Incomplets'],['completed','Complets']];
@@ -445,7 +447,7 @@ function trainerHome(){
       ${missions.map(s=>`<button class="line-item clickable-row" onclick="openModal('mission-info',${s.id})"><span class="datebox"><strong>${s.date.slice(8)}</strong><small>${fmtDate(s.date,{month:'short'})}</small></span><span class="grow"><strong>${esc(s.title)}</strong><span class="item-sub">${esc(formOf(s).title)} · ${s.start}–${s.end}</span></span>${badge(s.status)}<span class="row-chevron" aria-hidden="true">›</span></button>`).join('')||'<p class="empty">Aucune mission à venir.</p>'}
     </section></div>`;
 }
-function trainerMissions(){let tid=state.trainerId,props=db.proposals.filter(p=>p.trainerId===tid),aa=db.assignments.filter(a=>a.trainerId===tid),tab=state.missionTab;return `${intro('Mes <em>missions.</em>','Propositions, missions confirmées et préparation, sans affichage des informations internes.','ESPACE FORMATEUR')}${missionPicker(tab,props,aa)}${tab==='proposals'?`<div class="card">${cardTitle('Propositions reçues','Une proposition acceptée apparaît dans votre agenda')}${props.map(p=>{let s=sessionById(p.sessionId);return `<div class="line-item"><div class="grow"><strong>${esc(clientOf(formOf(s)).name)} — ${esc(formOf(s).title)}</strong><div class="item-sub">${fmtDate(s.date)} · ${s.start}–${s.end} · ${esc(s.city)} · ${esc(p.conditions)}</div></div>${badge(p.status)}${p.status==='Envoyée'?`<div class="action-wrap"><button class="primary tiny" onclick="respondProposal('${p.id}','Acceptée')">Accepter</button><button class="secondary tiny" onclick="respondProposal('${p.id}','Refusée')">Refuser</button></div>`:''}${p.status==='Acceptée'?`<span class="item-sub">Dans votre agenda · confirmation AMO en attente</span><button class="ghost" onclick="openModal('mission-info',${s.id})">Informations client</button><button class="ghost" onclick="openTrainerFolder('${s.formationId}')">Ouvrir le dossier</button>`:''}</div>`}).join('')||'<div class="empty">Aucune proposition.</div>'}</div>`:`<div class="card">${cardTitle(tab==='upcoming'?'Missions confirmées':tab==='prepare'?'Préparation de mes missions':'Missions terminées')}${aa.filter(a=>tab==='finished'?a.status==='Réalisée':tab==='prepare'?a.status==='Confirmée'&&db.deliverables.some(d=>d.sessionId===a.sessionId&&d.trainerId===tid&&['À fournir','Refusé'].includes(d.status)):a.status==='Confirmée').map(a=>{let s=sessionById(a.sessionId);return `<div class="line-item"><div class="datebox"><strong>${s.date.slice(8)}</strong><small>${fmtDate(s.date,{month:'short'})}</small></div><div class="grow"><strong>${esc(clientOf(formOf(s)).name)}</strong><div class="item-sub">${esc(formOf(s).title)} · ${esc(s.city)} · ${s.start}–${s.end}</div></div>${badge(a.status)}<span class="badge">Audit : ${db.deliverables.some(d=>d.formationId===s.formationId&&docCategory(d)==='AUDIT'&&d.versions?.length)?'reçu':'en attente'}</span><button class="ghost" onclick="openModal('mission-info',${s.id})">Informations client</button><button class="ghost" onclick="openTrainerFolder('${s.formationId}')">Ouvrir le dossier</button></div>`}).join('')||'<div class="empty">Aucune mission dans cette catégorie.</div>'}</div>`}`}
+function trainerMissions(){let tid=state.trainerId,props=db.proposals.filter(p=>p.trainerId===tid),aa=db.assignments.filter(a=>a.trainerId===tid&&['Confirmée','Réalisée','À revalider'].includes(a.status)),tab=state.missionTab;return `${intro('Mes <em>missions.</em>','Propositions, missions confirmées et préparation, sans affichage des informations internes.','ESPACE FORMATEUR')}${missionPicker(tab,props,aa)}${tab==='proposals'?`<div class="card">${cardTitle('Propositions reçues','Une proposition acceptée apparaît dans votre agenda')}${props.map(p=>{let s=sessionById(p.sessionId);return `<div class="line-item"><div class="grow"><strong>${esc(clientOf(formOf(s)).name)} — ${esc(formOf(s).title)}</strong><div class="item-sub">${fmtDate(s.date)} · ${s.start}–${s.end} · ${esc(s.city)} · ${esc(p.conditions)}</div></div>${badge(p.status)}${p.status==='Envoyée'?`<div class="action-wrap"><button class="primary tiny" onclick="respondProposal('${p.id}','Acceptée')">Accepter</button><button class="secondary tiny" onclick="respondProposal('${p.id}','Refusée')">Refuser</button></div>`:''}${p.status==='Acceptée'?`<span class="item-sub">Dans votre agenda · confirmation AMO en attente</span>${missionDocumentSummary(s)}<button class="ghost" onclick="openModal('mission-info',${s.id})">Informations client</button><button class="ghost" onclick="openTrainerFolder(${s.id})">Ouvrir le dossier</button>`:''}</div>`}).join('')||'<div class="empty">Aucune proposition.</div>'}</div>`:`<div class="card">${cardTitle(tab==='upcoming'?'Missions confirmées':tab==='prepare'?'Préparation de mes missions':'Missions terminées')}${aa.filter(a=>missionMatchesTab(a,tab)).map(a=>{let s=sessionById(a.sessionId);return `<div class="line-item"><div class="datebox"><strong>${s.date.slice(8)}</strong><small>${fmtDate(s.date,{month:'short'})}</small></div><div class="grow"><strong>${esc(clientOf(formOf(s)).name)}</strong><div class="item-sub">${esc(formOf(s).title)} · ${esc(s.city)} · ${s.start}–${s.end}</div></div>${badge(a.status)}${missionDocumentSummary(s)}<button class="ghost" onclick="openModal('mission-info',${s.id})">Informations client</button><button class="ghost" onclick="openTrainerFolder(${s.id})">Ouvrir le dossier</button></div>`}).join('')||'<div class="empty">Aucune mission dans cette catégorie.</div>'}</div>`}`}
 function trainerCalendar(){
   const slots=db.availability.filter(a=>a.trainerId===state.trainerId).sort((a,b)=>b.date.localeCompare(a.date)||(a.start||'').localeCompare(b.start||''));
   return `<h1 class="headline">Mon agenda</h1>
@@ -459,23 +461,6 @@ function trainerCalendar(){
       ${slots.length>4?`<button class="secondary tiny" aria-expanded="${state.slotsExpanded}" onclick="changeTab('slotsExpanded',${!state.slotsExpanded})">${state.slotsExpanded?'Voir moins':`Voir plus (${slots.length-4})`}</button>`:''}
     </section>`;
 }
-function trainerDocs(){
-  const docs=trainerDocuments();
-  const groups=[...new Set(docs.map(d=>d.formationId))];
-  const open=state.trainerDocsFilter==='open';
-  return `<h1 class="headline">Mes livrables</h1>
-    <div class="tabs">${[['all','Tous les dossiers'],['open','À compléter']].map(([key,label])=>`<button class="${state.trainerDocsFilter===key?'selected':''}" onclick="changeTab('trainerDocsFilter','${key}')">${label}</button>`).join('')}</div>
-    <div class="folder-grid">${groups.filter(id=>!open||docs.some(d=>d.formationId===id&&documentState(d)!=='present')).map(id=>{
-      const f=formations.find(f=>f.id===id);
-      const items=docs.filter(d=>d.formationId===id).sort((a,b)=>documentOrder(a)-documentOrder(b));
-      const count=key=>items.filter(d=>documentState(d)===key).length;
-      return `<section class="card folder-card">${cardTitle(esc(clientOf(f).name),esc(f.title))}<p class="item-sub">${formationDates(f.id)}</p>
-        <div class="doc-summary">${badge(count('present')+' présent(s)')}${badge(count('missing')+' à fournir')}${badge(count('correction')+' refusé(s)')}</div>
-        <ul class="doc-preview">${items.map(d=>`<li><button class="document-title" onclick="openModal('document-preview','${d.id}')">${esc(d.title)}</button>${badge(d.status)}</li>`).join('')}</ul>
-        <button class="primary tiny" onclick="openTrainerFolder('${id}')">Ouvrir le dossier</button>
-      </section>`;
-    }).join('')||'<p class="empty">Aucun dossier dans cette vue.</p>'}</div>`;
-}
 function trainerProfile(){
   const t=trainerById(state.trainerId);
   const p=db.profiles?.[t.id]||{};
@@ -485,7 +470,7 @@ function trainerProfile(){
     ${state.profileEdit?'':`<button class="primary tiny" onclick="changeTab('profileEdit',true)">Modifier mon profil</button>`}</div>
     ${state.profileEdit?`<form class="profile-grid profile-editor" onsubmit="event.preventDefault();saveTrainerProfile(this)">
       <section class="card">${cardTitle('Identité et coordonnées','Les informations utilisées pour vos missions.')}<div class="form-grid">
-      ${field('Nom complet','name',t.name,'text',true)}${field('Ville','city',t.city,'text',true)}${field('Adresse e-mail','email',t.email,'email',true)}${field('Téléphone','phone',p.phone,'tel')}</div><div class="profile-picture-editor"><div class="profile-picture-preview" aria-hidden="true">${trainerAvatar(t,54)}</div><label>Photo de profil<input class="field" name="photo" type="url" placeholder="https://…" value="${esc(p.photo)}" oninput="state.profilePhotoDraft=null;state.profilePhotoPending=false;updateProfilePhoto(this.value)"><small>Vous pouvez aussi choisir une image sur votre appareil.</small></label></div>
+      ${field('Nom complet','name',t.name,'text',true)}${field('Ville','city',t.city,'text',true)}${field('Adresse e-mail','email',t.email,'email',true)}${field('Téléphone','phone',p.phone,'tel')}</div><div class="profile-picture-editor"><div class="profile-picture-preview" aria-hidden="true">${trainerAvatar(t,54)}</div><div><strong>Photo de profil</strong><p class="item-sub">Choisissez une image JPG, PNG ou WebP sur votre appareil.</p></div></div>
       <div class="profile-photo-upload"><label for="profile-photo-file">Importer une photo</label><input id="profile-photo-file" type="file" accept="image/jpeg,image/png,image/webp" onchange="selectProfilePhoto(this.files[0])"><small id="profile-photo-status" role="status"></small></div></section>
       <section class="card">${cardTitle('Profil professionnel','Présentez vos compétences et votre expérience.')}<div class="form-grid">
       ${field('Expertises déclarées (séparées par des virgules)','skills',t.skills.join(', '))}${field('LinkedIn','linkedin',p.linkedin,'url')}
@@ -520,14 +505,14 @@ async function simulateUpload(id,internal=false){
   const file=state.uploadFile||$('upload-file')?.files?.[0];
   if(!file)return flash('Sélectionnez un fichier.');
   const d=db.deliverables.find(x=>x.id===id);
-  if(!d||(internal?state.role!=='amo':d.owner!=='formateur'||d.trainerId!==state.trainerId))return flash('Action non autorisée.');
+  if(!d||(internal?state.role!=='amo':d.owner!=='formateur'||d.trainerId!==state.trainerId||!trainerCanReadDocument(d)))return flash('Action non autorisée.');
   const button=document.querySelector('.modal-actions .primary');
   if(button?.disabled)return;
   if(button)button.disabled=true;
   const fileKey=crypto.randomUUID();
   try{await documentStorage('readwrite',files=>files.put(file,fileKey))}
   catch(e){if(button)button.disabled=false;return flash('Le navigateur n’a pas pu enregistrer le fichier.')}
-  d.versions.push({number:d.versions.length+1,filename:file.name,fileKey,status:'Déposé',at:new Date().toISOString()});
+  d.versions.push({number:d.versions.length+1,filename:file.name,fileKey,uploader:internal?'amo':'formateur',status:'Déposé',at:new Date().toISOString()});
   d.status='Déposé';
   log('Livrable déposé',id);
   state.uploadFile=null;openModal('document-preview',id);
@@ -542,7 +527,8 @@ function breadcrumbs(pageTitle){
     if(formation)items=[['Formations',"go('formations')"],[clientOf(formation).name,session?`openFormation('${formation.id}')`:null],...(session?[[`Session du ${fmtDate(session.date,{day:'numeric',month:'long'})}`]]:[])];
   }
   if(state.page==='trainer-folder'){
-    const formation=formations.find(f=>f.id===state.selectedDocGroup);
+    const session=sessionById(state.selectedDocGroup);
+    const formation=session?formOf(session):formations.find(f=>f.id===state.selectedDocGroup);
     items=[['Mes livrables',"go('trainer-docs')"],[formation?clientOf(formation).name:'Dossier']];
   }
   return `<nav class="bread breadcrumbs" aria-label="Fil d’Ariane">${items.map(([label,action])=>action?`<button onclick="${action}">${esc(label)}</button>`:`<span aria-current="page">${esc(label)}</span>`).join('<span class="crumb-divider" aria-hidden="true">/</span>')}</nav>`;
@@ -552,27 +538,9 @@ function trainerDocuments(){
   return db.deliverables.filter(d=>d.owner==='formateur'&&d.trainerId===state.trainerId);
 }
 
-function documentState(doc){
-  if(doc.status==='Refusé')return 'correction';
-  return doc.versions.length||doc.status==='Non applicable'?'present':'missing';
-}
-
-function documentOrder(doc){
-  return ['correction','missing','present'].indexOf(documentState(doc));
-}
-
 function openTrainerFolder(id){
   state.selectedDocGroup=id;
   go('trainer-folder');
-}
-
-function trainerFolder(){
-  const f=formations.find(f=>f.id===state.selectedDocGroup);
-  if(!f)return '<p class="empty">Choisissez un dossier depuis Mes livrables.</p>';
-  const docs=trainerDocuments().filter(d=>d.formationId===f.id).sort((a,b)=>documentOrder(a)-documentOrder(b));
-  return `<h1 class="headline">${esc(clientOf(f).name)}</h1><p class="subtitle">${esc(f.title)} · ${formationDates(f.id)}</p>
-    <section class="card">${cardTitle('Livrables de la mission')}
-    ${docs.map(d=>docLine(d,true)).join('')||'<p class="empty">Aucun livrable attendu pour cette mission.</p>'}</section>`;
 }
 
 function trainerNps(id){
@@ -592,10 +560,9 @@ function saveTrainerProfile(form){
   if(state.profilePhotoPending)return flash('La photo est en cours de préparation.');
   const data=Object.fromEntries([...new FormData(form)].map(([key,value])=>[key,value.trim()]));
   const previous=db.profiles?.[state.trainerId];
-  const uploaded=state.profilePhotoDraft||(data.photo===(previous?.photo||'')?previous?.uploadedPhoto:null);
-  if(uploaded){data.uploadedPhoto=uploaded;if(state.profilePhotoDraft)data.photo=''}
+  const uploaded=state.profilePhotoDraft||previous?.uploadedPhoto;
+  if(uploaded)data.uploadedPhoto=uploaded;else if(previous?.photo)data.photo=previous.photo;
   if(!data.name||!data.city||!data.email)return flash('Renseignez le nom, la ville et l’adresse e-mail.');
-  if(data.photo&&!/^https:\/\//i.test(data.photo))return flash('Utilisez une adresse HTTPS pour la photo.');
   if(data.linkedin&&!/^https:\/\//i.test(data.linkedin))return flash('Utilisez une adresse HTTPS pour LinkedIn.');
   data.skills=data.skills.split(',').map(skill=>skill.trim()).filter(Boolean);
   db.profiles||={};
@@ -861,16 +828,16 @@ function documentPreview(id){
     return modalBox(esc(label||'Document'),'À fournir',label?`<button class="primary tiny" onclick="prepareMissingDoc('${formationId}','${category}'${sessionId?','+Number(sessionId):''})">Créer et déposer</button>`:'');
   }
   const owner=state.role==='formateur'&&d.trainerId===state.trainerId&&d.owner==='formateur';
-  if(state.role!=='amo'&&!owner)return '';
+  if(state.role!=='amo'&&!trainerCanReadDocument(d))return '';
   const formateur=state.role==='formateur';
   const versions=[...d.versions].reverse();
   const latest=versions[0];
-  return modalBox(esc(d.title),formationDates(d.formationId),`
+  return modalBox(esc(d.title),formateur?fmtDate(sessionById(d.sessionId)?.date):formationDates(d.formationId),`
     <div>${badge(d.status)}</div>
     ${d.status==='Refusé'&&latest?.comment?`<div class="info"><small>Motif du refus</small><strong>${esc(latest.comment)}</strong></div>`:''}
     ${versions.map(v=>`<div class="line-item"><div class="grow"><strong>${esc(v.filename)}</strong><div class="item-sub">Version ${v.number} · ${esc(v.status)}</div></div>${v.fileKey?`<button class="secondary tiny" onclick="downloadDocumentVersion('${d.id}',${v.number})">Ouvrir le fichier</button>`:'<span class="item-sub">Fichier de démonstration</span>'}</div>`).join('')||'<p class="empty">Aucune version déposée.</p>'}
     <div class="modal-actions">${!formateur&&latest?`<button class="secondary" onclick="openModal('review','${d.id}')">Vérifier</button>`:''}
-    ${!formateur||d.status!=='Validé'?`<button class="primary" onclick="openModal('${formateur?'upload':'upload-internal'}','${d.id}')">${d.status==='Refusé'?'Déposer une nouvelle version':'Déposer un fichier'}</button>`:''}</div>`);
+    ${!formateur||(owner&&d.status!=='Validé')?`<button class="primary" onclick="openModal('${formateur?'upload':'upload-internal'}','${d.id}')">${d.status==='Refusé'?'Déposer une nouvelle version':'Déposer un fichier'}</button>`:''}</div>`);
 }
 
 function documentStorage(mode,action){
@@ -891,7 +858,7 @@ function documentStorage(mode,action){
 async function downloadDocumentVersion(id,number){
   const d=db.deliverables.find(x=>x.id===id);
   const v=d?.versions.find(x=>x.number===number);
-  if(!v?.fileKey||(state.role==='formateur'&&(d.owner!=='formateur'||d.trainerId!==state.trainerId)))return;
+  if(!v?.fileKey||(state.role==='formateur'&&!trainerCanReadDocument(d)))return;
   try{
     const file=await documentStorage('readonly',files=>files.get(v.fileKey));
     if(!file)return flash('Fichier indisponible dans ce navigateur.');
@@ -929,12 +896,13 @@ function monthlyReport(){
   const punctual=docs.filter(d=>d.dueDate&&d.versions[0]?.at);
   const onTime=punctual.filter(d=>d.versions[0].at.slice(0,10)<=d.dueDate).length;
   const cards=db.internalReviews.filter(r=>r.kind==='carton'&&r.createdAt?.startsWith(month));
+  const bonuses=db.internalReviews.filter(r=>r.kind==='bonus'&&r.createdAt?.startsWith(month));
   const trainersByMission=[...new Set(assignments.map(a=>a.trainerId))].map(id=>{
     const list=assignments.filter(a=>a.trainerId===id);
     const scores=list.map(a=>missionRatings[a.id]?.nps).filter(Number.isFinite);
     return {name:trainerById(id).name,count:list.length,done:list.filter(a=>a.status==='Réalisée').length,nps:scores.length?scores.reduce((sum,n)=>sum+n,0)/scores.length:null};
   }).sort((a,b)=>b.count-a.count);
-  return {month,sessions,assignments,proposals,docs,onTime,punctual,cards,trainersByMission,
+  return {month,sessions,assignments,proposals,docs,onTime,punctual,cards,bonuses,trainersByMission,
     nps:assessed.length?assessed.reduce((sum,n)=>sum+n,0)/assessed.length:null,npsCount:assessed.length,
     participants:sessions.reduce((sum,s)=>sum+Number(s.people||0),0),
     staffed:sessions.filter(s=>openCount(s)===0).length,
@@ -955,6 +923,7 @@ function monthlyTableRows(){
   r.assignments.forEach(a=>rows.push(row('Affectation',{s:sessionById(a.sessionId),t:trainerById(a.trainerId).name,status:a.status,label:'NPS / 10',value:missionRatings[a.id]?.nps})));
   r.proposals.forEach(p=>rows.push(row('Proposition',{s:sessionById(p.sessionId),t:trainerById(p.trainerId).name,status:p.status,label:'Conditions',value:p.conditions})));
   r.docs.forEach(d=>rows.push(row('Livrable',{s:sessionById(d.sessionId),t:trainerById(d.trainerId)?.name,status:d.status,label:d.title,value:d.dueDate})));
+  r.bonuses.forEach(b=>rows.push(row('Bonus',{t:trainerById(b.trainerId)?.name,label:'Date',value:b.createdAt.slice(0,10)})));
   r.cards.forEach(c=>rows.push(row('Carton',{t:trainerById(c.trainerId)?.name,status:c.level,label:'Date',value:c.createdAt.slice(0,10)})));
   return rows;
 }
@@ -990,18 +959,11 @@ async function exportMonthlyChart(){
   ${bars('Propositions par statut',statusRows(r.proposals,p=>p.status))}
   ${bars('Livrables par statut',statusRows(r.docs,d=>d.status))}
   ${ring('Ponctualité documentaire',r.onTime,r.punctual.length,`${r.onTime} dépôt(s) à temps sur ${r.punctual.length} daté(s)`)}
-  ${bars('Cartons sur la période',[['Jaunes',r.cards.filter(c=>c.level==='jaune').length],['Rouges',r.cards.filter(c=>c.level==='rouge').length]])}
+  ${bars('Suivi interne sur la période',[['Bonus',r.bonuses.length],['Cartons jaunes',r.cards.filter(c=>c.level==='jaune').length],['Cartons rouges',r.cards.filter(c=>c.level==='rouge').length]])}
   ${bars('Affectations par formateur',r.trainersByMission.map(t=>[t.name,t.count]))}
   <section><h2>Évaluations des missions</h2><p>${r.npsCount} mission(s) évaluée(s) sur ${r.assignments.length} affectation(s).</p><table><thead><tr><th>Formateur</th><th>Terminées</th><th>NPS / 10</th></tr></thead><tbody>${r.trainersByMission.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.done}</td><td>${t.nps===null?'—':reportNumber(t.nps)}</td></tr>`).join('')||'<tr><td colspan="3">Aucune mission</td></tr>'}</tbody></table></section>
   </div><p>Données de démonstration · Rapport autonome</p></main></html>`;
   downloadBlob(new Blob([html],{type:'text/html;charset=utf-8'}),'Monthly-AMO-'+r.month+'.html');
-}
-
-function updateProfilePhoto(value){
-  const preview=document.querySelector('.profile-picture-preview .trainer-photo');
-  if(!preview)return;
-  const initial=esc(trainerById(state.trainerId).initials);
-  preview.innerHTML=/^https:\/\//i.test(value.trim())?`<img src="${esc(value.trim())}" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>${initial}</span>`:initial;
 }
 
 function openTrainerPlanning(id){
@@ -1047,20 +1009,20 @@ async function copyWhatsApp(){
 }
 
 function missionPicker(tab,proposals,assignments){
-  const confirmed=assignments.filter(a=>a.status==='Confirmée');
-  const prep=confirmed.filter(a=>db.deliverables.some(d=>d.sessionId===a.sessionId&&d.trainerId===state.trainerId&&['À fournir','Refusé'].includes(d.status)));
+  const confirmed=assignments.filter(a=>missionMatchesTab(a,'upcoming'));
+  const prep=assignments.filter(a=>missionMatchesTab(a,'prepare'));
   const views=[
     ['proposals','Propositions','mail',proposals.filter(p=>p.status==='Envoyée').length],
     ['upcoming','À venir','calendar',confirmed.length],
     ['prepare','À préparer','docs',prep.length],
-    ['finished','Terminées','check',assignments.filter(a=>a.status==='Réalisée').length]
+    ['finished','Terminées','check',assignments.filter(a=>missionMatchesTab(a,'finished')).length]
   ];
   return `<div class="mission-picker" role="group" aria-label="Filtrer les missions">${views.map(([key,label,icon,count])=>`<button aria-pressed="${tab===key}" onclick="changeTab('missionTab','${key}')">${mobileIcon(icon,20)}<span>${label}</span><strong>${count}</strong></button>`).join('')}</div>`;
 }
 
 function uploadPanel(id,internal){
   const d=db.deliverables.find(x=>x.id===id);
-  if(!d||(!internal&&(state.role!=='formateur'||d.trainerId!==state.trainerId||d.owner!=='formateur'))||(internal&&state.role!=='amo'))return '';
+  if(!d||(!internal&&(state.role!=='formateur'||d.trainerId!==state.trainerId||d.owner!=='formateur'||!trainerCanReadDocument(d)))||(internal&&state.role!=='amo'))return '';
   return modalBox(d.status==='Refusé'?'Déposer une nouvelle version':'Déposer un livrable',esc(d.title),`
     <div class="upload-drop" ondragover="event.preventDefault();this.classList.add('drag-active')" ondragleave="this.classList.remove('drag-active')" ondrop="event.preventDefault();this.classList.remove('drag-active');selectUploadFile(event.dataTransfer.files[0])">
       ${mobileIcon('docs',30)}<strong>Glissez votre fichier ici</strong><span>PDF, Word, PowerPoint, Excel, PNG ou JPEG</span>
@@ -1152,6 +1114,94 @@ async function exportMonthlyTable(){
     <style>body{margin:0;background:#f5f1fa;color:#241638;font:14px/1.5 system-ui,sans-serif}main{max-width:1350px;margin:auto;padding:26px 16px}header{border-radius:16px;background:#2c1c45;color:white;padding:22px;margin-bottom:14px}h1{margin:9px 0 2px}.report-logo{display:block;width:170px;max-width:100%;background:white;padding:8px;border-radius:8px}section{overflow:auto;border-radius:12px;border:1px solid #dfd5e8}table{width:100%;border-collapse:collapse;background:white}th,td{padding:10px;min-width:80px;text-align:left;border-bottom:1px solid #ece5f1}th{background:#e9dcfb}tbody tr:nth-child(even){background:#faf7fd}@media print{body{background:white}main{padding:0}header{color:black;background:white}section{overflow:visible}th,td{min-width:0;padding:4px;font-size:9px}}</style>
     <main><header>${logo}<h1>Monthly AMO · Tableau détaillé</h1><div>${esc(period)}</div></header><section><table><thead><tr>${columns.map(label=>`<th scope="col">${esc(label)}</th>`).join('')}</tr></thead><tbody>${data.map(row=>`<tr>${row.map(value=>`<td>${esc(value)}</td>`).join('')}</tr>`).join('')}</tbody></table></section></main></html>`;
   downloadBlob(new Blob([html],{type:'text/html;charset=utf-8'}),'Monthly-AMO-'+month+'-tableau.html');
+}
+
+function trainerSessionAccess(sessionId){
+  return db.assignments.some(a=>a.sessionId===sessionId&&a.trainerId===state.trainerId&&['Confirmée','Réalisée','À revalider'].includes(a.status))
+    ||db.proposals.some(p=>p.sessionId===sessionId&&p.trainerId===state.trainerId&&p.status==='Acceptée');
+}
+
+function trainerCanReadDocument(doc){
+  return !!doc&&trainerSessionAccess(doc.sessionId)&&(doc.owner==='interne'||doc.trainerId===state.trainerId);
+}
+
+function trainerMissionDocuments(session){
+  if(!trainerSessionAccess(session.id))return [];
+  const docs=db.deliverables.filter(d=>d.sessionId===session.id&&trainerCanReadDocument(d));
+  const categories=documentColumns.flatMap(([key,label])=>{
+    const matches=docs.filter(d=>docCategory(d)===key);
+    if(matches.length)return matches;
+    const owner=['PROGRAMME','SUPPORT'].includes(key)?'formateur':'interne';
+    return [{title:label,type:key,sessionId:session.id,owner,versions:[],status:'À fournir'}];
+  });
+  return categories.concat(docs.filter(d=>!documentColumns.some(([key])=>key===docCategory(d))));
+}
+
+function trainerDocPending(doc){
+  return doc.status!=='Non applicable'&&(!doc.versions.length||doc.status==='Refusé');
+}
+
+function missionMatchesTab(assignment,tab){
+  const s=sessionById(assignment.sessionId);
+  if(!s||s.status==='Annulée')return false;
+  const finished=assignment.status==='Réalisée'||s.status==='Réalisée'||s.date<parisToday();
+  if(tab==='finished')return finished;
+  if(tab==='prepare')return !finished&&trainerMissionDocuments(s).some(d=>d.owner==='formateur'&&trainerDocPending(d));
+  return !finished;
+}
+
+function missionDocumentSummary(session){
+  const docs=trainerMissionDocuments(session);
+  const amo=docs.filter(d=>d.owner==='interne'||d.versions.at(-1)?.uploader==='amo');
+  const missing=docs.filter(trainerDocPending);
+  const depositedAmo=amo.filter(d=>d.versions.length>0).length;
+  return `<span class="item-sub mission-doc-count">${docs.length-missing.length}/${docs.length} pièces disponibles · ${missing.length} à déposer ou à reprendre · AMO : ${depositedAmo}/${amo.length} déposée(s)</span>`;
+}
+
+function trainerSessionDocumentRow(doc){
+  const version=doc.versions.at(-1);
+  const side=doc.owner==='interne'||version?.uploader==='amo'?'AMO':'Formateur';
+  const stateLabel=doc.status==='Refusé'?'Refusé · nouvelle version attendue':version?doc.status:doc.status==='Non applicable'?doc.status:'Non déposé';
+  const title=doc.id?`<button class="document-title" onclick="openModal('document-preview','${doc.id}')">${esc(doc.title)}</button>`:`<strong>${esc(doc.title)}</strong>`;
+  const upload=doc.owner==='formateur'&&trainerDocPending(doc)
+    ?`<button class="secondary tiny" onclick="${doc.id?`openModal('upload','${doc.id}')`:`createTrainerDocument(${doc.sessionId},'${doc.type}')`}">${version?'Redéposer':'Déposer'}</button>`:'';
+  return `<div class="doc-row mission-document-row"><span class="doc-icon">${mobileIcon('docs',16)}</span><div class="grow">${title}<div class="item-sub">${side} · ${version?esc(version.filename):'Aucun fichier déposé'}</div></div>${badge(stateLabel)}${upload}</div>`;
+}
+
+function createTrainerDocument(sessionId,type){
+  if(state.role!=='formateur'||!trainerSessionAccess(sessionId))return;
+  const session=sessionById(sessionId);
+  const slot=trainerMissionDocuments(session).find(d=>d.type===type&&d.owner==='formateur'&&!d.id);
+  if(!slot)return;
+  const id='D'+(Math.max(0,...db.deliverables.map(d=>Number(String(d.id).slice(1))||0))+1);
+  db.deliverables.push({...slot,id,formationId:session.formationId,trainerId:state.trainerId,dueDate:shiftDate(session.date,type==='PROGRAMME'?-7:-3)});
+  save();
+  openModal('upload',id);
+}
+
+function trainerDocs(){
+  const open=state.trainerDocsFilter==='open';
+  const sessions=db.sessions.filter(s=>trainerSessionAccess(s.id)&&s.status!=='Annulée').sort((a,b)=>b.date.localeCompare(a.date));
+  return `<h1 class="headline">Mes livrables</h1>
+    <div class="tabs">${[['all','Tous les dossiers'],['open','À compléter']].map(([key,label])=>`<button class="${state.trainerDocsFilter===key?'selected':''}" onclick="changeTab('trainerDocsFilter','${key}')">${label}</button>`).join('')}</div>
+    <div class="folder-grid">${sessions.filter(s=>!open||trainerMissionDocuments(s).some(d=>d.owner==='formateur'&&trainerDocPending(d))).map(s=>{
+      const f=formOf(s),items=trainerMissionDocuments(s);
+      return `<section class="card folder-card">${cardTitle(esc(clientOf(f).name),esc(f.title))}<p class="item-sub">${fmtDate(s.date)}</p>
+        ${missionDocumentSummary(s)}
+        <ul class="doc-preview">${items.map(d=>`<li><span>${esc(d.title)} <small class="item-sub">· ${d.owner==='interne'||d.versions.at(-1)?.uploader==='amo'?'AMO':'Formateur'}</small></span>${badge(!d.versions.length&&d.status!=='Non applicable'?'Non déposé':d.status)}</li>`).join('')}</ul>
+        <button class="primary tiny" onclick="openTrainerFolder(${s.id})">Ouvrir le dossier</button>
+      </section>`;
+    }).join('')||'<p class="empty">Aucun dossier dans cette vue.</p>'}</div>`;
+}
+
+function trainerFolder(){
+  const session=sessionById(state.selectedDocGroup);
+  const formation=session?formOf(session):formations.find(f=>f.id===state.selectedDocGroup);
+  const sessions=(session?[session]:db.sessions.filter(s=>s.formationId===formation?.id)).filter(s=>trainerSessionAccess(s.id));
+  if(!formation||!sessions.length)return '<p class="empty">Aucun dossier accessible pour cette mission.</p>';
+  return `<h1 class="headline">${esc(clientOf(formation).name)}</h1><p class="subtitle">${esc(formation.title)}</p>
+    ${sessions.map(s=>`<section class="card mission-documents">${cardTitle('Session du '+fmtDate(s.date))}${missionDocumentSummary(s)}
+    ${trainerMissionDocuments(s).map(trainerSessionDocumentRow).join('')}</section>`).join('')}`;
 }
 
 initV17();state.calendarDate=parisToday();const upcomingStaffing=db.sessions.filter(s=>s.date>=state.calendarDate&&s.status!=='Annulée'&&openCount(s)>0).sort((a,b)=>a.date.localeCompare(b.date))[0];if(upcomingStaffing)state.selectedSession=upcomingStaffing.id;try{const id=Number(localStorage.getItem(DEMO_KEY+'-active-trainer'));if(trainerById(id))state.trainerId=id}catch(e){}simulateDueReminders(true);restoreHash();render();setInterval(()=>{if(simulateDueReminders(true))render()},60000);
