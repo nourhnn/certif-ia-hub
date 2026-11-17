@@ -371,3 +371,45 @@ button.agenda-event:hover{filter:brightness(.95)}
 .calendar-connection{display:flex;align-items:center;gap:10px;padding:12px 15px;margin-bottom:12px}
 .calendar-connection-icon{display:grid;place-items:center;width:40px;height:40px;flex-shrink:0;border-radius:10px;background:#f2eaff;color:#6633af}
 .calendar-connection button{min-height:36px;flex-shrink:0}
+
+.availability-link{display:inline-flex;align-items:center;gap:5px;padding:3px 4px;border:0;border-radius:8px;background:transparent;color:#593091}
+.availability-link:hover{background:#f1e7ff}
+.availability-link:focus-visible{outline:2px solid #7440c6}
+.proposal-fields{display:grid;gap:16px;margin-top:14px}
+.proposal-fields>label,.proposal-fields legend{font-weight:700}
+.proposal-fields .field{display:block;width:100%;margin-top:6px}
+.proposal-fields fieldset{margin:0;padding:0;border:0}
+.choice-pills{display:flex;gap:8px;margin-top:7px}
+.choice-pills label{display:flex;align-items:center;gap:8px;border:1px solid #e4d9ed;border-radius:10px;padding:10px 12px;cursor:pointer}
+.choice-pills label:has(:checked){background:#f1e8ff;border-color:#9a6fe0;color:#502b85}
+.whatsapp-text{width:100%;resize:vertical;background:#f1faf5;border-color:#d1e4d8;line-height:1.5}
+.home-milestones{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.home-milestones p{margin:4px 0 0}
+.milestone-panel-group{border:1px solid #eae4f0;border-radius:12px;padding:10px 12px;margin:8px 0}
+.milestone-panel-group summary{font-weight:750;cursor:pointer;padding:4px 0}
+.trainer-hero{background:radial-gradient(ellipse at 95% 0%,#8057bf 0,transparent 52%),linear-gradient(115deg,#201732,#4a2780)}
+.client-dashboard-hero{margin-top:10px}
+.client-subheading{margin-top:18px}
+.client-facts{margin:0}
+.client-facts div{padding:11px 0;border-bottom:1px solid #eee8f3}
+.client-facts dt{font-size:12px;color:#6f647b}
+.client-facts dd{margin:4px 0 0;font-weight:700;overflow-wrap:anywhere}
+.client-directions{display:inline-flex;gap:6px;align-items:center;margin-top:12px}
+.mission-picker{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 16px}
+.mission-picker button{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:7px;min-height:55px;padding:10px;border:1px solid #e8dfef;border-radius:12px;text-align:left;background:#fff;color:#4c3f58;font-weight:720}
+.mission-picker button[aria-pressed=true]{background:#7134f5;border-color:#7134f5;color:white}
+.mission-picker button strong{font-size:11px;min-width:22px;text-align:center;background:#efe5ff;color:#4f248e;padding:3px;border-radius:9px}
+.upload-drop{position:relative;display:grid;justify-items:center;gap:9px;padding:25px 12px;text-align:center;background:#faf6ff;border:2px dashed #c4a5f7;border-radius:15px;color:#583095}
+.upload-drop:focus-within,.upload-drop.drag-active{background:#eee3ff;outline:2px solid #7440c6;outline-offset:2px}
+.upload-drop span{font-size:12px;color:#675773}
+.upload-drop label{display:inline-block;cursor:pointer;background:#fff}
+.upload-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.upload-selection{margin-top:10px;padding:10px;border-radius:10px;background:#f7f4fa;font-size:13px;overflow-wrap:anywhere}
+.profile-edit-hero{background:linear-gradient(105deg,#eee6ff,#faf6ff);border-color:#e6daf7}
+.profile-editor .form-grid label,.profile-picture-editor label{display:grid;gap:6px;font-size:13px;font-weight:700}
+.profile-editor .field{min-height:44px}
+.profile-picture-editor{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:10px;padding-top:12px;margin-top:12px;border-top:1px solid #eee8f3}
+.profile-picture-editor small{color:#6f647b;font-weight:400}
+.profile-editor .profile-actions{position:sticky;bottom:12px;z-index:3;background:#fcf9ff;padding:10px;border:1px solid #ece2f5;border-radius:12px}
+@media(max-width:800px){.mission-picker{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.profile-editor .profile-actions{bottom:calc(77px + env(safe-area-inset-bottom))}.profile-editor .profile-actions button{flex:1}}
