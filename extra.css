@@ -255,8 +255,9 @@ button.agenda-event:hover{filter:brightness(.95)}
 [hidden]{display:none!important}
 
 /* Profil et dossiers */
-.profile-trigger{padding:0;border:0;cursor:pointer}
-.profile-trigger img,.trainer-photo img{width:100%;height:100%;border-radius:inherit;object-fit:cover}
+.profile-trigger{width:31px;height:31px;min-width:31px;min-height:31px;flex:0 0 31px;padding:0;border:0;cursor:pointer}
+.profile-trigger,.trainer-photo{position:relative;overflow:hidden;aspect-ratio:1}
+.profile-trigger img,.trainer-photo img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 .profile-intro{display:flex;align-items:center;gap:12px;margin-bottom:16px}
 .profile-intro button{margin-left:auto}
 .profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
@@ -437,3 +438,13 @@ button.agenda-event:hover{filter:brightness(.95)}
 .mission-documents+.mission-documents{margin-top:14px}
 .mission-document-row .badge{flex-shrink:0}
 @media(max-width:600px){.mission-document-row .grow{min-width:calc(100% - 55px)}.mission-document-row .secondary{margin-left:auto}}
+
+.trainer-directory-card .trainer-top{margin-bottom:11px}
+.trainer-rating-row{display:flex;margin:0 0 13px}
+.trainer-rating{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:5px 10px 5px 6px;border:1px solid var(--rank-border,#e5dcef);border-radius:9px;background:var(--rank-bg,#f5f0f9);color:var(--rank-fg,#4d4359);font-size:13px;line-height:1.3}
+.trainer-rating-icon{display:grid;place-items:center;flex:none;width:26px;height:26px;border-radius:6px;background:var(--rank-icon,#eae2f1)}
+.trainer-rating--top{--rank-bg:#eee5ff;--rank-fg:#4e208c;--rank-border:#cbaaf2;--rank-icon:#dfccfa}
+.trainer-rating--backup{--rank-bg:#eaf3ff;--rank-fg:#204e83;--rank-border:#bdd5f2;--rank-icon:#d5e6fc}
+.trainer-rating--rising{--rank-bg:#e8f7ee;--rank-fg:#1a623d;--rank-border:#b8dec8;--rank-icon:#d0eddb}
+.trainer-rating--trial{--rank-bg:#fff4db;--rank-fg:#744b12;--rank-border:#eacb86;--rank-icon:#fbe7b8}
+.trainer-rating--blocked{--rank-bg:#ffe9ed;--rank-fg:#932d43;--rank-border:#edafba;--rank-icon:#fbd3dc}
