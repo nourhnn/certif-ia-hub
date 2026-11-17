@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v33-agenda-text-contrast';
+const CACHE='certifia-hub-demo-v34-mobile-table-and-form-fit';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
