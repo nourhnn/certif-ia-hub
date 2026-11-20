@@ -10,7 +10,7 @@ const trainers=[
 {id:5,name:'Nadia Petit',initials:'NP',city:'Marseille',skills:['IA générative','Claude','RH'],rating:'À tester',rate:720,missions:2,available:'unknown',color:'#ffe9ef',accent:'#b24c76',email:'nadia@example.com',history:['Groupe Atlas'],verified:[]},
 {id:6,name:'Hugo Martin',initials:'HM',city:'Lille',skills:['Automatisation','ChatGPT','Data'],rating:'Back-up',rate:790,missions:10,available:'no',color:'#f0eee0',accent:'#8a7b30',email:'hugo@example.com',history:['Atelier Cobalt'],verified:['Automatisation']}
 ];
-const clients=[{id:'C1',name:'Groupe Atlas'},{id:'C2',name:'Studio Nova'},{id:'C3',name:'Atelier Cobalt'},{id:'C4',name:'Maison Oria'}];
+const clients=[{id:'C1',name:'Groupe Atlas'},{id:'C2',name:'Studio Nova'},{id:'C3',name:'Atelier Cobalt'},{id:'C4',name:'Maison Oria'},{id:'C5',name:'SEQUOIA EXPERTISE'}];
 const formations=[
 {id:'F1',clientId:'C1',title:'IA générative — équipes métier',status:'En préparation',owner:'AMO',program:'IA générative et méthodes métier',sessionIds:[101,105]},
 {id:'F2',clientId:'C2',title:'Claude pour la création',status:'Planifiée',owner:'AMO',sessionIds:[102]},
@@ -52,7 +52,13 @@ const clientDetails={
 C1:{industry:'Services professionnels',employees:85,city:'Paris',address:'',website:'',contact:'Contact client non renseigné',hubspot:'Référence HubSpot à connecter',notesTrainer:'Accueil au siège, informations logistiques à confirmer'},
 C2:{industry:'Création et communication',employees:36,city:'Lyon',address:'',website:'',contact:'Contact client non renseigné',hubspot:'Référence HubSpot à connecter',notesTrainer:'Matériel de projection à confirmer'},
 C3:{industry:'Industrie et conseil',employees:120,city:'Bordeaux',address:'',website:'',contact:'Contact client non renseigné',hubspot:'Référence HubSpot à connecter',notesTrainer:'Présentiel, vérifier les prérequis'},
-C4:{industry:'Conseil et management',employees:60,city:'Paris',address:'',website:'',contact:'Contact client non renseigné',hubspot:'Référence HubSpot à connecter',notesTrainer:'Préparation orientée managers'}
+C4:{industry:'Conseil et management',employees:60,city:'Paris',address:'',website:'',contact:'Contact client non renseigné',hubspot:'Référence HubSpot à connecter',notesTrainer:'Préparation orientée managers'},
+C5:{
+  domain:'sequoia-expertise.fr',website:'https://sequoia-expertise.fr',industry:'Comptabilité',
+  owner:'Hugo VALDES',employees:10,annualRevenue:1000000,timeZone:'Europe/Paris',
+  description:'Sequoia Expertise is an accounting and auditing firm located in Saint Maur des Fossés, France. They offer a variety of services including accounting, auditing, tax optimization, social management, legal services, and more.',
+  linkedin:'https://www.linkedin.com/company/sequoia-expertise',hubspot:'Exemple fourni'
+}
 };
 const missionRatings={'A3':{score:9.1,period:'2026-10',nps:9.1,certif:9.3,participants:9.0,public:true,source:'Évaluation fictive'},'A2':{score:null,period:'2026-11',nps:null,source:'À évaluer'},'A1':{score:null,period:'2026-11',nps:null,source:'À évaluer'}};
 const proposedMatchingWeights={expertise:40,availability:30,localisation:20,experience:10};
@@ -237,7 +243,7 @@ function restoreHash(){
   if(route[2]==='trainer-detail'&&trainerById(route[3]))state.selectedTrainer=Number(route[3]);
 }
 function validPages(role){return role==='formateur'?['trainer-home','trainer-missions','trainer-calendar','trainer-docs','trainer-profile','trainer-folder']:['home','planning','formations','formation-detail','session-detail','trainers','trainer-detail','clients','client-detail','staffing','documents','reporting']}
-const mobileSymbols={sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19m0-14-1.5 1.5m-11 11L5 19"/>',moon:'<path d="M20.9 14.3A9 9 0 0 1 9.7 3.1 9 9 0 1 0 20.9 14.3Z"/>',display:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/>',download:'<path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/>',settings:'<path d="M10 2h4l.6 2.5 1.6.9 2.5-.7 2 3.5-1.8 1.8v2l1.8 1.8-2 3.5-2.5-.7-1.6.9L14 20h-4l-.6-2.5-1.6-.9-2.5.7-2-3.5L5.1 12v-2L3.3 8.2l2-3.5 2.5.7 1.6-.9z" transform="translate(0 1)"/><circle cx="12" cy="12" r="3"/>',bonus:'<path d="M12 2l2.6 5.4 6 .8-4.3 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.4 8.2l6-.8z"/>',check:'<path d="m5 12 4 4L19 6"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',trainers:'<circle cx="9" cy="7" r="3"/><path d="M2 20v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2M17 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>',clients:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h2m4 0h2M8 11h2m4 0h2M8 15h2m4 0h2m-6 6v-3h4v3"/>',reporting:'<path d="M3 3v18h18M8 16v-5m5 5V7m5 9v-8"/>',pin:'<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/>',home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',staff:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 8h5M19.5 5.5v5"/>',docs:'<path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 13h10M7 17h7"/>',more:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',missions:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h6"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',back:'<path d="m14 6-6 6 6 6"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',chevron:'<path d="m9 18 6-6-6-6"/>',close:'<path d="M18 6 6 18M6 6l12 12"/>'};
+const mobileSymbols={search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19m0-14-1.5 1.5m-11 11L5 19"/>',moon:'<path d="M20.9 14.3A9 9 0 0 1 9.7 3.1 9 9 0 1 0 20.9 14.3Z"/>',display:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4"/>',download:'<path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/>',settings:'<path d="M10 2h4l.6 2.5 1.6.9 2.5-.7 2 3.5-1.8 1.8v2l1.8 1.8-2 3.5-2.5-.7-1.6.9L14 20h-4l-.6-2.5-1.6-.9-2.5.7-2-3.5L5.1 12v-2L3.3 8.2l2-3.5 2.5.7 1.6-.9z" transform="translate(0 1)"/><circle cx="12" cy="12" r="3"/>',bonus:'<path d="M12 2l2.6 5.4 6 .8-4.3 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.4 8.2l6-.8z"/>',check:'<path d="m5 12 4 4L19 6"/>',close:'<path d="m6 6 12 12M18 6 6 18"/>',trainers:'<circle cx="9" cy="7" r="3"/><path d="M2 20v-2a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v2M17 4a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>',clients:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h2m4 0h2M8 11h2m4 0h2M8 15h2m4 0h2m-6 6v-3h4v3"/>',reporting:'<path d="M3 3v18h18M8 16v-5m5 5V7m5 9v-8"/>',pin:'<path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="2.5"/>',mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h1M3 12h1M3 18h1"/>',home:'<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',staff:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M17 8h5M19.5 5.5v5"/>',docs:'<path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M7 13h10M7 17h7"/>',more:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',missions:'<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 10h6M9 14h6"/>',profile:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',back:'<path d="m14 6-6 6 6 6"/>',bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',chevron:'<path d="m9 18 6-6-6-6"/>',close:'<path d="M18 6 6 18M6 6l12 12"/>'};
 function mobileIcon(name,size=21){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${mobileSymbols[name]||mobileSymbols.more}</svg>`}
 function mobileIsDetail(page){return ['formation-detail','session-detail','trainer-detail','client-detail','trainer-folder','trainer-profile'].includes(page)}
 function mobileBackTarget(page){return ({'formation-detail':'formations','session-detail':'formations','trainer-detail':state.trainerFromStaff?'staffing':'trainers','client-detail':'clients','trainer-folder':'trainer-docs','trainer-profile':'trainer-home'})[page]||'home'}
@@ -245,7 +251,7 @@ function mobileTabItems(trainer){return trainer?[['trainer-home','home','Accueil
 function mobileIsActive(key,trainer){if(key==='more')return ['formations','formation-detail','session-detail','trainers','trainer-detail','clients','client-detail','reporting'].includes(state.page)||!!state.mobileMore;return state.page===key||(key==='trainer-docs'&&state.page==='trainer-folder')}
 function mobileDock(trainer){return `<nav class="mobile-dock" aria-label="Navigation principale sur téléphone">${mobileTabItems(trainer).map(([key,icon,label])=>`<button type="button" class="mobile-dock-item ${mobileIsActive(key,trainer)?'is-active':''}" ${mobileIsActive(key,trainer)?'aria-current="page"':''} aria-label="${label}" onclick="${key==='more'?'openMobileMore()':`go('${key}')`}"><span class="mobile-dock-icon">${mobileIcon(icon,22)}</span><span class="mobile-dock-label">${label}</span></button>`).join('')}</nav>`}
 
-function mobileHead(trainer,title){const back=mobileIsDetail(state.page);return `<div class="mobile-app-head"><button class="mobile-brand-button" aria-label="${back?'Retour à la liste':'Aller à l’accueil'}" onclick="go('${back?mobileBackTarget(state.page):trainer?'trainer-home':'home'}')">${back?mobileIcon('back',22):`<img src="${hubAppearance[currentHubAppearance()].folder}favicon-48.png" width="33" height="33" alt=""/>`}</button><div class="mobile-head-center"><span class="mobile-head-eyebrow">${trainer?'PORTAIL FORMATEUR':'CERTIF-IA HUB · AMO'}</span><strong>${esc(title)}</strong></div><div class="mobile-header-actions">${trainer?`${notificationBell()}${settingsButton()}<button class="avatar profile-trigger" aria-label="Mon profil" onclick="go('trainer-profile')">${photoContent(trainerById(state.trainerId))}</button>`:`${notificationBell()}${settingsButton()}`}</div></div>`}
+function mobileHead(trainer,title){const back=mobileIsDetail(state.page);return `<div class="mobile-app-head"><button class="mobile-brand-button" aria-label="${back?'Retour à la liste':'Aller à l’accueil'}" onclick="go('${back?mobileBackTarget(state.page):trainer?'trainer-home':'home'}')">${back?mobileIcon('back',22):`<img src="${hubAppearance[currentHubAppearance()].folder}favicon-48.png" width="33" height="33" alt=""/>`}</button><div class="mobile-head-center"><span class="mobile-head-eyebrow">${trainer?'PORTAIL FORMATEUR':'CERTIF-IA HUB · AMO'}</span><strong>${esc(title)}</strong></div><div class="mobile-header-actions">${trainer?`${hubSearchTrigger()}${notificationBell()}${settingsButton()}<button class="avatar profile-trigger" aria-label="Mon profil" onclick="go('trainer-profile')">${photoContent(trainerById(state.trainerId))}</button>`:`${hubSearchTrigger()}${notificationBell()}${settingsButton()}`}</div></div>`}
 function openMobileMore(){state.mobileMore=true;render()}
 function closeMobileMore(){state.mobileMore=false;render()}
 function mobileMoreSheet(){if(!state.mobileMore||state.role==='formateur')return '';const choices=[['formations','missions','Formations','Dossiers et sessions'],['trainers','trainers','Formateurs','Annuaire & profils'],['clients','clients','Clients','Annuaire & historique'],['reporting','reporting','Monthly AMO','Rapport mensuel']];return `<div class="mobile-sheet-overlay" role="presentation" onclick="if(event.target===this)closeMobileMore()"><section class="mobile-more-sheet" role="dialog" aria-modal="true" aria-label="Tous les modules"><div class="mobile-sheet-grip" aria-hidden="true"></div><div class="mobile-sheet-heading"><h2>Explorer le Hub</h2><button type="button" aria-label="Fermer" class="mobile-sheet-close" onclick="closeMobileMore()">${mobileIcon('close',20)}</button></div><div class="mobile-more-list">${choices.map(([page,icon,title,desc])=>`<button type="button" onclick="go('${page}')"><span class="more-section-icon">${mobileIcon(icon,20)}</span><span class="grow"><strong>${title}</strong><small>${desc}</small></span>${mobileIcon('chevron',19)}</button>`).join('')}</div><div class="mobile-more-settings"><label for="mobile-role-switch">Changer de profil démo</label><select class="field" id="mobile-role-switch" onchange="setRole(this.value)"><option value="amo">AMO / Interne</option>${trainers.map(t=>`<option value="trainer-${t.id}">${esc(trainerOptionLabel(t))} · Formateur</option>`).join('')}</select><button type="button" onclick="resetDemo()">Réinitialiser les données fictives</button></div></section></div>`}
@@ -253,12 +259,179 @@ function decorateMobileTables(){document.querySelectorAll('.tbl').forEach(table=
 
 function render(){syncOperationalNotices();const frame=$('document-file-frame');if(frame)URL.revokeObjectURL(frame.src);let trainer=state.role==='formateur';if(!validPages(state.role).includes(state.page))state.page=trainer?'trainer-home':'home';let nav=trainer?[
 ['trainer-home','home','Mon espace'],['trainer-missions','missions','Mes missions'],['trainer-calendar','calendar','Mon agenda'],['trainer-docs','docs','Mes livrables']]:[
-['home','home','Vue d’ensemble'],['planning','calendar','Planning global'],['formations','missions','Formations'],['trainers','trainers','Formateurs'],['clients','clients','Clients'],['staffing','staff','Staffing assisté'],['documents','docs','Livrables & bilans'],['reporting','reporting','Monthly AMO']];
+['home','home','Vue d’ensemble'],['planning','calendar','Planning global'],['staffing','staff','Staffing assisté'],['documents','docs','Livrables & bilans'],['formations','missions','Formations'],['trainers','trainers','Formateurs'],['clients','clients','Clients'],['reporting','reporting','Monthly AMO']];
 let pageTitle=nav.find(n=>n[0]===state.page)?.[2]||({'trainer-profile':'Mon profil','trainer-folder':'Dossier de livrables','session-detail':'Session','formation-detail':'Formation'}[state.page]||'Détails');let people=trainerById(state.trainerId);document.title='Certif-IA Hub — '+pageTitle;
-$('app').innerHTML=`<div class="app"><aside class="sidebar ${state.menuOpen?'open':''}" id="sidebar"><div><img src="assets/certifia-logo.png" class="brand-logo" alt="Certif-IA"><div class="logo-sub">Hub · Espace de démonstration</div></div><div class="nav-label">${trainer?'ESPACE FORMATEUR':'EXPANSION CLIENT'}</div><nav class="nav" aria-label="Navigation principale">${nav.map(([p,ic,label])=>`<button class="${state.page===p?'active':''}" ${state.page===p?'aria-current="page"':''} onclick="go('${p}')"><span class="ic" aria-hidden="true">${mobileIcon(ic,18)}</span>${label}</button>`).join('')}</nav><div class="side-bottom"><div class="nav-label">SIMULER UN PROFIL</div><select class="role-select" aria-label="Profil de démonstration" onchange="setRole(this.value)"><option value="amo" ${!trainer?'selected':''}>AMO / Espace interne</option>${trainers.map(t=>`<option value="trainer-${t.id}" ${trainer&&t.id===state.trainerId?'selected':''}>Formateur · ${esc(t.name)}</option>`).join('')}</select><p class="side-note">Démo locale · données et actions fictives<br>Aucune connexion aux outils réels</p><button class="reset-demo" onclick="resetDemo()">↺ Réinitialiser la démo</button></div></aside>${state.menuOpen?'<button class="sidebar-scrim" aria-label="Fermer le menu" onclick="toggleMenu()"></button>':''}<div class="shell"><header class="topbar">${mobileHead(trainer,pageTitle)}<div class="top-start"><button class="mobile-menu" aria-label="Ouvrir le menu" onclick="toggleMenu()">${mobileIcon('menu',16)}</button>${breadcrumbs(pageTitle)}</div><div class="top-right"><span class="pill">✦ Démonstration</span>${trainer?`${notificationBell()}${settingsButton()}<button class="avatar profile-trigger" aria-label="Mon profil" title="Mon profil" onclick="go('trainer-profile')">${photoContent(people)}</button>`:`${notificationBell()}${settingsButton()}<div class="avatar">AM</div>`}</div></header><main class="main" id="main-content">${pageContent()}</main></div></div>${mobileDock(trainer)}${mobileMoreSheet()}${state.modal?modalView():''}<div id="toast-root" aria-live="polite"></div>`;
+$('app').innerHTML=`<div class="app"><aside class="sidebar ${state.menuOpen?'open':''}" id="sidebar"><div><img src="assets/certifia-logo.png" class="brand-logo" alt="Certif-IA"><div class="logo-sub">Hub · Espace de démonstration</div></div><div class="nav-label">${trainer?'ESPACE FORMATEUR':'EXPANSION CLIENT'}</div><nav class="nav" aria-label="Navigation principale">${nav.map(([p,ic,label])=>`<button class="${state.page===p?'active':''}" ${state.page===p?'aria-current="page"':''} onclick="go('${p}')"><span class="ic" aria-hidden="true">${mobileIcon(ic,18)}</span>${label}</button>`).join('')}</nav><div class="side-bottom"><div class="nav-label">SIMULER UN PROFIL</div><select class="role-select" aria-label="Profil de démonstration" onchange="setRole(this.value)"><option value="amo" ${!trainer?'selected':''}>AMO / Espace interne</option>${trainers.map(t=>`<option value="trainer-${t.id}" ${trainer&&t.id===state.trainerId?'selected':''}>Formateur · ${esc(t.name)}</option>`).join('')}</select><p class="side-note">Démo locale · données et actions fictives<br>Aucune connexion aux outils réels</p><button class="reset-demo" onclick="resetDemo()">↺ Réinitialiser la démo</button></div></aside>${state.menuOpen?'<button class="sidebar-scrim" aria-label="Fermer le menu" onclick="toggleMenu()"></button>':''}<div class="shell"><header class="topbar">${mobileHead(trainer,pageTitle)}<div class="top-start"><button class="mobile-menu" aria-label="Ouvrir le menu" onclick="toggleMenu()">${mobileIcon('menu',16)}</button>${breadcrumbs(pageTitle)}</div><div class="top-right"><span class="pill">✦ Démonstration</span>${trainer?`${hubSearchTrigger()}${notificationBell()}${settingsButton()}<button class="avatar profile-trigger" aria-label="Mon profil" title="Mon profil" onclick="go('trainer-profile')">${photoContent(people)}</button>`:`${hubSearchTrigger()}${notificationBell()}${settingsButton()}<div class="avatar">AM</div>`}</div></header><main class="main" id="main-content">${pageContent()}</main></div></div>${mobileDock(trainer)}${mobileMoreSheet()}${state.modal?modalView():''}<div id="toast-root" aria-live="polite"></div>`;
  decorateMobileTables();
  syncOperationalFocus();
+ if(state.modal?.kind==='hub-search'){
+   const field=$('hub-search-query');
+   renderHubSearch(field);
+   field.focus({preventScroll:true});
+   field.setSelectionRange(field.value.length,field.value.length);
+ }
 }
+function hubSearchTrigger(){
+  return `<button type="button" class="hub-search-trigger" onclick="openModal('hub-search')" aria-label="Rechercher dans le Hub" aria-haspopup="dialog">${mobileIcon('search',20)}<span>Rechercher dans le Hub</span></button>`;
+}
+
+function hubSearchPanel(){
+  return modalBox('Rechercher dans le Hub','',`<div class="hub-search-panel">
+    <input id="hub-search-query" class="field" type="search" aria-label="Rechercher dans le Hub" placeholder="Un nom, un document, une date…" autocomplete="off" oninput="renderHubSearch(this)" onkeydown="handleHubSearchKey(event)">
+    <div id="hub-search-history"></div>
+    <div id="hub-search-status" class="item-sub" role="status"></div>
+    <ul id="hub-search-results" class="hub-search-results"></ul>
+  </div>`);
+}
+
+function hubSearchEntries(){
+  const amo=state.role==='amo';
+  const entries=[];
+  const add=(type,id,title,detail,open,keywords=[])=>entries.push({key:type+':'+id,type,title,detail,open,keywords});
+  const pages=amo?[
+    ['home','Vue d’ensemble','accueil tableau de bord'],
+    ['planning','Planning global','agenda calendrier gestion des conflits'],
+    ['staffing','Staffing assisté','affectations propositions à staffer'],
+    ['documents','Livrables & bilans','documents dossiers audit cadrage programme support'],
+    ['formations','Formations','sessions'],
+    ['trainers','Annuaire Formateurs','profils intervenants'],
+    ['clients','Annuaire Clients','entreprises sociétés'],
+    ['reporting','Monthly AMO','reporting statistiques NPS']
+  ]:[
+    ['trainer-home','Accueil','mon espace'],
+    ['trainer-missions','Mes missions','propositions sessions formations'],
+    ['trainer-calendar','Mon agenda','calendrier planning disponibilités'],
+    ['trainer-docs','Mes livrables','documents dossiers audit cadrage programme support'],
+    ['trainer-profile','Mon profil','coordonnées']
+  ];
+  for(const [page,title,aliases] of pages)add('Page',page,title,'',()=>go(page),[aliases]);
+  add('Page','notifications','Notifications','',openOperationsInbox,['alertes rappels']);
+  add('Page','settings','Réglages','',()=>openModal('hub-settings'),['paramètres préférences']);
+
+  if(amo){
+    for(const client of clients){
+      const d=clientDetails[client.id];
+      add('Client',client.id,client.name,[d.industry,d.city].filter(Boolean).join(' · '),()=>openClient(client.id),
+        [d.domain,d.owner,d.description,d.address,d.contact,d.region,d.postalCode]);
+    }
+    for(const trainer of trainers){
+      const person=trainerById(trainer.id);
+      add('Formateur',person.id,person.name,[person.city,...person.skills].join(' · '),()=>openTrainer(person.id),
+        [person.email,person.rating,trainerProfileField(person.id).domain]);
+    }
+    for(const f of formations)add('Formation',f.id,f.title,clientOf(f).name,()=>openFormation(f.id),[f.id,f.status,f.program]);
+  }
+
+  for(const session of db.sessions){
+    const f=formOf(session);
+    if(!f||(!amo&&!trainerSessionAccess(session.id)))continue;
+    const date=fmtDate(session.date);
+    add(amo?'Session':'Mission',session.id,f.title,[clientOf(f).name,date,session.city].filter(Boolean).join(' · '),
+      ()=>openSessionFromCalendar(session.id,!amo),[session.date,session.topic,session.status,session.modality]);
+  }
+  for(const doc of db.deliverables){
+    if(!amo&&!trainerCanReadDocument(doc))continue;
+    const f=formations.find(item=>item.id===doc.formationId);
+    const file=doc.versions?.at(-1)?.filename;
+    add('Livrable',doc.id,doc.title,[f&&clientOf(f).name,file,doc.status].filter(Boolean).join(' · '),
+      ()=>openModal('document-preview',doc.id),[doc.type,f?.title,doc.dueDate]);
+  }
+  for(const entry of db.calendarEvents||[]){
+    if(entry.trainerId!==(amo?null:state.trainerId))continue;
+    add('Agenda','event:'+entry.id,entry.title,[fmtDate(entry.date),entry.start,entry.location].filter(Boolean).join(' · '),
+      ()=>openCalendarEvent(entry.date,entry.id),[entry.date,entry.address]);
+  }
+  for(const entry of db.availability||[]){
+    if(amo||entry.trainerId!==state.trainerId)continue;
+    add('Agenda','availability:'+entry.id,entry.status,[fmtDate(entry.date),entry.start,entry.zone].filter(Boolean).join(' · '),
+      ()=>openCalendarEvent(entry.date,entry.id,true),[entry.date,'disponibilités']);
+  }
+  for(const proposal of db.proposals){
+    if(!amo&&(proposal.trainerId!==state.trainerId||(!proposal.sent&&!['Envoyée','Acceptée','Refusée','Expirée'].includes(proposal.status))))continue;
+    const session=sessionById(proposal.sessionId),f=session&&formOf(session);
+    if(!f)continue;
+    const trainer=amo?trainerById(proposal.trainerId)?.name:'';
+    add('Proposition',proposal.id,f.title,[clientOf(f).name,trainer,proposal.status,fmtDate(session.date)].filter(Boolean).join(' · '),()=>{
+      if(amo)return openStaffProposal(proposal.id);
+      state.missionTab='proposals';
+      go('trainer-missions');
+    });
+  }
+  for(const notice of inboxItems())add('Notification',notice.event,notice.title,notice.detail,()=>{
+    openOperationsInbox();
+    readOperationsNotice(notice.event,true);
+  });
+  return entries;
+}
+
+function normalizeHubSearch(value){
+  return String(value??'').normalize('NFD').replace(/\p{M}/gu,'').toLowerCase().trim();
+}
+
+function hubSearchHistoryKey(){
+  return DEMO_KEY+'-search-opened-'+(state.role==='amo'?'amo':'trainer-'+state.trainerId);
+}
+
+function readHubSearchHistory(){
+  try{
+    const history=JSON.parse(localStorage.getItem(hubSearchHistoryKey())||'[]');
+    return Array.isArray(history)?history.filter(value=>typeof value==='string').slice(0,3):[];
+  }catch{return []}
+}
+
+function openHubSearchEntry(entry){
+  const previous=readHubSearchHistory().filter(key=>key!==entry.key);
+  try{localStorage.setItem(hubSearchHistoryKey(),JSON.stringify([entry.key,...previous].slice(0,3)))}catch{}
+  entry.open();
+}
+
+function renderHubSearchHistory(input,entries){
+  const container=$('hub-search-history');
+  const history=input.value.trim()?[]:readHubSearchHistory().map(key=>entries.find(entry=>entry.key===key)).filter(Boolean);
+  container.innerHTML=history.length?`<div class="hub-search-history-heading"><strong>Derniers résultats ouverts</strong>
+    <button type="button" class="ops-icon-button ops-notice-delete" aria-label="Effacer l’historique de recherche" title="Effacer l’historique">${inboxIcon('trash')}</button>
+  </div><ul class="hub-search-history-list">${history.map(item=>`<li><button class="secondary tiny" type="button">${esc(item.title)} <small>${esc([item.type,item.detail].filter(Boolean).join(' · '))}</small></button></li>`).join('')}</ul>`:'';
+  if(!history.length)return;
+  container.querySelector('.ops-icon-button').addEventListener('click',()=>{
+    try{localStorage.removeItem(hubSearchHistoryKey())}catch{}
+    renderHubSearchHistory(input,entries);
+    input.focus();
+  });
+  container.querySelectorAll('li button').forEach((button,i)=>button.addEventListener('click',()=>{
+    openHubSearchEntry(history[i]);
+  }));
+}
+
+function renderHubSearch(input){
+  const query=normalizeHubSearch(input.value);
+  const terms=query?query.split(/\s+/):[];
+  const entries=hubSearchEntries();
+  renderHubSearchHistory(input,entries);
+  const matches=(terms.length?entries.map(entry=>{
+    const title=normalizeHubSearch(entry.title);
+    const text=normalizeHubSearch([entry.type,entry.title,entry.detail,...entry.keywords].join(' '));
+    return {entry,score:terms.every(term=>text.includes(term))?(title===query?3:title.startsWith(query)?2:title.includes(query)?1:0):-1};
+  }).filter(match=>match.score>=0).sort((a,b)=>b.score-a.score).map(match=>match.entry)
+    :entries.filter(entry=>entry.type==='Page'));
+  const results=$('hub-search-results');
+  const shown=matches.slice(0,20);
+  results.innerHTML=shown.map(entry=>`<li><button class="hub-search-result" type="button">
+    <span><strong>${esc(entry.title)}</strong>${entry.detail?`<small>${esc(entry.detail)}</small>`:''}</span>
+    <span class="badge purple">${esc(entry.type)}</span>
+  </button></li>`).join('');
+  results.querySelectorAll('button').forEach((button,i)=>button.addEventListener('click',()=>openHubSearchEntry(shown[i])));
+  $('hub-search-status').textContent=!terms.length?'Accès rapides':!matches.length?'Aucun résultat.':matches.length>shown.length?`${shown.length} résultats affichés sur ${matches.length}. Affine ta recherche.`:`${matches.length} résultat${matches.length===1?'':'s'}`;
+}
+
+function handleHubSearchKey(event){
+  if(!['Enter','ArrowDown'].includes(event.key))return;
+  const first=$('hub-search-results').querySelector('button');
+  if(!first)return;
+  event.preventDefault();
+  if(event.key==='Enter')first.click();
+  else first.focus();
+}
+
 function toggleMenu(){state.menuOpen=!state.menuOpen;render()}
 function resetDemo(){if(!confirm('Réinitialiser toutes les interactions de démonstration ?'))return;db=clone(initialData);initV17();save();state.modal=null;state.candidate=null;render();flash('Données de démonstration réinitialisées')}
 function pageContent(){return ({home:homePage,planning:planningPage,formations:formationsPage,'formation-detail':formationDetail,'session-detail':sessionDetail,trainers:trainersPage,'trainer-detail':trainerDetail,clients:clientsPage,'client-detail':clientDetail,staffing:staffingPage,documents:documentsPage,reporting:reportingPage,'trainer-home':trainerHome,'trainer-missions':trainerMissions,'trainer-calendar':trainerCalendar,'trainer-docs':trainerDocs,'trainer-folder':trainerFolder,'trainer-profile':trainerProfile})[state.page]?.()||homePage()}
@@ -289,7 +462,7 @@ function homePage(){
 function formationsPage(){let rows=formations.filter(f=>{let client=clientOf(f).name,st=db.sessions.filter(s=>s.formationId===f.id);return(client+' '+f.title).toLowerCase().includes(state.search.toLowerCase())&&(state.filter==='all'||(state.filter==='open'&&st.some(s=>openCount(s)>0))||f.status===state.filter)});return `${intro('Les <em>formations.</em>','Une formation regroupe une ou plusieurs sessions, des documents et ses jalons.')}${filtersBar('Client ou formation…',[['all','Tous les dossiers'],['open','Staffing incomplet'],['En préparation','En préparation'],['Planifiée','Planifiée'],['À qualifier','À qualifier']])}<div class="table-wrap"><table class="tbl"><thead><tr><th>Client / Formation</th><th>Sessions</th><th>Dates</th><th>Staffing</th><th>Statut</th><th></th></tr></thead><tbody>${rows.map(f=>{let ss=db.sessions.filter(s=>s.formationId===f.id);return `<tr class="linked-table-row" onclick="openFormation('${f.id}')"><td><strong class="formation-client">${esc(clientOf(f).name)}</strong><div class="item-sub">${esc(f.title)}</div></td><td>${ss.length} session(s)</td><td>${ss.map(s=>fmtDate(s.date,{day:'numeric',month:'short'})).join(' · ')}</td><td>${ss.filter(s=>openCount(s)===0).length}/${ss.length} session(s) staffées</td><td>${badge(f.status)}</td><td><button class="ghost" aria-label="Ouvrir la formation ${esc(clientOf(f).name)}" onclick="event.stopPropagation();openFormation('${f.id}')"><span aria-hidden="true">›</span></button></td></tr>`}).join('')}</tbody></table>${rows.length?'':'<div class="empty">Aucune formation trouvée.</div>'}</div><p class="footnote">Une formation n’est pas dupliquée par ses sessions. Les statuts de staffing sont calculés à partir des affectations confirmées.</p>`}
 const milestones=[['J-28','Audit'],['J-14','Cadrage'],['J-7','Programme PDF'],['J-3','Feu vert'],['J-1','Vérifications'],['Jour J','Questionnaire'],['J+1','Débrief'],['J+7','Bilan / passation']];
 function formationDetail(){let f=formations.find(x=>x.id===state.selectedFormation)||formations[0],ss=db.sessions.filter(s=>s.formationId===f.id),docs=db.deliverables.filter(d=>d.formationId===f.id);return `<button class="ghost" onclick="go('formations')">← Retour aux formations</button>${intro(esc(clientOf(f).name),esc(f.title),'FICHE FORMATION · DONNÉES FICTIVES')}<div class="toolbar">${badge(f.status)}<div class="group">${badge(ss.length+' session(s)')}<span class="badge blue">Données HubSpot simulées</span></div></div><div class="detail-grid"><div><div class="card">${cardTitle('Sessions de formation','Chaque session conserve son propre staffing et ses horaires')}${ss.map(s=>`<div class="line-item session-tile"><div class="datebox"><strong>${s.date.slice(8)}</strong><small>${fmtDate(s.date,{month:'short'})}</small></div><div class="grow"><div class="item-title">${esc(s.topic)} · ${esc(s.city)}</div><div class="item-sub">${s.start}–${s.end} · ${s.required} formateur(s) requis</div></div>${badge(staffingLabel(s))}<button class="ghost" onclick="openSession(${s.id})">Détail ↗</button></div>`).join('')}</div><div class="card" style="margin-top:18px">${cardTitle('Cycle de préparation')}${preparationCycle(ss)}</div></div><div><div class="card">${cardTitle('Livrables associés')}${docs.length?docs.map(d=>docLine(d)).join(''):'<div class="empty">Aucun document recensé.</div>'}<button class="secondary" style="margin-top:14px" onclick="openFolder('${f.id}')">Tous les livrables ↗</button></div><div class="card" style="margin-top:18px">${cardTitle('Sources prévues')}${db.sync.map(c=>`<div class="line-item"><div class="grow"><strong>${esc(c.name)}</strong><div class="item-sub">Intégration à venir</div></div>${badge(c.status)}</div>`).join('')}</div></div></div>`}
-function sessionDetail(){let s=sessionById(state.selectedSession)||db.sessions[0],f=formOf(s),aa=activeAssignments(s.id),p=db.proposals.filter(p=>p.sessionId===s.id),docs=db.deliverables.filter(d=>d.sessionId===s.id);return `<button class="ghost" onclick="openFormation('${f.id}')">← Retour à la formation</button>${intro(esc(clientOf(f).name),esc(f.title),'FICHE SESSION · EXEMPLE FICTIF')}<div class="toolbar"><div class="group">${badge(s.status)}${badge(staffingLabel(s))}</div><button class="primary" onclick="staffFor(${s.id})">Gérer le staffing →</button></div><div class="detail-grid"><div><div class="card session-summary">${cardTitle('Informations de la session')}<div class="info-grid">${[['Date',fmtDate(s.date)],['Horaires',s.start+'–'+s.end],['Lieu',s.city],['Participants',s.people+' personnes'],['Modalité',s.modality],['Formateurs nécessaires',s.required],['Statut session',s.status],['Affectations confirmées',aa.length]].map(([k,v])=>`<div class="info"><small>${k}</small><strong>${esc(v)}</strong></div>`).join('')}</div></div><div class="card" style="margin-top:18px">${cardTitle('Affectations et propositions')}${aa.map(a=>`<div class="line-item"><div class="grow"><strong>${trainerName(trainerById(a.trainerId))}</strong><div class="item-sub">Affectation ${esc(a.id)}</div></div>${badge(a.status)}</div>`).join('')}${p.map(x=>`<div class="line-item"><div class="grow"><strong>${trainerName(trainerById(x.trainerId))}</strong><div class="item-sub">Proposition ${esc(x.id)}</div></div>${badge(x.status)}</div>`).join('')}${!aa.length&&!p.length?'<div class="empty">Aucune affectation ni proposition.</div>':''}</div><div class="card" style="margin-top:18px">${cardTitle('Documents et livrables')}${sessionDocuments(s,docs)}${sessionFeedbackDeliverables(s)}</div></div><div><div class="card">${cardTitle('Modifier la session','L’impact sur les affectations sera signalé')}<button class="secondary" onclick="openModal('reschedule',${s.id})">${mobileIcon('calendar',16)} Reporter la session</button><button class="secondary" style="margin-top:9px" onclick="go('planning')">Voir dans le planning</button></div><div class="card" style="margin-top:18px">${cardTitle('Traçabilité','État de démo')}${db.activity.filter(a=>a.detail.includes(String(s.id))).slice(0,5).map(a=>`<div class="line-item"><div class="grow"><strong>${esc(a.action)}</strong><div class="item-sub">${esc(a.detail)}</div></div></div>`).join('')||'<div class="empty">Aucune action enregistrée.</div>'}</div></div></div>`}
+function sessionDetail(){let s=sessionById(state.selectedSession)||db.sessions[0],f=formOf(s),aa=activeAssignments(s.id),p=db.proposals.filter(p=>p.sessionId===s.id),docs=db.deliverables.filter(d=>d.sessionId===s.id);return `<button class="ghost" onclick="openFormation('${f.id}')">← Retour à la formation</button>${intro(esc(clientOf(f).name),esc(f.title),'FICHE SESSION · EXEMPLE FICTIF')}<div class="toolbar"><div class="group">${badge(s.status)}${badge(staffingLabel(s))}</div><div class="group"><button class="secondary" onclick="openModal('reschedule',${s.id})">${mobileIcon('calendar',16)} Reporter la session</button><button class="primary" onclick="staffFor(${s.id})">Gérer le staffing →</button></div></div><div class="detail-grid"><div><div class="card session-summary">${cardTitle('Informations de la session')}<div class="info-grid">${[['Date',fmtDate(s.date)],['Horaires',s.start+'–'+s.end],['Lieu',s.city],['Participants',s.people+' personnes'],['Modalité',s.modality],['Formateurs nécessaires',s.required],['Statut session',s.status],['Affectations confirmées',aa.length]].map(([k,v])=>`<div class="info"><small>${k}</small><strong>${esc(v)}</strong></div>`).join('')}</div></div><div class="card" style="margin-top:18px">${cardTitle('Affectations et propositions')}${aa.map(a=>`<div class="line-item"><div class="grow"><strong>${trainerName(trainerById(a.trainerId))}</strong><div class="item-sub">Affectation ${esc(a.id)}</div></div>${badge(a.status)}</div>`).join('')}${p.map(x=>`<div class="line-item"><div class="grow"><strong>${trainerName(trainerById(x.trainerId))}</strong><div class="item-sub">Proposition ${esc(x.id)}</div></div>${badge(x.status)}</div>`).join('')}${!aa.length&&!p.length?'<div class="empty">Aucune affectation ni proposition.</div>':''}</div><div class="card" style="margin-top:18px">${cardTitle('Documents et livrables')}${sessionDocuments(s,docs)}${sessionFeedbackDeliverables(s)}</div></div><div><div class="card">${cardTitle('Traçabilité','État de démo')}${db.activity.filter(a=>a.detail.includes(String(s.id))).slice(0,5).map(a=>`<div class="line-item"><div class="grow"><strong>${esc(a.action)}</strong><div class="item-sub">${esc(a.detail)}</div></div></div>`).join('')||'<div class="empty">Aucune action enregistrée.</div>'}</div></div></div>`}
 function trainerRatingBadge(rating){
   const normalized=String(rating||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/-/g,' ').trim();
   const classifications={
@@ -325,7 +498,51 @@ function trainerDetail(){
 }
 function reliabilityCard(t){let score=reliabilityScore(t);return `<div class="card" style="margin-top:16px"><div class="card-head"><div><h3 class="section-title">Fiabilité · grille proposée V1.9</h3><p class="section-caption">Satisfaction 40 %, ponctualité 30 %, incidents vérifiés 20 %, retours de missions 10 %</p></div>${badge('À valider métier')}</div>${score.parts.map(([label,value,weight])=>`<div class="line-item"><div class="grow"><strong>${esc(label)}</strong> <small>(${weight} %)</small></div><strong>${value==null?'Données insuffisantes':value+'/100'}</strong></div>`).join('')}<div class="line-item bonus-review"><div class="grow"><strong>${mobileIcon('bonus',16)} Bonus AMO</strong><div class="item-sub">${score.bonuses} bonus · 5 points par bonus, score plafonné à 100</div></div><strong>+${score.bonusPoints}</strong></div><p class="footnote">${score.total===null?'Fiabilité non évaluée.':(score.complete?'Base calculée':'Base illustrative')+' : '+score.base+'/100 · Score avec bonus : '+score.total+'/100.'} Les données manquantes ne sont jamais considérées comme zéro.</p></div>`;}
 function openClient(id){state.selectedClient=id;go('client-detail')}
-function clientsPage(){let rows=clients.filter(c=>(state.filter==='all'||clientDetails[c.id]?.city===state.filter)&&(c.name+' '+(clientDetails[c.id]?.industry||'')).toLowerCase().includes(state.search.toLowerCase()));return `${intro('Annuaire <em>clients.</em>','Un espace pour relier les dossiers HubSpot, les formations et les formateurs déjà mobilisés.')}${filtersBar('Client, secteur…',[['all','Tous les clients'],['Paris','Paris'],['Lyon','Lyon'],['Bordeaux','Bordeaux']])}<div class="toolbar"><div class="group"><button class="${state.clientView==='cards'?'primary':'secondary'} tiny" onclick="changeTab('clientView','cards')">${mobileIcon('grid',16)} Cartes</button><button class="${state.clientView==='table'?'primary':'secondary'} tiny" onclick="changeTab('clientView','table')">${mobileIcon('list',16)} Tableau</button></div><span class="badge purple">HubSpot non connecté · clients fictifs</span></div>${state.clientView==='cards'?`<div class="trainer-grid">${rows.map(c=>{let d=clientDetails[c.id],fs=formations.filter(f=>f.clientId===c.id),ts=assignedTrainersOfClient(c.id);return `<div class="trainer-card"><div class="trainer-top"><span class="client-avatar">${esc(c.name.slice(0,2).toUpperCase())}</span><div><div class="trainer-name">${esc(c.name)}</div><div class="trainer-meta">${esc(d.city)} · ${esc(d.industry)}</div></div></div><div class="tags">${ts.map(t=>`<span class="tag">${trainerName(t)}</span>`).join('')||'<span class="tag">Aucun formateur confirmé</span>'}</div><div class="trainer-stats"><div><small>Formations</small><strong>${fs.length}</strong></div><div><small>Formateurs intervenus</small><strong>${ts.length}</strong></div></div><button class="primary" onclick="openClient('${c.id}')">Voir la fiche client →</button></div>`}).join('')}</div>`:`<div class="table-wrap"><table class="tbl"><thead><tr><th>Client</th><th>Secteur</th><th>Ville</th><th>Formations</th><th>Formateurs associés</th><th></th></tr></thead><tbody>${rows.map(c=>`<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(clientDetails[c.id].industry)}</td><td>${esc(clientDetails[c.id].city)}</td><td>${formations.filter(f=>f.clientId===c.id).length}</td><td>${assignedTrainersOfClient(c.id).length}</td><td><button class="ghost" onclick="openClient('${c.id}')">Voir ↗</button></td></tr>`).join('')}</tbody></table></div>`}<p class="footnote">Données fictives : les informations HubSpot, interlocuteurs et contacts réels ne sont pas intégrés à cette démo.</p>`}
+function clientCompanyFacts(d, compact=false){
+  const fields=[
+    ['Nom de domaine',d.domain?linkSafe(d.website,d.domain):''],
+    ['Secteur d’activité',esc(d.industry)],
+    ['Propriétaire de l’entreprise',esc(d.owner)],
+    ['Type',esc(d.type)],
+    ...(!compact?[['Contact',esc(d.contact)],['Adresse',esc(d.address)]]:[]),
+    ['Ville',esc(d.city)],['État / Région',esc(d.region)],
+    ['Code postal',esc(d.postalCode)],
+    ['Nombre d’employés',esc(d.employees)],
+    ['Chiffre d’affaires annuel',d.annualRevenue==null?'':esc(money(d.annualRevenue))],
+    ['Fuseau horaire',esc(d.timeZone)],
+    ['Page LinkedIn',d.linkedin?linkSafe(d.linkedin,'LinkedIn de l’entreprise'):''],
+    ...(!compact?[['Référence CRM',esc(d.hubspot)]]:[])
+  ];
+  const visible=compact?fields.filter(([,value])=>value):fields;
+  return `<dl class="client-facts client-company-facts">${visible.map(([label,value])=>
+    `<div><dt>${label}</dt><dd>${value||'Non renseigné'}</dd></div>`).join('')}</dl>`;
+}
+function clientDirectoryCard(c){
+  const d=clientDetails[c.id],fs=formations.filter(f=>f.clientId===c.id),ts=assignedTrainersOfClient(c.id);
+  return `<article class="trainer-card trainer-directory-card client-directory-card">
+    <div class="trainer-top"><span class="client-avatar" aria-hidden="true">${esc(c.name.slice(0,2).toUpperCase())}</span><div>
+      <h3 class="trainer-name">${esc(c.name)}</h3><div class="trainer-meta">${esc([d.industry,d.city].filter(Boolean).join(' · '))}</div>
+    </div></div>
+    ${clientCompanyFacts(d,true)}
+    <div class="tags">${ts.map(t=>`<span class="tag">${trainerName(t)}</span>`).join('')||'<span class="tag">Aucun formateur confirmé</span>'}</div>
+    <div class="trainer-stats"><div><small>Formations</small><strong>${fs.length}</strong></div><div><small>Formateurs intervenus</small><strong>${ts.length}</strong></div></div>
+    <div class="split-btns"><button class="secondary tiny" onclick="openClient('${c.id}')">Voir la fiche client</button></div>
+  </article>`;
+}
+function clientsPage(){
+  const rows=clients.filter(c=>{
+    const d=clientDetails[c.id];
+    const search=[c.name,d.industry,d.domain,d.city,d.owner].filter(Boolean).join(' ').toLowerCase();
+    return (state.filter==='all'||d.city===state.filter)&&search.includes(state.search.trim().toLowerCase());
+  });
+  return `${intro('Annuaire <em>clients.</em>','Retrouvez les entreprises, leurs formations et les formateurs déjà mobilisés.')}
+    ${filtersBar('Client, domaine, secteur…',[['all','Toutes les villes'],['Paris','Paris'],['Lyon','Lyon'],['Bordeaux','Bordeaux']])}
+    <div class="toolbar"><div class="group">
+      <button class="${state.clientView==='cards'?'primary':'secondary'} tiny" onclick="changeTab('clientView','cards')">${mobileIcon('grid',16)} Cartes</button>
+      <button class="${state.clientView==='table'?'primary':'secondary'} tiny" onclick="changeTab('clientView','table')">${mobileIcon('list',16)} Tableau</button>
+    </div><span class="badge purple">HubSpot non connecté</span></div>
+    ${!rows.length?'<p class="empty">Aucun client trouvé.</p>':state.clientView==='cards'?`<div class="trainer-grid">${rows.map(clientDirectoryCard).join('')}</div>`:`<div class="table-wrap"><table class="tbl"><thead><tr><th>Client</th><th>Secteur</th><th>Ville</th><th>Formations</th><th>Formateurs associés</th><th></th></tr></thead><tbody>${rows.map(c=>`<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(clientDetails[c.id].industry)}</td><td>${esc(clientDetails[c.id].city||'—')}</td><td>${formations.filter(f=>f.clientId===c.id).length}</td><td>${assignedTrainersOfClient(c.id).length}</td><td><button class="ghost" onclick="openClient('${c.id}')">Voir ↗</button></td></tr>`).join('')}</tbody></table></div>`} `;
+}
 function clientDetail(){
   const c=clientById(state.selectedClient)||clients[0],d=clientDetails[c.id];
   const fs=formations.filter(f=>f.clientId===c.id);
@@ -333,15 +550,16 @@ function clientDetail(){
   const next=sessions.find(s=>s.date>=parisToday()&&!['Annulée','Réalisée'].includes(s.status));
   const trainers=assignedTrainersOfClient(c.id);
   return `<button class="ghost" onclick="go('clients')">← Annuaire clients</button>
-    <section class="amo-hero client-dashboard-hero"><div><div class="eyebrow">${esc(d.industry)} · ${esc(d.city)}</div><h1 class="headline">${esc(c.name)}</h1><p>${fs.length} formation(s) · ${sessions.length} session(s) · ${trainers.length} formateur(s) mobilisé(s)</p></div>
+    <section class="amo-hero client-dashboard-hero"><div><div class="eyebrow">${esc([d.industry,d.city].filter(Boolean).join(' · '))}</div><h1 class="headline">${esc(c.name)}</h1><p>${fs.length} formation(s) · ${sessions.length} session(s) · ${trainers.length} formateur(s) mobilisé(s)</p></div>
       <div class="amo-next"><small>PROCHAINE SESSION</small>${next?`<strong>${esc(formOf(next).title)}</strong><span>${fmtDate(next.date)} · ${esc(next.city)}</span><button class="secondary tiny" onclick="openSession(${next.id})">Voir la session</button>`:'<strong>Aucune session programmée</strong>'}</div></section>
+    ${d.description?`<section class="card client-profile-description"><p lang="en">${esc(d.description)}</p></section>`:''}
     <div class="detail-grid client-dashboard">
       <section class="card">${cardTitle('Formations')}
         ${fs.map(f=>`<button class="line-item clickable-row" onclick="openFormation('${f.id}')"><span class="grow"><strong>${esc(f.title)}</strong><span class="item-sub">${formationDates(f.id)}</span></span>${badge(f.status)}<span class="row-chevron" aria-hidden="true">›</span></button>`).join('')||'<p class="empty">Aucune formation.</p>'}
         <h3 class="section-title client-subheading">Équipe mobilisée</h3>
         ${trainers.map(t=>`<button class="line-item clickable-row" onclick="openTrainer(${t.id})">${trainerAvatar(t,36)}<span class="grow"><strong>${trainerName(t)}</strong><span class="item-sub">${esc(t.city)}</span></span><span class="row-chevron" aria-hidden="true">›</span></button>`).join('')||'<p class="empty">Aucun formateur affecté.</p>'}
-      </section><section class="card">${cardTitle('Coordonnées')}
-        <dl class="client-facts">${[['Contact',d.contact],['Adresse',d.address||d.city],['Collaborateurs (démo)',d.employees],['Référence CRM',d.hubspot]].map(([label,value])=>`<div><dt>${label}</dt><dd>${esc(value||'À préciser')}</dd></div>`).join('')}</dl>
+      </section><section class="card">${cardTitle('Informations sur l’entreprise')}
+        ${clientCompanyFacts(d)}
         ${d.address?`<a class="secondary tiny client-directions" href="${esc(mapsUrl(d.address,d.city))}" target="_blank" rel="noopener noreferrer">${mobileIcon('pin',16)} Itinéraire</a>`:''}
       </section></div>`;
 }
@@ -407,7 +625,7 @@ function confirmAssignment(id){
   closeModal();
   flash('Affectation confirmée en démonstration.');
 }
-function planningPage(){return `${intro('Planning <em>global.</em>','Vue synchronisée de démonstration : superposez plusieurs agendas et modifiez les sessions sous contrôle.') }<div class="card" style="margin-bottom:18px">${cardTitle('Agendas affichés')}<label class="agenda-option contact-option"><input type="checkbox" ${state.contactAgenda?'checked':''} onchange="changeTab('contactAgenda',this.checked)"><span><strong>contact@certif-ia.fr</strong><small>Toutes les formations</small></span></label><div class="agenda-pickers"><button class="secondary tiny" onclick="selectAllAgendas(true)">Tout sélectionner</button><button class="secondary tiny" onclick="selectAllAgendas(false)">Tout masquer</button>${trainers.map(t=>`<label class="agenda-option"><input type="checkbox" ${state.selectedAgendaIds.includes(t.id)?'checked':''} onchange="toggleAgenda(${t.id},this.checked)"><span class="agenda-color" style="background:${t.accent}"></span><span>${trainerName(t)}</span></label>`).join('')}</div><div class="toolbar"><div class="group"><label><input type="checkbox" ${state.agendaShow==='both'||state.agendaShow==='availability'?'checked':''} onchange="state.agendaShow=this.checked?'both':'missions';render()"> Afficher les disponibilités / indisponibilités</label></div><span class="badge purple">Événements privés masqués · disponibilité inconnue ≠ libre</span></div></div>${calendarUI(false)}<div class="card" style="margin-top:18px">${cardTitle('Sessions et modifications','Modifier date, horaires, lieu, modalité et formateur ; revalidation des affectations')} ${db.sessions.filter(s=>s.status!=='Réalisée').sort((a,b)=>a.date.localeCompare(b.date)).map(s=>`<div class="line-item"><div class="datebox"><strong>${s.date.slice(8)}</strong><small>${fmtDate(s.date,{month:'short'})}</small></div><div class="grow"><strong>${esc(clientOf(formOf(s)).name)}</strong><div class="item-sub">${s.start}–${s.end} · ${esc(s.city)} · ${activeAssignments(s.id).map(a=>trainerName(trainerById(a.trainerId))).join(', ')||'À staffer'}</div></div><button class="secondary tiny" onclick="openModal('edit-session',${s.id})">Modifier</button></div>`).join('')}</div>`}
+function planningPage(){return `${intro('Planning <em>global.</em>','Vue synchronisée de démonstration : superposez plusieurs agendas et modifiez les sessions sous contrôle.') }<div class="card" style="margin-bottom:18px">${cardTitle('Agendas affichés')}<label class="agenda-option contact-option"><input type="checkbox" ${state.contactAgenda?'checked':''} onchange="changeTab('contactAgenda',this.checked)"><span><strong>contact@certif-ia.fr</strong><small>Toutes les formations</small></span></label><div class="agenda-pickers"><button class="secondary tiny" onclick="selectAllAgendas(true)">Tout sélectionner</button><button class="secondary tiny" onclick="selectAllAgendas(false)">Tout masquer</button>${trainers.map(t=>`<label class="agenda-option"><input type="checkbox" ${state.selectedAgendaIds.includes(t.id)?'checked':''} onchange="toggleAgenda(${t.id},this.checked)"><span class="agenda-color" style="background:${t.accent}"></span><span>${trainerName(t)}</span></label>`).join('')}</div><div class="toolbar"><div class="group"><label><input type="checkbox" ${state.agendaShow==='both'||state.agendaShow==='availability'?'checked':''} onchange="state.agendaShow=this.checked?'both':'missions';render()"> Afficher les disponibilités / indisponibilités</label></div><span class="badge purple">Événements privés masqués · disponibilité inconnue ≠ libre</span></div></div>${agendaConflictCell()}${calendarUI(false)}<div class="card" style="margin-top:18px">${cardTitle('Sessions et modifications','Modifier date, horaires, lieu, modalité et formateur ; revalidation des affectations')} ${db.sessions.filter(s=>s.status!=='Réalisée').sort((a,b)=>a.date.localeCompare(b.date)).map(s=>`<div class="line-item"><div class="datebox"><strong>${s.date.slice(8)}</strong><small>${fmtDate(s.date,{month:'short'})}</small></div><div class="grow"><strong>${esc(clientOf(formOf(s)).name)}</strong><div class="item-sub">${s.start}–${s.end} · ${esc(s.city)} · ${activeAssignments(s.id).map(a=>trainerName(trainerById(a.trainerId))).join(', ')||'À staffer'}</div></div><button class="secondary tiny" onclick="openModal('edit-session',${s.id})">Modifier</button></div>`).join('')}</div>`}
 function selectAllAgendas(yes){state.selectedAgendaIds=yes?trainers.map(t=>t.id):[];render()}
 function toggleAgenda(id,checked){state.selectedAgendaIds=checked?[...state.selectedAgendaIds,id]:state.selectedAgendaIds.filter(t=>t!==id);render()}
 function calendarUI(person){
@@ -431,7 +649,7 @@ function calendarUI(person){
     const title=e.kind==='slot'&&!person?trainerName(trainerById(e.trainerId))+' · '+esc(e.status):esc(e.title);
     const action=e.kind==='session'?`openSessionFromCalendar(${e.id},${person})`:e.kind==='event'?`openCalendarEvent('${e.date}','${e.id}')`:person?`openCalendarEvent('${e.date}','${e.id}',true)`:'';
     const cls=e.kind==='slot'?(e.status==='Occupé'?'red':'green'):'purple';
-    const details=[e.start&&e.end?e.start+'–'+e.end:'Journée entière',e.kind==='session'?e.status:e.kind==='slot'?e.zone:''].filter(Boolean).join(' · ');
+    const details=[e.start&&e.end?e.start+'–'+e.end:'Journée entière',e.kind==='session'?e.status:e.kind==='slot'?e.zone:e.eventType==='formation'?(e.location||'Formation'):''].filter(Boolean).join(' · ');
     return `<${action?'button':'div'} class="agenda-event ${cls} ${agenda?'agenda-event-list':''}" ${action?`onclick="${action}"`:''}><strong>${title}</strong><small>${esc(details)}</small></${action?'button':'div'}>`;
   };
   const dayButton=(day,cls='',label='')=>`<button class="agenda-day-button ${cls}" aria-label="Ajouter un événement le ${fmtDate(day,{weekday:'long',day:'numeric',month:'long'})}" onclick="openCalendarEvent('${day}')">${label||fmtDate(day,{weekday:'short',day:'numeric'})}<span aria-hidden="true">＋</span></button>`;
@@ -481,8 +699,11 @@ function docConformity(d){if(d?.status==='Refusé')return 'refused';if(!d||!d.ve
 function documentMatrix(f,person=false){let ds=db.deliverables.filter(d=>d.formationId===f.id&&(!person||(d.owner==='formateur'&&d.trainerId===state.trainerId)));let cols=(person?[...new Set(ds.map(docCategory))].map(key=>documentColumns.find(c=>c[0]===key)||[key,key]):documentColumns);return cols.map(([key,label])=>{let d=ds.find(d=>docCategory(d)===key);return {key,label,d,status:docConformity(d)};});}
 function docStatsFor(f,person=false){let matrix=documentMatrix(f,person);let conform=matrix.filter(x=>x.status==='ok').length;let toCheck=matrix.filter(x=>x.d?.versions?.length&&x.d.status!=='Validé').length;let verified=matrix.filter(x=>x.d?.status==='Validé').length;return {matrix,conform,toCheck,verified,missing:matrix.filter(x=>x.status==='miss').length,percentage:matrix.length?Math.round(100*conform/matrix.length):0};}
 function matrixStatus(x){let icon=x.status==='ok'?mobileIcon('check',15):x.status==='part'?'~':mobileIcon('close',15),word=x.status==='refused'?'Refusé':x.status==='ok'?'Présent et conforme':x.status==='part'?'Présent, format non conforme':'Manquant';return `<span class="v19-marker ${x.status}" title="${esc(x.label+': '+word)}" aria-label="${esc(x.label+': '+word)}">${icon}</span>`;}
-function docGridRow(f){let stats=docStatsFor(f);return `<tr><td><strong>${esc(clientOf(f).name)}</strong><div class="item-sub">${esc(f.title)} · ${formationDates(f.id)}</div><button class="ghost tiny" onclick="openFolder('${f.id}')">Dossier ↗</button></td>${stats.matrix.map(x=>`<td style="text-align:center"><button class="v19-marker-button" onclick="openDocumentCell('${f.id}','${x.key}')" aria-label="Ouvrir ${esc(x.label)} pour ${esc(clientOf(f).name)}">${matrixStatus(x)}</button></td>`).join('')}<td><strong>${stats.conform}/5</strong>${progress(stats.percentage,'Complétude '+clientOf(f).name)}<small>${stats.verified} validé(s) · ${stats.toCheck} à vérifier</small></td></tr>`;}
-function docMobileCard(f){let st=docStatsFor(f),name=clientOf(f).name;return `<div class="card v19-mobile-doc"><div class="card-head"><div><h3 class="section-title">${esc(name)}</h3><p class="section-caption">${esc(f.title)}</p><p class="item-sub">${formationDates(f.id)}</p></div>${badge(st.percentage===100?'Complet':'Incomplet')}</div><div class="v19-mini-status">${st.matrix.map(x=>`<button class="v19-marker-button" aria-label="Ouvrir ${esc(x.label)}" onclick="openDocumentCell('${f.id}','${x.key}')">${matrixStatus(x)}<small>${esc(x.key==='PROGRAMME'?'Prog.':x.key==='CADRAGE'?'Cadrage':x.label)}</small></button>`).join('')}</div><div class="folder-progress"><strong>${st.percentage}%</strong><span>${st.conform}/5 conformes · ${st.toCheck} à vérifier</span></div>${progress(st.percentage,name)}<div class="v19-inline-counts"><span>${st.missing} manquants</span><span>${st.verified} validés</span></div><button class="primary" style="width:100%" onclick="openFolder('${f.id}')">Voir les documents ↗</button></div>`;}
+function deliverableTitle(doc) {
+  return doc.id?`<button type="button" class="document-title document-link" onclick="openModal('document-preview','${esc(doc.id)}')">${esc(doc.title)}</button>`:`<strong>${esc(doc.title)}</strong>`;
+}
+function docGridRow(f){let stats=docStatsFor(f);return `<tr><td><strong>${esc(clientOf(f).name)}</strong><div class="item-sub">${esc(f.title)} · ${formationDates(f.id)}</div><button class="ghost tiny" onclick="openFolder('${f.id}')">Dossier ↗</button></td>${stats.matrix.map(x=>`<td style="text-align:center"><button class="v19-marker-button" onclick="openDocumentCell('${f.id}','${x.key}')" aria-label="Voir ${esc(x.label)} pour ${esc(clientOf(f).name)}">${matrixStatus(x)}${x.d?'<small class="v19-view-label">Voir</small>':''}</button></td>`).join('')}<td><strong>${stats.conform}/5</strong>${progress(stats.percentage,'Complétude '+clientOf(f).name)}<small>${stats.verified} validé(s) · ${stats.toCheck} à vérifier</small></td></tr>`;}
+function docMobileCard(f){let st=docStatsFor(f),name=clientOf(f).name;return `<div class="card v19-mobile-doc"><div class="card-head"><div><h3 class="section-title">${esc(name)}</h3><p class="section-caption">${esc(f.title)}</p><p class="item-sub">${formationDates(f.id)}</p></div>${badge(st.percentage===100?'Complet':'Incomplet')}</div><div class="v19-mini-status">${st.matrix.map(x=>`<button class="v19-marker-button" aria-label="Voir ${esc(x.label)}" onclick="openDocumentCell('${f.id}','${x.key}')">${matrixStatus(x)}<small>${esc(x.key==='PROGRAMME'?'Prog.':x.key==='CADRAGE'?'Cadrage':x.label)}</small></button>`).join('')}</div><div class="folder-progress"><strong>${st.percentage}%</strong><span>${st.conform}/5 conformes · ${st.toCheck} à vérifier</span></div>${progress(st.percentage,name)}<div class="v19-inline-counts"><span>${st.missing} manquants</span><span>${st.verified} validés</span></div><button class="primary" style="width:100%" onclick="openFolder('${f.id}')">Voir les documents ↗</button></div>`;}
 function docDate(f){let dates=db.sessions.filter(s=>s.formationId===f.id).map(s=>s.date).sort();let later=dates.filter(d=>d>=parisToday());return later[0]||dates.at(-1)||'';}
 function setDocSort(value){state.docSort=value;render();}
 
@@ -534,13 +755,20 @@ function docFolder(id,person=false){
  const docs=db.deliverables.filter(d=>d.formationId===id&&(!person||(d.owner==='formateur'&&d.trainerId===state.trainerId)));
  const st=docStatsFor(f,person);
  const top=`<div class="folder-header"><strong>${esc(clientOf(f).name)} · ${esc(f.title)}<small class="item-sub"> · ${formationDates(f.id)}</small></strong><span>${st.percentage}% conformes</span></div>${progress(st.percentage,'Dossier '+clientOf(f).name)}<div class="v19-inline-counts"><span>${st.missing} manquant(s)</span><span>${st.toCheck} à vérifier</span><span>${st.verified} validé(s)</span></div>`;
- const items=(person?docs.map(d=>({d,key:docCategory(d),label:d.title,status:docConformity(d)})):st.matrix);
+ const documentItem=d=>({d,key:docCategory(d),label:d.title,status:docConformity(d)});
+ const items=person?docs.map(documentItem):[
+   ...st.matrix.flatMap(item=>{
+     const category=docs.filter(d=>docCategory(d)===item.key);
+     return category.length?category.map(documentItem):[item];
+   }),
+   ...docs.filter(d=>!st.matrix.some(item=>item.key===docCategory(d))).map(documentItem)
+ ];
  return top+items.map(item=>{const d=item.d;let detail=d?.versions.at(-1),isOwner=d?.owner==='formateur'&&d.trainerId===state.trainerId;
- return `<div class="doc-row"><span>${matrixStatus(item)}</span><div class="grow"><button class="document-title" onclick="openDocumentCell('${f.id}','${item.key}')">${esc(item.label)}</button><div class="item-sub">${d?esc(d.status)+' · '+d.versions.length+' version(s) · Échéance '+fmtDate(d.dueDate):'Aucun livrable référencé dans cette catégorie'}</div>${detail?`<div class="item-sub">Dernière version : ${esc(detail.filename)}</div>`:''}</div><div class="action-wrap">${person?(isOwner?`<button class="secondary tiny" onclick="openModal('upload','${d.id}')">Déposer</button>`:''):d?`<button class="secondary tiny" onclick="openModal('upload-internal','${d.id}')">Déposer</button>${d.versions.length?`<button class="secondary tiny" onclick="openModal('review','${d.id}')">Vérifier</button>`:''}${d.owner==='formateur'&&d.status==='À fournir'?`<button class="secondary tiny" onclick="simulatePwaReminder('${d.id}')">Rappel PWA</button>`:''}`:`<button class="secondary tiny" onclick="prepareMissingDoc('${f.id}','${item.key}')">Créer et déposer</button>`}</div></div>`;
+ return `<div class="doc-row"><span>${matrixStatus(item)}</span><div class="grow">${d?deliverableTitle(d):`<strong>${esc(item.label)}</strong>`}<div class="item-sub">${d?fmtDate(sessionById(d.sessionId)?.date)+' · ':''}${d?esc(d.status)+' · '+d.versions.length+' version(s) · Échéance '+fmtDate(d.dueDate):'Aucun livrable référencé dans cette catégorie'}</div>${detail?`<div class="item-sub">Dernière version : ${esc(detail.filename)}</div>`:''}</div><div class="action-wrap">${person?(isOwner?`<button class="secondary tiny" onclick="openModal('upload','${d.id}')">Déposer</button>`:''):d?`<button class="secondary tiny" onclick="openModal('upload-internal','${d.id}')">Déposer</button>${d.versions.length?`<button class="secondary tiny" onclick="openModal('review','${d.id}')">Vérifier</button>`:''}${d.owner==='formateur'&&d.status==='À fournir'?`<button class="secondary tiny" onclick="simulatePwaReminder('${d.id}')">Rappel PWA</button>`:''}`:`<button class="secondary tiny" onclick="prepareMissingDoc('${f.id}','${item.key}')">Créer et déposer</button>`}</div></div>`;
  }).join('')+(person?'':amoTrainerFeedback(id))+`<p class="footnote">Les fichiers déposés sont conservés dans ce navigateur.</p>`;
 }
 function prepareMissingDoc(id,key,sessionId){if(state.role==='formateur')return flash('Accès réservé à l’équipe interne');let f=formations.find(x=>x.id===id),type=documentColumns.find(x=>x[0]===key);if(!f||!type||(sessionId&&sessionById(sessionId)?.formationId!==id))return flash('Type inconnu');let existing=db.deliverables.find(d=>d.formationId===id&&(!sessionId||d.sessionId===sessionId)&&docCategory(d)===key);if(existing)return openModal('upload-internal',existing.id);let did='D'+(Math.max(0,...db.deliverables.map(d=>Number(String(d.id).slice(1))||0))+1);db.deliverables.push({id:did,formationId:id,sessionId:sessionId||f.sessionIds[0],title:type[1],type:key,owner:'interne',status:'À fournir',versions:[]});log('Livrable manquant créé en démo',`${did} · ${key}`);openModal('upload-internal',did);}
-function reportingPage(){let report=monthlyReport(),month=state.monthlyMonth,within=s=>s.date?.startsWith(month),ss=db.sessions.filter(within),aa=db.assignments.filter(a=>ss.some(s=>s.id===a.sessionId)&&['Confirmée','Réalisée'].includes(a.status)),d=db.deliverables.filter(x=>ss.some(s=>s.id===x.sessionId)),delivered=d.filter(x=>x.versions.length>0),onTime=delivered.filter(x=>x.versions.at(-1)?.at&&x.versions.at(-1).at.slice(0,10)<=x.dueDate).length;let perTrainer=trainers.map(t=>{let assignments=aa.filter(a=>a.trainerId===t.id),rate=reliabilityScore(t);return {t,assignments,rate}}).filter(x=>x.assignments.length>0);return `${intro('Monthly <em>AMO.</em>','Reporting mensuel des formations, du staffing, du NPS, des cartons et de la ponctualité documentaire.')}<div class="toolbar"><div class="group"><label for="report-month">Période</label><input id="report-month" class="field" type="month" value="${esc(month)}" onchange="state.monthlyMonth=this.value;render()"><button class="primary tiny" onclick="exportMonthlyChart()">Télécharger le rapport animé</button><button class="secondary tiny" onclick="exportMonthlyTable()">Télécharger le tableau</button><button class="secondary tiny" onclick="exportMonthly()">Exporter le CSV</button></div><span class="badge purple">Données fictives · pondérations non validées</span></div><div class="cards">${metric('Sessions',ss.length,'Dans la période')}${metric('Affectations',aa.length,'Confirmées / réalisées')}${metric('Formateurs mobilisés',perTrainer.length,'Profils distincts')}${metric('Livrables déposés',delivered.length+'/'+d.length,'Sur la période')}${metric('Bonus du mois',report.bonuses.length,report.bonusPoints+' points attribués')}</div>${monthlyBonusPanel(report)}<div class="two-col"><div class="card">${cardTitle('Activité des formateurs','Missions et clients couverts sur la période')}<div class="table-wrap"><table class="tbl monthly-report-table"><thead><tr><th>Formateur</th><th>Missions</th><th>Clients</th><th>NPS indicatif</th></tr></thead><tbody>${perTrainer.map(x=>`<tr><td>${trainerName(x.t)}</td><td>${x.assignments.length}</td><td>${[...new Set(x.assignments.map(a=>clientOf(formOf(sessionById(a.sessionId))).name))].map(esc).join(', ')}</td><td>${trainerProfileField(x.t.id).nps??'Non renseigné'}</td></tr>`).join('')||'<tr><td colspan="4">Aucune affectation dans la période</td></tr>'}</tbody></table></div></div><div class="card">${cardTitle('Ponctualité et fiabilité','Échantillon fictif, ne sert pas à évaluer des personnes réelles')}<div class="line-item"><div class="grow">Livrables déposés avant échéance (données disponibles)</div><strong>${delivered.length?Math.round(onTime/delivered.length*100)+'%':'Non mesurable'}</strong></div><div class="line-item"><div class="grow">Pool Numéro 10 (référentiel fictif)</div><strong>${trainers.filter(t=>t.rating.includes('Numéro 10')).length}</strong></div><div class="line-item"><div class="grow">Cartons rouges</div><strong>${trainers.filter(t=>trainerProfileField(t.id).redCard).length}</strong></div><p class="footnote">Le score de fiabilité avec bonus/malus est une grille proposée, non validée ni appliquée. Les évaluations par mission et causes des retards restent nécessaires pour des résultats fiables.</p></div></div><div class="card" style="margin-top:18px">${cardTitle('Grille proposée de fiabilité','À valider métier avant tout score calculé ou décision')}<div class="table-wrap"><table class="tbl monthly-report-table"><thead><tr><th>Critère</th><th>Poids proposé</th><th>Base de calcul attendue</th></tr></thead><tbody><tr><td>Ponctualité des livrables</td><td>30 %</td><td>Versions déposées avant échéance et responsabilités identifiées</td></tr><tr><td>NPS et satisfaction</td><td>40 %</td><td>Évaluations contextualisées par session</td></tr><tr><td>Retours de mission</td><td>10 %</td><td>Débriefs et incidents vérifiés</td></tr><tr><td>Incidents vérifiés</td><td>20 %</td><td>Justifications, sources et possibilité de rectification</td></tr></tbody></table></div><p class="footnote">Aucun bonus ou malus réel calculé ou appliqué. Les critères peuvent être modifiés après concertation.</p></div>`}
+function reportingPage(){let report=monthlyReport(),month=state.monthlyMonth,within=s=>s.date?.startsWith(month),ss=db.sessions.filter(within),aa=db.assignments.filter(a=>ss.some(s=>s.id===a.sessionId)&&['Confirmée','Réalisée'].includes(a.status)),d=db.deliverables.filter(x=>ss.some(s=>s.id===x.sessionId)),delivered=d.filter(x=>x.versions.length>0),onTime=delivered.filter(x=>x.versions.at(-1)?.at&&x.versions.at(-1).at.slice(0,10)<=x.dueDate).length;let perTrainer=trainers.map(t=>{let assignments=aa.filter(a=>a.trainerId===t.id),rate=reliabilityScore(t);return {t,assignments,rate}}).filter(x=>x.assignments.length>0);return `${intro('Monthly <em>AMO.</em>','Reporting mensuel des formations, du staffing, du NPS, des cartons et de la ponctualité documentaire.')}<div class="toolbar"><div class="group"><label for="report-month">Période</label><input id="report-month" class="field" type="month" value="${esc(month)}" onchange="state.monthlyMonth=this.value;render()"><button class="primary tiny" onclick="exportMonthlyChart()">Télécharger le rapport animé</button><button class="secondary tiny" onclick="exportMonthlyTable()">Télécharger le tableau</button><button class="secondary tiny" onclick="exportMonthly()">Exporter le CSV</button></div><span class="badge purple">Données fictives · pondérations non validées</span></div><div class="cards">${metric('Sessions',ss.length,'Dans la période')}${metric('Affectations',aa.length,'Confirmées / réalisées')}${metric('Formateurs mobilisés',perTrainer.length,'Profils distincts')}${metric('Livrables déposés',delivered.length+'/'+d.length,'Sur la période')}${metric('Bonus du mois',report.bonuses.length,report.bonusPoints+' points attribués')}</div>${monthlyBonusPanel(report)}${preparationPanel(report.preparation)}<div class="two-col"><div class="card">${cardTitle('Activité des formateurs','Missions et clients couverts sur la période')}<div class="table-wrap"><table class="tbl monthly-report-table"><thead><tr><th>Formateur</th><th>Missions</th><th>Clients</th><th>NPS indicatif</th></tr></thead><tbody>${perTrainer.map(x=>`<tr><td>${trainerName(x.t)}</td><td>${x.assignments.length}</td><td>${[...new Set(x.assignments.map(a=>clientOf(formOf(sessionById(a.sessionId))).name))].map(esc).join(', ')}</td><td>${trainerProfileField(x.t.id).nps??'Non renseigné'}</td></tr>`).join('')||'<tr><td colspan="4">Aucune affectation dans la période</td></tr>'}</tbody></table></div></div><div class="card">${cardTitle('Ponctualité et fiabilité','Échantillon fictif, ne sert pas à évaluer des personnes réelles')}<div class="line-item"><div class="grow">Livrables déposés avant échéance (données disponibles)</div><strong>${delivered.length?Math.round(onTime/delivered.length*100)+'%':'Non mesurable'}</strong></div><div class="line-item"><div class="grow">Pool Numéro 10 (référentiel fictif)</div><strong>${trainers.filter(t=>t.rating.includes('Numéro 10')).length}</strong></div><div class="line-item"><div class="grow">Cartons rouges</div><strong>${trainers.filter(t=>trainerProfileField(t.id).redCard).length}</strong></div><p class="footnote">Le score de fiabilité avec bonus/malus est une grille proposée, non validée ni appliquée. Les évaluations par mission et causes des retards restent nécessaires pour des résultats fiables.</p></div></div><div class="card" style="margin-top:18px">${cardTitle('Grille proposée de fiabilité','À valider métier avant tout score calculé ou décision')}<div class="table-wrap"><table class="tbl monthly-report-table"><thead><tr><th>Critère</th><th>Poids proposé</th><th>Base de calcul attendue</th></tr></thead><tbody><tr><td>Ponctualité des livrables</td><td>30 %</td><td>Versions déposées avant échéance et responsabilités identifiées</td></tr><tr><td>NPS et satisfaction</td><td>40 %</td><td>Évaluations contextualisées par session</td></tr><tr><td>Retours de mission</td><td>10 %</td><td>Débriefs et incidents vérifiés</td></tr><tr><td>Incidents vérifiés</td><td>20 %</td><td>Justifications, sources et possibilité de rectification</td></tr></tbody></table></div><p class="footnote">Aucun bonus ou malus réel calculé ou appliqué. Les critères peuvent être modifiés après concertation.</p></div>`}
 function trainerHome(){
   const t=trainerById(state.trainerId);
   const today=parisToday();
@@ -604,6 +832,8 @@ function modalView(){let m=state.modal,out='';if(m.kind==='reschedule'||m.kind==
 else if(m.kind==='prepare-proposal'&&state.role==='amo'){out=proposalModal()}
 else if(m.kind==='whatsapp-draft'&&state.role==='amo'){out=whatsAppPanel(m.id)}
 else if(m.kind==='amo-milestones'&&state.role==='amo'){out=amoMilestonesPanel()}
+else if(m.kind==='agenda-conflicts'&&state.role==='amo'){out=agendaConflictPanel()}
+else if(m.kind==='hub-search'){out=hubSearchPanel()}
 else if(m.kind==='hub-settings'){out=hubSettingsPanel()}
 else if(m.kind==='google-calendar'&&state.role==='formateur'){out=modalBox('Connexion Google Agenda','La connexion à un compte Google sera disponible quand la synchronisation aura été configurée.',`<div class="modal-actions"><button class="primary" onclick="closeModal()">Fermer</button></div>`)}
 else if(m.kind==='trainer-feedback'){out=trainerFeedbackModal(m.id)}
@@ -612,13 +842,14 @@ else if(m.kind==='amo-notifications'&&state.role==='amo'){out=operationsInboxPan
 else if(m.kind==='trainer-notifications'&&state.role==='formateur'){out=operationsInboxPanel()}
 else if(m.kind==='trainer-staffing'&&state.role==='amo'){out=trainerStaffingPanel(m.id)}
 else if(operationalDecisions.includes(m.kind)&&state.role==='amo'){out=staffDecisionPanel(m.kind,m.id)}
+else if(m.kind==='agenda-formation'&&state.role==='amo'){out=agendaFormationDetails(m.id)}
 else if(m.kind==='availability'||m.kind==='calendar-event'){out=calendarEventModal(m)}
 else if(m.kind==='matching'){out=matchingDetailsModal(m.id)}
 else if(m.kind==='folder'||m.kind==='trainer-folder'){out=modalBox('Dossier de livrables',m.kind==='folder'?'Gestion interne des documents et relances':'Documents attendus pour vos missions',docFolder(m.id,m.kind==='trainer-folder')+`<div class="modal-actions"><button class="secondary" onclick="closeModal()">Fermer</button></div>`)}
 else if(m.kind==='mission-info'){let s=sessionById(m.id),f=formOf(s),c=clientOf(f),d=clientDetails[c.id];out=modalBox('Informations client pour la mission','Uniquement les informations utiles au formateur, sans notes internes confidentielles.',`<div class="info-grid">${[['Client',c.name],['Formation',f.title],['Date',fmtDate(s.date)],['Horaires',s.start+'–'+s.end],['Participants',s.people??'À préciser'],['Lieu',s.address||s.city],['Contact',d.contact],['Consignes',d.notesTrainer]].map(([k,v])=>`<div class="info"><small>${esc(k)}</small><strong>${esc(v)}</strong></div>`).join('')}</div><div class="v19-mission-extra">${missionAuditDisplay(s)}${missionPublicFeedback(s)}</div><div class="modal-actions"><a class="btn" target="_blank" rel="noopener noreferrer" href="${esc(mapsUrl(s.address,s.city))}">Ouvrir l'itinéraire ↗</a><button class="secondary" onclick="closeModal()">Fermer</button></div><p class="footnote">L’adresse précise est à renseigner ; ici le lien indique une ville fictive.</p>`)}
 else if(m.kind==='upload'||m.kind==='upload-internal'){out=uploadPanel(m.id,m.kind==='upload-internal')}
 else if(m.kind==='review'){let d=db.deliverables.find(x=>x.id===m.id);out=modalBox('Vérifier un livrable','Choisissez une décision pour la version déposée.',`<div class="info"><small>Livrable</small><strong>${esc(d.title)}</strong></div><label class="form-label" for="review-comment">Motif du refus (facultatif)</label><textarea class="field" id="review-comment" placeholder="Ajouter un motif…"></textarea><div class="modal-actions"><button class="secondary" onclick="closeModal()">Annuler</button><button class="secondary" onclick="reviewDoc('${d.id}','Refusé')">Refuser</button><button class="primary" onclick="reviewDoc('${d.id}','Validé')">Valider (démo)</button></div>`)}
-return `<div class="modal-back" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal ${isOperationalModal(m.kind)?'ops-modal':''}" role="dialog" aria-modal="true" aria-label="${({'trainer-notifications':'Centre de notifications','amo-notifications':'Centre de notifications','prepare-proposal':'Préparer une proposition','whatsapp-draft':'Brouillon WhatsApp','amo-milestones':'Jalons AMO','document-preview':'Détail du document','google-calendar':'Connexion Google Agenda','hub-settings':'Réglages'})[m.kind]||esc(m.kind)}"><button class="modal-close" aria-label="Fermer" onclick="closeModal()">×</button>${out}</div></div>`}
+return `<div class="modal-back" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal ${isOperationalModal(m.kind)?'ops-modal':''}" role="dialog" aria-modal="true" aria-label="${({'trainer-notifications':'Centre de notifications','amo-notifications':'Centre de notifications','prepare-proposal':'Préparer une proposition','whatsapp-draft':'Brouillon WhatsApp','amo-milestones':'Jalons AMO','agenda-conflicts':'Gestion des conflits','agenda-formation':'Formation','calendar-event':'Événement agenda','document-preview':'Détail du document','google-calendar':'Connexion Google Agenda','hub-settings':'Réglages'})[m.kind]||esc(m.kind)}"><button class="modal-close" aria-label="Fermer" onclick="closeModal()">×</button>${out}</div></div>`}
 function saveSessionEdit(id){let s=sessionById(id),date=$('new-date')?.value,start=$('new-start')?.value,end=$('new-end')?.value,city=$('new-city')?.value.trim(),address=$('new-address')?.value.trim(),modality=$('new-modality')?.value,tid=Number($('new-trainer')?.value||0);if(!date||!start||!end||!city||end<=start)return flash('Date, horaires et lieu valides requis');let prev=JSON.stringify([s.date,s.start,s.end,s.city,s.address||'',s.modality]);let next=JSON.stringify([date,start,end,city,address,modality]);let changed=prev!==next;let current=activeAssignments(id);if(!changed&&(!tid||current.some(a=>a.trainerId===tid)))return flash('Aucune modification');const entry={date,start,end};const trainersToCheck=new Set([...current.map(a=>a.trainerId),...db.proposals.filter(p=>p.sessionId===s.id&&p.status==='Acceptée').map(p=>p.trainerId),...(tid?[tid]:[])]);if(date!==s.date||start!==s.start||end!==s.end){const conflict=calendarConflict(entry,null,{sessionId:s.id});if(conflict)return flash(conflict)}for(const trainerId of trainersToCheck){const conflict=calendarConflict(entry,trainerId,{sessionId:s.id,allowAvailable:true});if(conflict)return flash(conflict)}Object.assign(s,{date,start,end,city,address,modality});if(changed)s.staffingRevision=(s.staffingRevision||0)+1;if(changed||tid){current.forEach(a=>a.status='À revalider');if(tid&&!db.assignments.some(a=>a.sessionId===id&&a.trainerId===tid&&a.status==='À revalider'))db.assignments.push({id:'A'+Date.now(),sessionId:id,trainerId:tid,status:'À revalider'});}log('Modification de session démo',id+' · contrôle de revalidation requis');closeModal();flash('Modification simulée ; affectations à revalider')}
 function modalBox(title,desc,content){return `<h2>${title}</h2><p>${desc}</p>${content}`}
 function rescheduleSession(id){let el=$('new-date'),date=el?.value,s=sessionById(id);if(!date||!s)return flash('Date requise');if(s.date===date)return flash('La date est inchangée');let previous=s.date;s.date=date;db.assignments.filter(a=>a.sessionId===s.id&&a.status==='Confirmée').forEach(a=>a.status='À revalider');log('Report de session (démo)',`session ${id} : ${previous} → ${date}`);closeModal();flash('Session reportée ; affectations à revalider')}
@@ -717,21 +948,28 @@ function trainerMissionsInCalendar(trainerId){
   return [...result.values()];
 }
 
+function agendaEntriesOverlap(a,b){
+  return a.date===b.date&&(a.start||'00:00')<(b.end||'24:00')&&(b.start||'00:00')<(a.end||'24:00');
+}
+
 function calendarConflict(entry,trainerId,options={}){
-  const entries=(db.calendarEvents||[]).filter(e=>e.trainerId===trainerId&&e.id!==entry.id);
+  const entries=(db.calendarEvents||[]).filter(e=>e.trainerId===trainerId&&e.id!==entry.id)
+    .map(e=>options.maskPrivate&&trainerId!==null?{...e,title:'Créneau indisponible'}:e);
   if(trainerId===null)entries.push(...db.sessions.filter(s=>s.status!=='Annulée'&&s.id!==options.sessionId).map(s=>({...s,title:clientOf(formOf(s)).name})));
   if(trainerId!==null){
     entries.push(...trainerMissionsInCalendar(trainerId).filter(e=>e.id!==options.sessionId));
     entries.push(...db.availability.filter(a=>a.trainerId===trainerId&&a.id!==entry.id&&(!options.allowAvailable||a.status!=='Disponible')));
   }
-  const conflict=entries.find(e=>e.date===entry.date&&(e.start||'00:00')<(entry.end||'24:00')&&(entry.start||'00:00')<(e.end||'24:00'));
+  const conflict=entries.find(e=>agendaEntriesOverlap(entry,e));
   if(!conflict)return '';
   const time=conflict.start&&conflict.end?`${conflict.start}–${conflict.end}`:'journée entière';
   return `Conflit le ${fmtDate(entry.date)} avec « ${conflict.title||conflict.status} » (${time}). Choisissez un autre créneau.`;
 }
 
-function openCalendarEvent(date,id,slot=false){
-  state.modal={kind:slot?'availability':'calendar-event',id,date};
+function openCalendarEvent(date,id,slot=false,edit=false){
+  const formation=!slot&&!edit&&state.role==='amo'&&
+    (db.calendarEvents||[]).some(e=>e.trainerId===null&&e.id===id&&e.eventType==='formation');
+  state.modal={kind:slot?'availability':formation?'agenda-formation':'calendar-event',id,date};
   render();
   $('agenda-event-form')?.querySelector('select,input')?.focus();
 }
@@ -743,26 +981,37 @@ function calendarEventModal(modal){
   const current=modal.id?(slot?db.availability:db.calendarEvents||[]).find(e=>e.id===modal.id&&e.trainerId===owner):null;
   if(modal.id&&!current)return modalBox('Événement introuvable','','');
   const status=current?.status||'Disponible';
-  const type=slot||(!current&&trainer)?status:'event';
-  return modalBox(current?'Modifier le '+(slot?'créneau':'rendez-vous'):'Ajouter un événement','',`<form id="agenda-event-form" onsubmit="event.preventDefault();saveCalendarEvent(this)">
+  const type=slot||(!current&&trainer)?status:trainer?'event':current?.eventType||(current?'event':'formation');
+  const event=['event','formation'].includes(type);
+  return modalBox(current?'Modifier '+(slot?'le créneau':type==='formation'?'la formation':'le rendez-vous'):'Ajouter un événement','',`<form id="agenda-event-form" onsubmit="event.preventDefault();saveCalendarEvent(this)">
     <div class="form-grid">
-      ${trainer?`<label>Type<select name="kind" class="field" onchange="calendarEventType(this.form)">${[['Disponible','Disponibilité'],['Occupé','Indisponibilité'],['event','Événement personnel']].filter(([key])=>!current||slot===(key!=='event')).map(([key,label])=>`<option value="${key}" ${type===key?'selected':''}>${label}</option>`).join('')}</select></label>`:'<input type="hidden" name="kind" value="event">'}
+      ${trainer?`<label>Type<select name="kind" class="field" onchange="calendarEventType(this.form)">${[['Disponible','Disponibilité'],['Occupé','Indisponibilité'],['event','Événement personnel']].filter(([key])=>!current||slot===(key!=='event')).map(([key,label])=>`<option value="${key}" ${type===key?'selected':''}>${label}</option>`).join('')}</select></label>`:`<label>Type<select name="kind" class="field" onchange="calendarEventType(this.form)">
+        <option value="formation" ${type==='formation'?'selected':''}>Formation</option>
+        <option value="event" ${type==='event'?'selected':''}>Autre événement</option>
+      </select></label>`}
       <label>Date<input name="date" class="field" type="date" value="${esc(current?.date||modal.date||state.calendarDate)}" required></label>
       <label>Début<input name="start" class="field" type="time" value="${esc(current?.start||'09:00')}" required></label>
       <label>Fin<input name="end" class="field" type="time" value="${esc(current?.end||'17:00')}" required></label>
-      <label class="profile-wide" id="event-title-label" ${type==='event'?'':'hidden'}>Titre<input name="title" class="field" value="${esc(current?.title)}" ${type==='event'?'required':''}></label>
-      <label class="profile-wide" id="event-zone-label" ${type==='event'?'hidden':''}>Zone (facultatif)<input name="zone" class="field" value="${esc(current?.zone)}"></label>
+      <label class="profile-wide" id="event-title-label" ${event?'':'hidden'}>Titre<input name="title" class="field" value="${esc(current?.title)}" ${event?'required':''}></label>
+      ${trainer?`<label class="profile-wide" id="event-zone-label" ${event?'hidden':''}>Zone (facultatif)<input name="zone" class="field" value="${esc(current?.zone)}"></label>`:''}
       ${slot&&current&&!current.start?'<label><input name="allDay" type="checkbox" checked> Journée entière</label>':''}
-    </div><p id="agenda-error" class="agenda-error" role="alert"></p>
+    </div>${trainer?'':agendaFormationFields(current,type==='formation')}<p id="agenda-error" class="agenda-error" role="alert"></p>
     <div class="modal-actions"><button type="button" class="secondary" onclick="closeModal()">Annuler</button><button class="primary">Enregistrer</button></div>
   </form>`);
 }
 
 function calendarEventType(form){
-  const event=form.elements.kind.value==='event';
+  const kind=form.elements.kind.value;
+  const event=['event','formation'].includes(kind);
   $('event-title-label').hidden=!event;
-  $('event-zone-label').hidden=event;
+  const zone=$('event-zone-label');
+  if(zone)zone.hidden=event;
   form.elements.title.required=event;
+  const formation=$('agenda-formation-fields');
+  if(formation){
+    formation.hidden=kind!=='formation';
+    formation.disabled=kind!=='formation';
+  }
 }
 
 function saveCalendarEvent(form){
@@ -778,6 +1027,11 @@ function saveCalendarEvent(form){
   else {
     entry.title=data.get('title').trim();
     if(!entry.title)return error('Renseignez un titre.');
+    if(owner===null&&kind==='formation'){
+      const fields=readAgendaFormation(data);
+      if(fields.error)return error(fields.error);
+      Object.assign(entry,fields);
+    }
   }
   const conflict=calendarConflict(entry,owner);
   if(conflict)return error(conflict);
@@ -786,13 +1040,14 @@ function saveCalendarEvent(form){
   if(index>=0)list[index]=entry;
   else list.push(entry);
   state.calendarDate=entry.date;
+  if(entry.eventType==='formation')state.contactAgenda=true;
   save();
   closeModal();
-  flash(slot?'Créneau enregistré.':'Événement enregistré.');
+  flash(slot?'Créneau enregistré.':entry.eventType==='formation'?'Formation enregistrée dans l’agenda AMO.':'Événement enregistré.');
 }
 
-function parisToday(){
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts();
+function parisToday(date=new Date()){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
   const part=type=>parts.find(x=>x.type===type).value;
   return [part('year'),part('month'),part('day')].join('-');
 }
@@ -936,7 +1191,10 @@ function documentPreview(id){
   return modalBox(esc(d.title),formateur?fmtDate(sessionById(d.sessionId)?.date):formationDates(d.formationId),`
     <div>${badge(d.status)}</div>
     ${d.status==='Refusé'&&latest?.comment?`<div class="info"><small>Motif du refus</small><strong>${esc(latest.comment)}</strong></div>`:''}
-    ${versions.map(v=>`<div class="line-item"><div class="grow"><strong>${esc(v.filename)}</strong><div class="item-sub">Version ${v.number} · ${esc(v.status)}</div></div>${v.fileKey?`<button class="secondary tiny" onclick="downloadDocumentVersion('${d.id}',${v.number})">Ouvrir le fichier</button>`:'<span class="item-sub">Fichier de démonstration</span>'}</div>`).join('')||'<p class="empty">Aucune version déposée.</p>'}
+    ${versions.map(v=>`<div class="line-item"><div class="grow"><strong>${esc(v.filename)}</strong><div class="item-sub">Version ${v.number} · ${esc(v.status)}</div></div>${v.fileKey?`<div class="action-wrap">
+      <button class="ghost tiny" onclick="downloadDocumentVersion('${d.id}',${v.number},true)">Ouvrir le fichier</button>
+      <button class="secondary tiny" onclick="downloadDocumentVersion('${d.id}',${v.number})">${mobileIcon('download',16)} Télécharger</button>
+    </div>`:'<span class="item-sub">Fichier de démonstration · téléchargement indisponible</span>'}</div>`).join('')||'<p class="empty">Aucune version déposée.</p>'}
     <div class="modal-actions">${!formateur&&latest?`<button class="secondary" onclick="openModal('review','${d.id}')">Vérifier</button>`:''}
     ${!formateur||(owner&&d.status!=='Validé')?`<button class="primary" onclick="openModal('${formateur?'upload':'upload-internal'}','${d.id}')">${d.status==='Refusé'?'Déposer une nouvelle version':'Déposer un fichier'}</button>`:''}</div>`);
 }
@@ -956,14 +1214,17 @@ function documentStorage(mode,action){
   });
 }
 
-async function downloadDocumentVersion(id,number){
+async function downloadDocumentVersion(id,number,preview=false){
   const d=db.deliverables.find(x=>x.id===id);
   const v=d?.versions.find(x=>x.number===number);
-  if(!v?.fileKey||(state.role==='formateur'&&!trainerCanReadDocument(d)))return;
+  const canRead=()=>state.role==='amo'||trainerCanReadDocument(d);
+  if(!v?.fileKey||!canRead())return;
+  const currentModal=state.modal;
   try{
     const file=await documentStorage('readonly',files=>files.get(v.fileKey));
+    if(!canRead()||state.modal!==currentModal)return;
     if(!file)return flash('Fichier indisponible dans ce navigateur.');
-    const display=/^(application\/pdf|image\/(png|jpeg))$/.test(file.type);
+    const display=preview&&/^(application\/pdf|image\/(png|jpeg))$/.test(file.type);
     if(display){
       const url=URL.createObjectURL(file);
       const modal=$('document-file-frame');
@@ -986,6 +1247,53 @@ function downloadBlob(blob,name){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
+function preparationTiming(docs,today=parisToday()){
+  const totals={onTime:0,late:0,overdue:0,pending:0,unknown:0};
+  const categories=new Map();
+  for(const doc of docs){
+    const category=docCategory(doc);
+    const label=documentColumns.find(([key])=>key===category)?.[1];
+    if(!label||category==='BILANS'||doc.status==='Non applicable')continue;
+    const bucket=categories.get(label)||{onTime:0,late:0,overdue:0,pending:0,unknown:0};
+    const first=doc.versions?.[0]?.at;
+    let status;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(doc.dueDate||''))status='unknown';
+    else if(!doc.versions?.length)status=doc.dueDate<today?'overdue':'pending';
+    else if(!first||!Number.isFinite(Date.parse(first)))status='unknown';
+    else status=parisToday(new Date(first))<=doc.dueDate?'onTime':'late';
+    bucket[status]++;
+    totals[status]++;
+    categories.set(label,bucket);
+  }
+  return {...totals,categories,measurable:totals.onTime+totals.late+totals.overdue};
+}
+
+const preparationTimingLabels={
+  onTime:'Déposés dans les temps',late:'Déposés en retard',overdue:'Manquants après échéance',
+  pending:'En attente dans les délais',unknown:'Date inconnue'
+};
+
+function preparationBreakdown(categories){
+  return `<table class="tbl monthly-report-table" aria-label="Délais par type de document">
+      <thead><tr><th>Document</th><th>À temps</th><th>Déposé en retard</th><th>Manquant après échéance</th><th>En attente</th><th>Date inconnue</th></tr></thead>
+      <tbody>${[...categories].map(([label,row])=>`<tr><th scope="row">${esc(label)}</th><td>${row.onTime}</td><td>${row.late}</td><td>${row.overdue}</td><td>${row.pending}</td><td>${row.unknown}</td></tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function preparationPanel(timing){
+  const {onTime,late,overdue,pending,unknown,measurable,categories}=timing;
+  return `<section class="card monthly-preparation">
+    ${cardTitle('Délais de préparation des sessions','Premier dépôt comparé à l’échéance de chaque document de préparation des sessions du mois.')}
+    <div class="line-item"><span class="grow">Déposés dans les temps</span><strong>${measurable?reportNumber(onTime/measurable*100)+' % · '+onTime+'/'+measurable:'Non mesurable'}</strong></div>
+    <div class="line-item"><span class="grow">Déposés en retard</span><strong>${late}</strong></div>
+    <div class="line-item"><span class="grow">Manquants après échéance</span><strong>${overdue}</strong></div>
+    <div class="line-item"><span class="grow">En attente dans les délais</span><strong>${pending}</strong></div>
+    ${unknown?`<div class="line-item"><span class="grow">Date de dépôt ou échéance inconnue</span><strong>${unknown}</strong></div>`:''}
+    ${categories.size?`<details><summary>Voir par type de document</summary><div class="table-wrap">${preparationBreakdown(categories)}</div></details>`:''}
+    <p class="footnote">Un dépôt le jour de l’échéance compte comme ponctuel. Les documents encore attendus et les dates inconnues sont exclus du taux.</p>
+  </section>`;
+}
+
 function monthlyReport(){
   const month=state.monthlyMonth;
   const sessions=db.sessions.filter(s=>s.date.startsWith(month)&&s.status!=='Annulée');
@@ -1006,7 +1314,7 @@ function monthlyReport(){
     const scores=list.map(a=>missionRatings[a.id]?.nps).filter(Number.isFinite);
     return {name:trainerById(id).name,count:list.length,done:list.filter(a=>a.status==='Réalisée').length,nps:scores.length?scores.reduce((sum,n)=>sum+n,0)/scores.length:null};
   }).sort((a,b)=>b.count-a.count);
-  return {month,sessions,assignments,proposals,docs,onTime,punctual,cards,bonuses,bonusByTrainer,bonusPoints:bonuses.length*trainerBonusValue,trainersByMission,
+  return {month,sessions,assignments,proposals,docs,onTime,punctual,preparation:preparationTiming(docs),cards,bonuses,bonusByTrainer,bonusPoints:bonuses.length*trainerBonusValue,trainersByMission,
     nps:assessed.length?assessed.reduce((sum,n)=>sum+n,0)/assessed.length:null,npsCount:assessed.length,
     participants:sessions.reduce((sum,s)=>sum+Number(s.people||0),0),
     staffed:sessions.filter(s=>openCount(s)===0).length,
@@ -1017,12 +1325,16 @@ function reportNumber(n){
   return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1}).format(n);
 }
 
-function monthlyTableRows(){
-  const r=monthlyReport();
+function monthlyTableRows(r=monthlyReport()){
   if(!r.month)return [];
   const rows=[['Mois','Type de ligne','Client','Formation','Date de session','Formateur','Statut','Indicateur','Valeur']];
   const row=(type,{s,t,status,label,value}={})=>[r.month,type,s?clientOf(formOf(s)).name:'',s?formOf(s).title:'',s?.date||'',t||'',status||'',label||'',value??''];
   rows.push(row('Synthèse',{label:'Sessions',value:r.sessions.length}),row('Synthèse',{label:'Participants prévus',value:r.participants}),row('Synthèse',{label:'Sessions entièrement staffées',value:r.staffed}),row('Synthèse',{label:'Formateurs mobilisés',value:r.trainersByMission.length}),row('Synthèse',{label:'NPS moyen / 10',value:r.nps===null?'Non mesuré':reportNumber(r.nps)}),row('Synthèse',{label:'Ponctualité documentaire',value:r.punctual.length?reportNumber(r.onTime/r.punctual.length*100)+' %':'Non mesurée'}));
+  const p=r.preparation;
+  rows.push(row('Préparation',{label:'Taux de dépôt dans les temps',value:p.measurable?reportNumber(p.onTime/p.measurable*100)+' %':'Non mesurable'}));
+  for(const [key,label] of Object.entries(preparationTimingLabels))rows.push(row('Préparation',{label,value:p[key]}));
+  for(const [category,counts] of p.categories)
+    for(const [key,label] of Object.entries(preparationTimingLabels))rows.push(row('Préparation',{label:category+' · '+label,value:counts[key]}));
   rows.push(row('Synthèse',{label:'Bonus du mois',value:r.bonuses.length}),row('Synthèse',{label:'Points de bonus attribués',value:r.bonusPoints}));
   r.bonusByTrainer.forEach(t=>rows.push(row('Synthèse formateur',{t:t.name,label:'Bonus du mois',value:t.count}),row('Synthèse formateur',{t:t.name,label:'Points de bonus attribués',value:t.points})));
   r.sessions.forEach(s=>rows.push(row('Session',{s,status:staffingLabel(s),label:'Participants',value:s.people})));
@@ -1040,6 +1352,35 @@ function exportMonthly(){
   downloadBlob(new Blob(['\ufeff'+rows.map(r=>r.map(quote).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}),'Monthly-AMO-'+state.monthlyMonth+'.csv');
 }
 
+function monthlyExportStyles(){
+  const gradient=getComputedStyle(document.documentElement).getPropertyValue('--pd-session-gradient').trim();
+  return `
+    :root{color-scheme:light;--page:#f8f8fc;--panel:#fff;--ink:#25233b;--muted:#645f78;--line:#e7e5f0;--subtle:#f1f0f9;--accent:#442ffa;
+      --session-gradient:${gradient||'linear-gradient(90deg,#442ffa,#bc3afe,#ba8bfd)'}}
+    :root{--brand-indigo:#442ffa;--brand-violet:#bc3afe;--brand-lilac:#ba8bfd}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--page);color:var(--ink);font:15px/1.55 system-ui,sans-serif}
+    main{max-width:1280px;margin:auto;padding:32px clamp(12px,3vw,28px)}
+    header,section,.stats>div{min-width:0;border:1px solid transparent;border-radius:12px;padding:16px;
+      background:linear-gradient(var(--panel),var(--panel)) padding-box,var(--session-gradient) border-box}
+    header{padding:clamp(16px,4vw,28px);margin-bottom:16px}
+    h1{font-size:clamp(24px,4.5vw,42px);line-height:1.2;margin:8px 0 3px}
+    h2{font-size:18px;line-height:1.3;margin:0 0 12px}
+    p,.report-period,.eyebrow{color:var(--muted)}
+    .eyebrow{font-size:11px;letter-spacing:.12em}
+    .report-logo{display:block;width:146px;max-width:100%;height:auto;margin-bottom:12px}
+    .report-table-scroll{overflow-x:auto;max-width:100%;border-radius:8px}
+    .report-table-scroll:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+    thead th{background:var(--subtle)}
+    .report-table-scroll th,.report-table-scroll td{min-width:86px}
+    tbody tr:nth-child(even){background:var(--page)}
+    @media print{main{padding:0}header,section,.stats>div{border-color:var(--line);background:white}.report-table-scroll{overflow:visible}
+      .report-table-scroll th,.report-table-scroll td{min-width:0;padding:4px;font-size:9px}}
+  `;
+}
+
 async function exportMonthlyChart(){
   const r=monthlyReport();
   if(!/^\d{4}-\d{2}$/.test(r.month))return flash('Choisissez un mois.');
@@ -1048,7 +1389,7 @@ async function exportMonthlyChart(){
   const palette=['#a48aff','#52d7b2','#ffc475','#f196b3','#87baff'];
   const statusRows=(items,key)=>Object.entries(items.reduce((acc,item)=>{const label=key(item);acc[label]=(acc[label]||0)+1;return acc},Object.create(null)));
   const bars=(title,rows)=>{const max=Math.max(1,...rows.map(x=>x[1]));return `<section><h2>${title}</h2>${rows.map(([label,n],i)=>`<div class="bar-label"><span>${esc(label)}</span><b>${n}</b></div><div class="rail"><div class="bar" style="--width:${n/max*100}%;--i:${i};--color:${palette[i%palette.length]}"></div></div>`).join('')||'<p>Aucune donnée sur la période.</p>'}</section>`};
-  const ring=(title,value,total,detail)=>{const fraction=total?Math.round(value/total*100):0;return `<section><h2>${title}</h2><div class="ring-row"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="49" class="track"/><circle cx="60" cy="60" r="49" pathLength="100" stroke-dasharray="${fraction} 100" class="ring"/></svg><div><strong>${total?fraction+' %':'—'}</strong><p>${esc(detail)}</p></div></div></section>`};
+  const ring=(title,value,total,detail)=>{const fraction=total?Math.round(value/total*100):0;return `<section><h2>${title}</h2><div class="ring-row"><svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="49" class="track"/><circle cx="60" cy="60" r="49" pathLength="100" stroke-dasharray="${fraction} 100" class="ring"/></svg><div><strong>${total?reportNumber(value/total*100)+' %':'—'}</strong><p>${esc(detail)}</p></div></div></section>`};
   const daysInMonth=new Date(Number(r.month.slice(0,4)),Number(r.month.slice(5)),0).getDate();
   const weekly=Array(Math.ceil(daysInMonth/7)).fill(0);
   r.sessions.forEach(s=>weekly[Math.floor((Number(s.date.slice(8))-1)/7)]++);
@@ -1057,13 +1398,33 @@ async function exportMonthlyChart(){
   const logo=await reportLogo();
   const html=`<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Monthly AMO · ${esc(period)}</title>
   <style>
-  *{box-sizing:border-box}body{margin:0;color:#f5efff;background:#171327;font:16px/1.48 system-ui,Arial,sans-serif}main{max-width:1120px;margin:auto;padding:32px 20px}header{background:linear-gradient(120deg,#372359,#744da8);padding:26px;border-radius:20px;margin-bottom:16px}h1{font-size:clamp(30px,6vw,52px);margin:6px 0}h2{font-size:19px;margin:0 0 15px}p{color:#d9cdea}.report-logo{display:block;width:170px;max-width:100%;background:white;padding:8px;border-radius:8px;margin-bottom:12px}.eyebrow{color:#e8d8ff;letter-spacing:.1em}.stats,.grid{display:grid;gap:12px}.stats{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px}.stats div,section{background:#252039;border:1px solid #423754;border-radius:14px;padding:15px}.stats strong,.ring-row strong{display:block;font-size:27px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bar-label{display:flex;justify-content:space-between;margin:9px 0 4px}.rail{height:12px;background:#423754;border-radius:10px;overflow:hidden}.bar{height:100%;width:var(--width);background:var(--color);border-radius:10px;transform-origin:left;animation:grow .85s both;animation-delay:calc(var(--i)*90ms)}.ring-row{display:flex;align-items:center;gap:16px}.ring-row svg{width:100px;flex:none;transform:rotate(-90deg)}circle{fill:none;stroke-width:10}.track{stroke:#423754}.ring{stroke:#52d7b2;stroke-linecap:round;animation:ring 1s both}.columns{display:grid;grid-template-columns:repeat(var(--weeks),1fr);gap:8px;align-items:end;text-align:center;height:145px}.columns>div{display:grid;justify-items:center;gap:3px}.column{width:min(36px,90%);height:var(--height);border-radius:5px;background:#a48aff;transform-origin:bottom;animation:rise .75s both;animation-delay:calc(var(--i)*90ms)}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid #423754}.wide{grid-column:1/-1}@keyframes grow{from{transform:scaleX(0)}}@keyframes rise{from{transform:scaleY(0)}}@keyframes ring{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}@media(max-width:600px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+    ${monthlyExportStyles()}
+    .stats,.grid{display:grid;gap:12px}
+    .stats{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:12px}
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .stats strong,.ring-row strong{display:block;font-size:24px}
+    .bar-label{display:flex;justify-content:space-between;gap:10px;margin:9px 0 4px}
+    .rail{height:10px;background:var(--subtle);border-radius:8px;overflow:hidden}
+    .bar{height:100%;width:var(--width);background:var(--color);border-radius:8px;transform-origin:left;animation:grow .85s both;animation-delay:calc(var(--i)*90ms)}
+    .ring-row{display:flex;align-items:center;gap:16px}
+    .ring-row svg{width:clamp(64px,17vw,100px);flex:none;transform:rotate(-90deg)}
+    circle{fill:none;stroke-width:10}.track{stroke:var(--subtle)}.ring{stroke:var(--accent);stroke-linecap:round;animation:ring 1s both}
+    .columns{display:grid;grid-template-columns:repeat(var(--weeks),1fr);gap:8px;align-items:end;text-align:center;height:145px}
+    .columns>div{display:grid;justify-items:center;gap:3px}
+    .column{width:min(36px,90%);height:var(--height);border-radius:5px;background:var(--session-gradient);transform-origin:bottom;animation:rise .75s both;animation-delay:calc(var(--i)*90ms)}
+    .wide{grid-column:1/-1}
+    @keyframes grow{from{transform:scaleX(0)}}@keyframes rise{from{transform:scaleY(0)}}@keyframes ring{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+    @media(max-width:640px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(prefers-reduced-motion:reduce){*{animation:none!important}}
   </style><main><header>${logo}<div class="eyebrow">CERTIF-IA HUB</div><h1>Monthly AMO</h1><div>${esc(period)}</div></header>
   <div class="stats">${stats.map(([name,value])=>`<div><span>${name}</span><strong>${value}</strong></div>`).join('')}</div>
   <div class="grid">${trends}
   ${ring('Couverture du staffing',r.staffed,r.sessions.length,`${r.staffed} session(s) entièrement staffée(s) sur ${r.sessions.length}`)}
   ${bars('Propositions par statut',statusRows(r.proposals,p=>p.status))}
   ${bars('Livrables par statut',statusRows(r.docs,d=>d.status))}
+  ${ring('Préparation dans les temps',r.preparation.onTime,r.preparation.measurable,`${r.preparation.onTime} / ${r.preparation.measurable} documents déposés dans les temps`)}
+  ${bars('Délais de préparation',Object.entries(preparationTimingLabels).map(([key,label])=>[label,r.preparation[key]]))}
+  ${r.preparation.categories.size?`<section class="wide"><h2>Délais par type de document</h2><div class="report-table-scroll" tabindex="0" role="region" aria-label="Délais par type de document">${preparationBreakdown(r.preparation.categories)}</div></section>`:''}
   ${ring('Ponctualité documentaire',r.onTime,r.punctual.length,`${r.onTime} dépôt(s) à temps sur ${r.punctual.length} daté(s)`)}
   ${bars('Suivi interne sur la période',[['Bonus',r.bonuses.length],['Cartons jaunes',r.cards.filter(c=>c.level==='jaune').length],['Cartons rouges',r.cards.filter(c=>c.level==='rouge').length]])}
   ${bars('Bonus par formateur',r.bonusByTrainer.map(t=>[t.name,t.count]))}
@@ -1218,8 +1579,11 @@ async function exportMonthlyTable(){
   const logo=await reportLogo();
   const period=fmtDate(month+'-01',{month:'long',year:'numeric'});
   const html=`<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Monthly AMO · Tableau</title>
-    <style>body{margin:0;background:#f5f1fa;color:#241638;font:14px/1.5 system-ui,sans-serif}main{max-width:1350px;margin:auto;padding:26px 16px}header{border-radius:16px;background:#2c1c45;color:white;padding:22px;margin-bottom:14px}h1{margin:9px 0 2px}.report-logo{display:block;width:170px;max-width:100%;background:white;padding:8px;border-radius:8px}section{overflow:auto;border-radius:12px;border:1px solid #dfd5e8}table{width:100%;border-collapse:collapse;background:white}th,td{padding:10px;min-width:80px;text-align:left;border-bottom:1px solid #ece5f1}th{background:#e9dcfb}tbody tr:nth-child(even){background:#faf7fd}@media print{body{background:white}main{padding:0}header{color:black;background:white}section{overflow:visible}th,td{min-width:0;padding:4px;font-size:9px}}</style>
-    <main><header>${logo}<h1>Monthly AMO · Tableau détaillé</h1><div>${esc(period)}</div></header><section><table><thead><tr>${columns.map(label=>`<th scope="col">${esc(label)}</th>`).join('')}</tr></thead><tbody>${data.map(row=>`<tr>${row.map(value=>`<td>${esc(value)}</td>`).join('')}</tr>`).join('')}</tbody></table></section></main></html>`;
+    <style>${monthlyExportStyles()}
+      .report-detail{padding:0;overflow:hidden}
+      .preparation-row td:nth-child(2),.preparation-row td:last-child{color:var(--accent);font-weight:650}
+    </style>
+    <main><header>${logo}<h1>Monthly AMO · Tableau détaillé</h1><div>${esc(period)}</div></header><section class="report-detail"><div class="report-table-scroll" tabindex="0" role="region" aria-label="Tableau détaillé du Monthly AMO"><table><thead><tr>${columns.map(label=>`<th scope="col">${esc(label)}</th>`).join('')}</tr></thead><tbody>${data.map(row=>`<tr${row[1]==='Préparation'?' class="preparation-row"':''}>${row.map(value=>`<td>${esc(value)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section></main></html>`;
   downloadBlob(new Blob([html],{type:'text/html;charset=utf-8'}),'Monthly-AMO-'+month+'-tableau.html');
 }
 
@@ -1269,7 +1633,7 @@ function trainerSessionDocumentRow(doc){
   const version=doc.versions.at(-1);
   const side=doc.owner==='interne'||version?.uploader==='amo'?'AMO':'Formateur';
   const stateLabel=doc.status==='Refusé'?'Refusé · nouvelle version attendue':version?doc.status:doc.status==='Non applicable'?doc.status:'Non déposé';
-  const title=doc.id?`<button class="document-title" onclick="openModal('document-preview','${doc.id}')">${esc(doc.title)}</button>`:`<strong>${esc(doc.title)}</strong>`;
+  const title=deliverableTitle(doc);
   const upload=doc.owner==='formateur'&&trainerDocPending(doc)
     ?`<button class="secondary tiny" onclick="${doc.id?`openModal('upload','${doc.id}')`:`createTrainerDocument(${doc.sessionId},'${doc.type}')`}">${version?'Redéposer':'Déposer'}</button>`:'';
   return `<div class="doc-row mission-document-row"><span class="doc-icon">${mobileIcon('docs',16)}</span><div class="grow">${title}<div class="item-sub">${side} · ${version?esc(version.filename):'Aucun fichier déposé'}</div></div>${badge(stateLabel)}${upload}</div>`;
@@ -1295,7 +1659,7 @@ function trainerDocs(){
       const f=formOf(s),items=trainerMissionDocuments(s);
       return `<section class="card folder-card">${cardTitle(esc(clientOf(f).name),esc(f.title))}<p class="item-sub">${fmtDate(s.date)}</p>
         ${missionDocumentSummary(s)}
-        <ul class="doc-preview">${items.map(d=>`<li><span>${esc(d.title)} <small class="item-sub">· ${d.owner==='interne'||d.versions.at(-1)?.uploader==='amo'?'AMO':'Formateur'}</small></span>${badge(!d.versions.length&&d.status!=='Non applicable'?'Non déposé':d.status)}</li>`).join('')}</ul>
+        <ul class="doc-preview">${items.map(d=>`<li><span>${deliverableTitle(d)} <small class="item-sub">· ${d.owner==='interne'||d.versions.at(-1)?.uploader==='amo'?'AMO':'Formateur'}</small></span><span class="action-wrap">${badge(!d.versions.length&&d.status!=='Non applicable'?'Non déposé':d.status)}</span></li>`).join('')}</ul>
         ${trainerFeedbackRows(s)}
         <button class="primary tiny" onclick="openTrainerFolder(${s.id})">Ouvrir le dossier</button>
       </section>`;

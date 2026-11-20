@@ -253,10 +253,12 @@ function updateInboxNotices(action,key,minutes) {
 function burstInboxCard(card) {
   const content=card.querySelector('.ops-notice-content');
   if(!content?.animate)return;
+  const swipeX=card.dataset.swipe==='delete'?parseFloat(card.style.getPropertyValue('--ops-swipe-x'))||0:0;
   card.inert=true;
   delete card.dataset.swipe;
   card.style.removeProperty('--ops-swipe-x');
   card.classList.add('ops-notice-burst');
+  if(swipeX)return shatterInboxCard(card,content,swipeX);
   const duration=380;
   const burst=document.createElement('span');
   burst.className='ops-notice-sparks';
@@ -269,6 +271,59 @@ function burstInboxCard(card) {
     {opacity:.90,transform:'scale(1.012)',offset:.20},
     {opacity:0,transform:'scale(.985)'}
   ],{duration,easing:'cubic-bezier(.3,.6,.5,1)',fill:'forwards'});
+}
+
+function shatterInboxCard(card,content,swipeX) {
+  const duration=700;
+  const {width,height}=card.getBoundingClientRect();
+  const canvas=document.createElement('canvas');
+  canvas.className='ops-notice-fragments';
+  canvas.setAttribute('aria-hidden','true');
+  const scale=Math.min(devicePixelRatio||1,2);
+  const bleed=42;
+  canvas.style.setProperty('--fragment-bleed',bleed+'px');
+  canvas.width=Math.ceil((width+bleed*2)*scale);
+  canvas.height=Math.ceil((height+bleed*2)*scale);
+  const context=canvas.getContext('2d');
+  const animation=content.animate([
+    {opacity:1,transform:`translateX(${swipeX}px)`},
+    {opacity:0,transform:`translateX(${swipeX-24}px)`,offset:.22},
+    {opacity:0,transform:'translateX(-100%)'}
+  ],{duration,easing:'ease-out',fill:'forwards'});
+  if(!context)return animation;
+
+  card.classList.add('ops-notice-shattering');
+  card.append(canvas);
+  context.scale(scale,scale);
+  context.translate(bleed,bleed);
+  const columns=42,rows=17;
+  const colors=['#974957','#ad5d69','#c47b85'];
+  const fragments=Array.from({length:columns*rows},(_,i)=>{
+    const x=(i%columns+Math.random())*width/columns;
+    const y=(Math.floor(i/columns)+Math.random())*height/rows;
+    return {
+      x,y,width:width/columns*(.38+Math.random()*.58),height:height/rows*(.32+Math.random()*.57),
+      dx:(x-width/2)*.30-48+(Math.random()-.5)*54,
+      dy:(y-height/2)*.46+(Math.random()-.5)*42,
+      color:colors[i%colors.length]
+    };
+  });
+  let started;
+  function draw(now){
+    if(!canvas.isConnected)return;
+    started??=now;
+    const progress=Math.min(1,(now-started)/duration);
+    const distance=1-(1-progress)**2;
+    context.clearRect(-bleed,-bleed,width+bleed*2,height+bleed*2);
+    context.globalAlpha=Math.min(.8,progress*12)*(1-progress)**1.3;
+    for(const part of fragments){
+      context.fillStyle=part.color;
+      context.fillRect(part.x+part.dx*distance,part.y+part.dy*distance,part.width*(1-progress*.65),part.height*(1-progress*.65));
+    }
+    if(progress<1)requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+  return animation;
 }
 
 function inboxCardsByKey(keys) {
@@ -768,7 +823,7 @@ function incidentFollowUp(record) {
 
 const operationalDecisions = ['replace-staff','revalidate-staff','withdraw-staff','expire-staff','confirm-staff','approve-staff'];
 function isOperationalModal(kind) {
-  return ['amo-notifications','trainer-notifications','trainer-staffing','prepare-proposal','matching','whatsapp-draft',
+  return ['amo-notifications','trainer-notifications','agenda-conflicts','agenda-formation','hub-search','trainer-staffing','prepare-proposal','matching','whatsapp-draft',
     ...operationalDecisions].includes(kind);
 }
 
@@ -865,3 +920,151 @@ document.addEventListener('pointercancel',finishInboxSwipe);
 document.addEventListener('visibilitychange',()=>{
   if(!document.hidden)refreshOperationalInbox();
 });
+
+
+function activeAgendaConflicts() {
+  const today=parisToday();
+  const sessions=db.sessions.filter(session=>session.date>=today&&!['Annulée','Réalisée'].includes(session.status))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  const shared=(db.calendarEvents||[]).filter(event=>event.trainerId===null);
+  const issues=[];
+  for(const [index,session] of sessions.entries()){
+    for(const other of sessions.slice(index+1)){
+      if(!agendaEntriesOverlap(session,other))continue;
+      issues.push({session,title:'Deux sessions se chevauchent sur l’agenda AMO',detail:sessionNoticeText(other),
+        action:`openSession(${other.id})`,label:'Voir l’autre session'});
+    }
+    for(const event of shared){
+      if(agendaEntriesOverlap(session,event))issues.push({
+        session,title:'Session et événement AMO au même créneau',
+        detail:event.title||'Événement AMO',action:`openModal('reschedule',${session.id})`,label:'Reporter la session'
+      });
+    }
+    const trainersById=new Map();
+    for(const entry of db.proposals){
+      if(entry.sessionId===session.id&&(['Acceptée','Envoyée'].includes(entry.status))&&
+        !(entry.status==='Envoyée'&&proposalPastDue(entry)))trainersById.set(entry.trainerId,entry);
+    }
+    for(const entry of db.assignments){
+      if(entry.sessionId===session.id&&['Confirmée','À revalider'].includes(entry.status))trainersById.set(entry.trainerId,null);
+    }
+    for(const [trainerId,proposal] of trainersById){
+      const detail=calendarConflict(session,trainerId,{sessionId:session.id,allowAvailable:true,maskPrivate:true});
+      if(!detail)continue;
+      issues.push({
+        session,title:(trainerById(trainerId)?.name||'Formateur')+' · '+(proposal?'proposition':'affectation'),
+        detail,action:proposal?`openStaffProposal('${esc(proposal.id)}')`:`openModal('reschedule',${session.id})`,
+        label:proposal?'Voir la proposition':'Reporter la session'
+      });
+    }
+  }
+  return issues;
+}
+
+function agendaConflictCell() {
+  const count=activeAgendaConflicts().length;
+  const summary=count?count+(count===1?' conflit à vérifier':' conflits à vérifier'):'Aucun conflit détecté';
+  return `<section class="card ops-agenda-conflicts">
+    <div><h2 class="section-title">Gestion des conflits</h2><p class="item-sub">${summary} sur les sessions à venir.</p></div>
+    <button class="secondary tiny" onclick="openModal('agenda-conflicts')">Voir les conflits</button></section>`;
+}
+
+function agendaConflictPanel() {
+  return modalBox('Gestion des conflits','Chevauchements détectés sur les sessions à venir.',activeAgendaConflicts().map(issue=>
+    `<section class="line-item ops-conflict-entry"><div class="grow"><strong>${esc(issue.title)}</strong>
+      <div class="item-sub">${esc(sessionNoticeText(issue.session))} · ${esc(issue.session.start+'–'+issue.session.end)}</div>
+      <p class="item-sub">${esc(issue.detail)}</p></div>
+      <div class="ops-actions"><button class="ghost tiny" onclick="openSession(${issue.session.id})">Voir la session</button>
+      <button class="secondary tiny" onclick="${issue.action}">${issue.label}</button></div></section>`).join('')||
+    '<p class="empty">Aucun conflit détecté sur les sessions à venir.</p>');
+}
+
+const inviteResponses = {pending:'En attente',yes:'Oui',maybe:'Peut-être',no:'Non'};
+
+function agendaGuestRow(guest={}) {
+  return `<div class="ops-agenda-guest">
+    <label>E-mail de l’invité<input class="field" type="email" name="guestEmail" value="${esc(guest.email)}" required></label>
+    <label>Réponse<select class="field" name="guestReply">${Object.entries(inviteResponses).map(([key,label])=>
+      `<option value="${key}" ${guest.reply===key?'selected':''}>${label}</option>`).join('')}</select></label>
+    <button type="button" class="ghost tiny" aria-label="Retirer cet invité" onclick="this.closest('.ops-agenda-guest').remove()">${mobileIcon('close',16)}</button>
+  </div>`;
+}
+
+function addAgendaGuest() {
+  const guests=$('agenda-guest-list');
+  guests.insertAdjacentHTML('beforeend',agendaGuestRow());
+  guests.lastElementChild.querySelector('input').focus();
+}
+
+function agendaFormationFields(current, enabled) {
+  return `<fieldset id="agenda-formation-fields" class="ops-agenda-formation" ${enabled?'':'hidden disabled'}>
+    <legend>Détails de la formation</legend>
+    <div class="form-grid">
+      <label class="profile-wide">Lien Google Meet<input class="field" name="meet" type="text" inputmode="url" placeholder="meet.google.com/…" value="${esc(current?.meet)}"></label>
+      <label>Participer par téléphone<input class="field" name="dial" type="tel" value="${esc(current?.dial)}"></label>
+      <label>Code d’accès<input class="field" name="dialPin" type="text" value="${esc(current?.dialPin)}"></label>
+      <label class="profile-wide">Lien vers les autres numéros<input class="field" name="dialNumbers" type="text" inputmode="url" placeholder="tel.meet/…" value="${esc(current?.dialNumbers)}"></label>
+      <label>Lieu<input class="field" name="location" value="${esc(current?.location)}"></label>
+      <label>Adresse<input class="field" name="address" value="${esc(current?.address)}"></label>
+      <label class="profile-wide">Organisateur<input class="field" type="email" name="organizer" value="${esc(current?.organizer||'contact@certif-ia.fr')}" required></label>
+    </div>
+    <div class="ops-agenda-guests-heading"><h3>Invités</h3><button type="button" class="secondary tiny" onclick="addAgendaGuest()">Ajouter un invité</button></div>
+    <div id="agenda-guest-list">${(current?.guests||[]).map(agendaGuestRow).join('')}</div>
+    <p class="item-sub">Les réponses sont saisies dans le Hub. Les invitations ne sont pas envoyées.</p>
+  </fieldset>`;
+}
+
+function googleMeetingLink(raw, hosts) {
+  if(!raw)return '';
+  try{
+    const url=new URL(raw.includes('://')?raw:'https://'+raw);
+    if(url.protocol==='https:'&&!url.username&&!url.password&&!url.port&&hosts.includes(url.hostname)&&url.pathname!=='/')return url.href;
+  }catch{}
+  return null;
+}
+
+function readAgendaFormation(data) {
+  const value=key=>String(data.get(key)||'').trim();
+  const meet=googleMeetingLink(value('meet'),['meet.google.com']);
+  if(meet===null)return {error:'Saisissez un lien HTTPS vers meet.google.com.'};
+  const dialNumbers=googleMeetingLink(value('dialNumbers'),['tel.meet','meet.google.com']);
+  if(dialNumbers===null)return {error:'Saisissez un lien HTTPS Google Meet pour les autres numéros.'};
+  const dial=value('dial'),dialPin=value('dialPin');
+  if(dial&&!/^\+?[\d().\s-]+$/.test(dial))return {error:'Saisissez un numéro de téléphone valide.'};
+  if(dialPin&&(!dial||!/^\d[\d\s]*#?$/.test(dialPin)))return {error:'Associez le code à un numéro de téléphone valide.'};
+  const organizer=value('organizer');
+  if(!organizer)return {error:'Renseignez l’organisateur.'};
+  const seen=new Set([organizer.toLowerCase()]);
+  const replies=data.getAll('guestReply');
+  const guests=[];
+  for(const [index,input] of data.getAll('guestEmail').entries()){
+    const email=String(input).trim();
+    if(!email||seen.has(email.toLowerCase()))return {error:'Chaque invité doit avoir une adresse distincte de celle de l’organisateur et des autres invités.'};
+    seen.add(email.toLowerCase());
+    const reply=replies[index];
+    guests.push({email,reply:Object.hasOwn(inviteResponses,reply)?reply:'pending'});
+  }
+  return {eventType:'formation',meet,dial,dialPin,dialNumbers,location:value('location'),address:value('address'),organizer,guests};
+}
+
+function agendaFormationDetails(id) {
+  const entry=(db.calendarEvents||[]).find(e=>e.id===id&&e.trainerId===null&&e.eventType==='formation');
+  if(!entry)return modalBox('Formation introuvable','','');
+  const guests=entry.guests||[];
+  const yes=1+guests.filter(guest=>guest.reply==='yes').length;
+  const tel=entry.dial?.replace(/[^+\d]/g,'');
+  const time=`${fmtDate(entry.date,{weekday:'long',day:'numeric',month:'long'})} · ${entry.start}–${entry.end}`;
+  return modalBox(esc(entry.title),time,`<div class="ops-agenda-details">
+    ${entry.meet||tel||entry.dialNumbers?`<section><h3>Participer</h3>
+      ${entry.meet?linkSafe(entry.meet,entry.meet.replace(/^https:\/\//,'')):''}
+      ${tel?`<div><span>Par téléphone · </span>${safeContact(entry.dial,'phone')}${entry.dialPin?` · Code : ${esc(entry.dialPin)}`:''}</div>`:''}
+      ${entry.dialNumbers?linkSafe(entry.dialNumbers,'Plus de numéros de téléphone'):''}</section>`:''}
+    ${entry.location||entry.address?`<section><h3>Lieu</h3><strong>${esc(entry.location)}</strong>
+      ${entry.address?`<div>${linkSafe(mapsUrl(entry.address,''),entry.address)}</div>`:''}</section>`:''}
+    <section><h3>Participants</h3><p class="item-sub">${guests.length+1} participant${guests.length?'s':''} · ${yes} oui</p>
+      <ul><li>${safeContact(entry.organizer,'email')} <span class="item-sub">Organisateur</span></li>
+      ${guests.map(guest=>`<li>${safeContact(guest.email,'email')} <span class="item-sub">${inviteResponses[guest.reply]||inviteResponses.pending}</span></li>`).join('')}</ul></section>
+    </div>
+    <div class="modal-actions"><button class="secondary" onclick="closeModal()">Fermer</button>
+    <button class="primary" onclick="openCalendarEvent('${entry.date}','${esc(entry.id)}',false,true)">Modifier la formation</button></div>`);
+}

@@ -8,7 +8,10 @@ function proposalAction(title,subtitle,label,action,tone='neutral'){
   return `<div class="pd-action"><span class="pd-action-dot ${tone}" aria-hidden="true"></span><div><strong>${title}</strong><p>${subtitle}</p></div><button class="pd-action-button" onclick="${action}">${label}${mobileIcon('chevron',14)}</button></div>`;
 }
 function contactAgendaSessions(){
-  return db.sessions.filter(session=>session.status!=='Annulée');
+  return [
+    ...db.sessions.filter(session=>session.status!=='Annulée'),
+    ...(db.calendarEvents||[]).filter(event=>event.trainerId===null&&event.eventType==='formation')
+  ];
 }
 
 function proposalWeek(person=false){
@@ -36,17 +39,30 @@ function pickContactAgendaDay(day){
 function proposalContactPreview(){
   const sessions=contactAgendaSessions().sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
   const day=state.contactPreviewDay;
-  if(!day)return proposalUpcoming(sessions.find(session=>session.date>=parisToday()&&session.status!=='Réalisée'));
+  if(!day){
+    const next=sessions.find(session=>session.date>=parisToday()&&session.status!=='Réalisée');
+    if(next?.eventType!=='formation')return proposalUpcoming(next);
+    return `<div class="pd-next pd-next-day"><div class="pd-next-label">${mobileIcon('calendar',15)} Prochaine session</div>
+      <div class="pd-next-date">${fmtDate(next.date,{day:'numeric',month:'long'})}</div>${proposalContactEntry(next)}</div>`;
+  }
   const entries=sessions.filter(session=>session.date===day);
   return `<div class="pd-next pd-next-day">
     <div class="pd-next-label">${mobileIcon('calendar',15)} ${entries.length>1?'Sessions du jour':'Session du jour'}</div>
     <div class="pd-next-date">${fmtDate(day,{weekday:'long',day:'numeric',month:'long'})}</div>
-    ${entries.map(session=>{
-      const formation=formOf(session);
-      return `<section class="pd-day-session"><h3>${esc(clientOf(formation).name)}</h3><p>${esc(formation.title)}</p>
-        <div class="pd-next-meta">${esc(session.start+' – '+session.end)} · ${esc(session.city)} · ${session.people} participants</div>
-        <button onclick="openSession(${session.id})">Voir la session ${mobileIcon('chevron',16)}</button></section>`;
-    }).join('')||'<p class="pd-next-empty">Aucune session prévue ce jour.</p>'}</div>`;
+    ${entries.map(proposalContactEntry).join('')||'<p class="pd-next-empty">Aucune session prévue ce jour.</p>'}</div>`;
+}
+
+function proposalContactEntry(session){
+  if(session.eventType==='formation'){
+    const location=session.location||session.address;
+    return `<section class="pd-day-session"><h3>${esc(session.title)}</h3>
+      <div class="pd-next-meta">${esc(session.start+' – '+session.end)}${location?' · '+esc(location):''}</div>
+      <button onclick="openCalendarEvent('${session.date}','${esc(session.id)}')">Voir la session ${mobileIcon('chevron',16)}</button></section>`;
+  }
+  const formation=formOf(session);
+  return `<section class="pd-day-session"><h3>${esc(clientOf(formation).name)}</h3><p>${esc(formation.title)}</p>
+    <div class="pd-next-meta">${esc(session.start+' – '+session.end)} · ${esc(session.city)} · ${session.people} participants</div>
+    <button onclick="openSession(${session.id})">Voir la session ${mobileIcon('chevron',16)}</button></section>`;
 }
 
 function proposalUpcoming(session,person=false){
@@ -90,7 +106,43 @@ function trainerHome(){
 }
 
 const originalProposalRender=render;
+const overlaySelector='#app > .modal-back, #app > .mobile-sheet-overlay';
+const overlayPanelSelector='.modal, .mobile-more-sheet';
+const reducedHubMotion=matchMedia('(prefers-reduced-motion: reduce)');
+let previousHubRoute;
+let previousOverlayKey;
+let leavingOverlay;
+
+function hubMotionRoute(){
+  return [state.role,state.role==='formateur'?state.trainerId:'',state.page,location.hash].join(':');
+}
+
+function animateOverlayExit(overlay){
+  if(!overlay?.animate)return;
+  overlay.inert=true;
+  overlay.setAttribute('aria-hidden','true');
+  overlay.querySelectorAll('[id]').forEach(node=>node.removeAttribute('id'));
+  overlay.classList.add('pd-overlay-leaving');
+  document.body.append(overlay);
+  leavingOverlay=overlay;
+  const panel=overlay.querySelector(overlayPanelSelector);
+  if(panel?.animate){
+    const transform=matchMedia('(max-width:640px)').matches?'translateY(16px)':'translateY(5px) scale(.985)';
+    panel.animate([{transform:'none'},{transform}],{duration:195,easing:'ease-in',fill:'forwards'});
+  }
+  const exit=overlay.animate([{opacity:1},{opacity:0}],{duration:195,easing:'ease-out',fill:'forwards'});
+  exit.finished.catch(()=>{}).then(()=>{
+    overlay.remove();
+    if(leavingOverlay===overlay)leavingOverlay=null;
+  });
+}
+
 render=function(){
+  const motion=!reducedHubMotion.matches;
+  const oldOverlay=document.querySelector(overlaySelector);
+  const oldOverlayVisible=Boolean(oldOverlay?.getClientRects().length);
+  leavingOverlay?.remove();
+  leavingOverlay=null;
   originalProposalRender();
   document.documentElement.dataset.proposal='atelier';
   document.querySelector('.logo-sub').textContent='Hub · Espace de travail';
@@ -102,6 +154,18 @@ render=function(){
     const target=button.getAttribute('onclick')?.match(/go\('([^']+)'\)/)?.[1];
     if(['formations','clients','trainers'].includes(target)&&state.page.startsWith(target.replace(/s$/,'')))button.classList.add('active');
   });
+  const route=hubMotionRoute();
+  const overlay=document.querySelector(overlaySelector);
+  const overlayKey=state.modal?state.modal.kind+':'+(state.modal.id??''):state.mobileMore?'more':null;
+  if(motion){
+    if(previousHubRoute&&route!==previousHubRoute)$('main-content')?.classList.add('pd-page-enter');
+    if(overlay&&overlayKey!==previousOverlayKey){
+      if(!previousOverlayKey)overlay.classList.add('pd-overlay-enter');
+      overlay.querySelector(overlayPanelSelector)?.classList.add(previousOverlayKey?'pd-overlay-update':'pd-overlay-panel-enter');
+    }else if(!overlay&&previousOverlayKey&&oldOverlayVisible)animateOverlayExit(oldOverlay);
+  }
+  previousHubRoute=route;
+  previousOverlayKey=overlayKey;
 };
 try{
  if(!localStorage.getItem('certifia-hub-theme'))applyHubTheme('light');

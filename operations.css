@@ -410,6 +410,15 @@
 .ops-notice-sparks i:nth-child(4) { --spark-x: 39px; --spark-y: -3px; }
 .ops-notice-sparks i:nth-child(5) { --spark-x: 22px; --spark-y: 20px; }
 .ops-notice-sparks i:nth-child(6) { --spark-x: -25px; --spark-y: 17px; }
+.ops-inbox-list .ops-notice-shattering { background: transparent; border-color: transparent; overflow: visible; }
+.ops-notice-fragments {
+  position: absolute;
+  top: calc(-1 * var(--fragment-bleed));
+  left: calc(-1 * var(--fragment-bleed));
+  width: calc(100% + 2 * var(--fragment-bleed));
+  height: calc(100% + 2 * var(--fragment-bleed));
+  pointer-events: none;
+}
 @keyframes ops-notice-spark {
   from { transform: translate(-50%, -50%) scale(.45); opacity: .9; }
   to { transform: translate(var(--spark-x), var(--spark-y)) scale(.45); opacity: 0; }
@@ -419,3 +428,36 @@
   .ops-inbox-controls .ops-inbox-select { font-size: 16px; }
   :root[data-proposal][data-hub-tone] select:not([multiple]):not([size]) { min-height: 44px; }
 }
+
+.ops-agenda-conflicts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.ops-agenda-conflicts p, .ops-conflict-entry p { margin: 4px 0 0; }
+.ops-conflict-entry { flex-wrap: wrap; }
+.ops-conflict-entry > .grow { flex-basis: 100%; }
+
+.ops-agenda-formation {
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.ops-agenda-formation legend { font-weight: 700; padding-inline: 5px; }
+.ops-agenda-guests-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+.ops-agenda-guests-heading h3, .ops-agenda-details h3 { margin: 9px 0 5px; font-size: 14px; }
+.ops-agenda-guest {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(90px, .5fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+.ops-agenda-guest label { min-width: 0; font-size: 12px; }
+.ops-agenda-details section { margin-block: 12px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; overflow-wrap: anywhere; }
+.ops-agenda-details ul { list-style: none; margin: 6px 0; padding: 0; }
+.ops-agenda-details li { padding: 5px 0; }

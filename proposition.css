@@ -95,6 +95,7 @@
 :root[data-proposal][data-hub-tone] .fiche-hero{background:var(--pd-subtle);border-radius:6px}
 :root[data-proposal][data-hub-tone] .doc-row{padding:14px 0;border-color:var(--pd-line)}
 :root[data-proposal][data-hub-tone] .document-title{color:var(--pd-ink);text-decoration:none;font-size:12px;font-weight:550}
+:root[data-proposal][data-hub-tone] .document-title.document-link{color:var(--pd-accent);text-decoration:underline;text-underline-offset:3px;font-weight:700}
 :root[data-proposal][data-hub-tone] .doc-icon{background:var(--pd-subtle);color:var(--pd-muted);border-radius:5px}
 :root[data-proposal][data-hub-tone] .folder-grid{gap:14px}
 :root[data-proposal][data-hub-tone] .doc-preview li{border-color:var(--pd-line);padding:9px 0}
@@ -195,7 +196,7 @@
  :root[data-proposal][data-hub-tone] .nav button:hover{background:var(--pd-panel);color:var(--pd-ink)}
  :root[data-proposal][data-hub-tone] .secondary:hover,.pd-action-button:hover{background:var(--pd-subtle)}
  .pd-session:hover{background:var(--pd-subtle)}
- .pd-stat:hover>span,.pd-text-button:hover{color:var(--pd-accent)}
+ .pd-text-button:hover{color:var(--pd-accent)}
 }
 @media(min-width:1600px){:root[data-proposal][data-hub-tone] .main{padding-top:45px}.pd-dashboard{grid-template-columns:minmax(0,1fr) 300px}}
 @media(max-width:1200px){.pd-dashboard{grid-template-columns:minmax(0,1fr) 245px;gap:16px}.pd-session-location{display:none}:root[data-proposal][data-hub-tone] .trainer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pd-session{grid-template-columns:35px minmax(0,1fr) auto 13px}}
@@ -209,7 +210,7 @@
  :root[data-proposal][data-hub-tone] .mobile-brand-button img{width:27px;height:27px}
  :root[data-proposal][data-hub-tone] .mobile-head-center strong{font-size:13px;font-weight:550;letter-spacing:-.02em;color:var(--pd-ink)}
  :root[data-proposal][data-hub-tone] .mobile-head-eyebrow{font-size:8px;font-weight:500;letter-spacing:.09em;color:var(--pd-muted)}
- :root[data-proposal][data-hub-tone] :is(.mobile-header-actions .mobile-bell,.mobile-header-actions .hub-settings-button){width:30px;height:34px;flex-basis:30px;background:transparent;color:var(--pd-muted)}
+ :root[data-proposal][data-hub-tone] .mobile-header-actions :is(.mobile-bell,.hub-settings-button,.hub-search-trigger){width:30px;height:34px;flex-basis:30px;background:transparent;color:var(--pd-muted)}
  :root[data-proposal][data-hub-tone] .main{padding:25px 18px calc(90px + env(safe-area-inset-bottom))!important}
  :root[data-proposal][data-hub-tone] .headline{font-size:26px}
  :root[data-proposal][data-hub-tone] .card{padding:16px;border-radius:8px}
@@ -291,12 +292,12 @@
 @media(max-width:640px){.pd-stat>strong.pd-stat-compact{font-size:18px;white-space:nowrap;line-height:1.55}}
 
 /* Certifia — palette officielle, charte p. 8. */
-:root[data-proposal]{--brand-indigo:#442ffa;--brand-violet:#bc3afe;--brand-deep:#292577;--brand-lilac:#ba8bfd}
+:root[data-proposal]{--brand-indigo:#442ffa;--brand-violet:#bc3afe;--brand-deep:#292577;--brand-lilac:#ba8bfd;--pd-session-gradient:linear-gradient(90deg,var(--brand-indigo),var(--brand-violet),var(--brand-lilac))}
 :root[data-proposal][data-hub-tone] .nav button.active{color:var(--pd-accent)}
 :root[data-proposal][data-hub-tone] .avatar{background:var(--pd-accent-soft);color:var(--pd-accent);border-color:var(--pd-line)}
 :root[data-proposal][data-hub-tone] :is(.badge.purple,.badge.blue){background:var(--pd-accent-soft);color:var(--pd-accent)}
 .pd-next{position:relative;overflow:hidden}
-.pd-next::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--brand-indigo),var(--brand-violet),var(--brand-lilac))}
+.pd-next::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--pd-session-gradient)}
 @media(hover:hover) and (pointer:fine){:root[data-proposal][data-hub-tone="light"] .primary:hover{background:#3525d2;border-color:#3525d2}}
 
 /* Missions: give the identity its own full-width row. */
@@ -398,3 +399,128 @@
 .pd-next-day .pd-next-date { text-transform: capitalize; }
 .pd-next-day .pd-next-empty { margin-top: 12px; }
 .pd-day-session + .pd-day-session { margin-top: 16px; padding-top: 8px; border-top: 1px solid #ffffff30; }
+
+:root[data-proposal][data-hub-tone] .main > :is(.card,.two-col,.trainer-grid,.folder-grid),
+:root[data-proposal][data-hub-tone] :is(.mobile-sheet-overlay,.mobile-more-sheet) {
+  animation: none;
+}
+:root[data-proposal][data-hub-tone] .pd-page-enter {
+  animation: pd-page-enter 330ms cubic-bezier(.22,.68,.35,1);
+}
+:root[data-proposal][data-hub-tone] .pd-overlay-enter {
+  animation: pd-overlay-fade 240ms ease-out;
+}
+:root[data-proposal][data-hub-tone] :is(.modal,.mobile-more-sheet).pd-overlay-panel-enter {
+  animation: pd-dialog-enter 285ms cubic-bezier(.22,1,.36,1);
+}
+:root[data-proposal][data-hub-tone] :is(.modal,.mobile-more-sheet).pd-overlay-update {
+  animation: pd-overlay-refresh 185ms cubic-bezier(.22,1,.36,1);
+}
+.pd-overlay-leaving { pointer-events: none !important; }
+@keyframes pd-page-enter {
+  from { opacity: .25; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pd-overlay-refresh {
+  from { opacity: .65; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pd-overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pd-dialog-enter {
+  from { opacity: .85; transform: translateY(6px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes pd-sheet-enter {
+  from { opacity: .9; transform: translateY(22px); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 640px) {
+  :root[data-proposal][data-hub-tone] :is(.modal,.mobile-more-sheet).pd-overlay-panel-enter {
+    animation-name: pd-sheet-enter;
+    animation-duration: 315ms;
+  }
+}
+
+@keyframes pd-hover-sweep {
+  from { background-position: 100% center; }
+  to { background-position: 15% center; }
+}
+
+@media (min-width: 641px) and (hover: hover) and (pointer: fine) {
+  :root[data-proposal][data-hub-tone] :is(
+    button, a[href], summary, select, textarea,
+    input:not([type="hidden"]):not([type="file"])
+  ):not(:disabled):not(:where(.pd-stat,.ops-job,.ops-notice-card,.hub-search-trigger)):hover,
+  :root[data-proposal][data-hub-tone] :is(.linked-table-row, .click-row):hover > td {
+    background-image: linear-gradient(90deg,
+      transparent 33%, #7134f51c 44%, #bf3cda1a 51%, #8b60ff19 57%, transparent 67%);
+    background-size: 240% 100%;
+    background-repeat: no-repeat;
+    background-position: 15% center;
+    animation: pd-hover-sweep 900ms ease-in-out infinite alternate;
+  }
+}
+
+
+@supports (mask-composite: exclude) {
+  @media (min-width: 641px) and (hover: hover) and (pointer: fine) {
+    :root[data-proposal] :is(
+      .card, .trainer-card, .staffing-profile, .candidate, .ops-job, .ops-proposal,
+      .ops-notice, .pd-panel, .pd-next, .pd-milestones
+    ) { position: relative; }
+
+    :root[data-proposal] :is(
+      .card, .trainer-card, .staffing-profile, .candidate, .ops-job, .ops-proposal,
+      .ops-notice, .pd-panel, .pd-next, .pd-milestones
+    )::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      padding: 1px;
+      border-radius: inherit;
+      pointer-events: none;
+      background: var(--pd-session-gradient) 100% center / 180% 100% no-repeat;
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude;
+      opacity: 0;
+    }
+
+    :root[data-proposal] :is(
+      .card, .trainer-card, .staffing-profile, .candidate, .ops-job, .ops-proposal,
+      .ops-notice, .pd-panel, .pd-next, .pd-milestones
+    ):hover::after { opacity: .85; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      :root[data-proposal] :is(
+        .card, .trainer-card, .staffing-profile, .candidate, .ops-job, .ops-proposal,
+        .ops-notice, .pd-panel, .pd-next, .pd-milestones
+      )::after { transition: opacity 180ms ease-out; }
+
+      :root[data-proposal] :is(
+        .card, .trainer-card, .staffing-profile, .candidate, .ops-job, .ops-proposal,
+        .ops-notice, .pd-panel, .pd-next, .pd-milestones
+      ):hover::after { animation: pd-hover-sweep 900ms ease-in-out infinite alternate; }
+    }
+  }
+}
+
+@media (min-width: 641px) and (hover: hover) and (pointer: fine) {
+  .pd-stat > strong { transition: color 180ms ease-out; }
+  .pd-stat:hover > strong { color: var(--pd-accent); }
+}
+
+@media (min-width: 641px) {
+  :root[data-proposal] .top-right > .hub-search-trigger {
+    border-color: transparent;
+    background: linear-gradient(var(--pd-panel), var(--pd-panel)) padding-box,
+                var(--pd-session-gradient) border-box;
+  }
+  :root[data-proposal] .top-right > .hub-search-trigger:hover {
+    background: linear-gradient(var(--pd-accent-soft), var(--pd-accent-soft)) padding-box,
+                var(--pd-session-gradient) border-box;
+  }
+}
