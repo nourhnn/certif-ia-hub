@@ -385,3 +385,16 @@
 :root[data-proposal][data-hub-tone] .match-criterion p{font-size:11px;line-height:1.65;margin:9px 0 0;color:var(--pd-muted)}
 :root[data-proposal][data-hub-tone] .match-method{font-size:10px;line-height:1.65;margin:17px 0 0;color:var(--pd-muted)}
 @media(max-width:640px){.match-overview{gap:16px}.match-overview>div:first-child>strong{font-size:36px}}
+
+.pd-amo-dashboard { grid-template-areas: "work rail"; }
+.pd-amo-dashboard > .pd-work { grid-area: work; }
+.pd-amo-dashboard > .pd-rail { grid-area: rail; }
+.pd-week button[aria-pressed="true"] {
+  background: var(--pd-accent-soft);
+  color: var(--pd-accent);
+  box-shadow: inset 0 0 0 1px var(--pd-accent);
+}
+.pd-week button:focus-visible { outline: 2px solid var(--pd-accent); outline-offset: -2px; }
+.pd-next-day .pd-next-date { text-transform: capitalize; }
+.pd-next-day .pd-next-empty { margin-top: 12px; }
+.pd-day-session + .pd-day-session { margin-top: 16px; padding-top: 8px; border-top: 1px solid #ffffff30; }

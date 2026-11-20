@@ -122,7 +122,13 @@ function syncOperationalNotices() {
 const noticeTypes = {action:'Action', alert:'Alerte', reminder:'Rappel', info:'Information'};
 
 function inboxItems() {
-  return Object.values(db.operationalNotices?.[noticeRecipient()] || {}).reverse();
+  return Object.values(db.operationalNotices?.[noticeRecipient()] || {}).reverse()
+    .filter(item=>!item.deletedAt).sort((a,b)=>Number(Boolean(b.pinned))-Number(Boolean(a.pinned)));
+}
+
+function visibleInboxItems() {
+  return inboxItems().filter(item=>state.noticeType==='all' ||
+    (state.noticeType==='unread' ? !item.read : state.noticeType===item.type));
 }
 
 function notificationBell() {
@@ -131,8 +137,10 @@ function notificationBell() {
 }
 
 function openOperationsInbox() {
+  deliverInboxReminders();
   state.noticeType = 'all';
-  state.noticeUnread = false;
+  state.noticeSelection = null;
+  state.noticeUndo = null;
   openModal(state.role === 'amo' ? 'amo-notifications' : 'trainer-notifications');
 }
 
@@ -141,9 +149,12 @@ function readOperationsNotice(event, follow = false) {
   const item = items.find(notice => notice.event === event);
   if (event !== null && !item) return;
   if (item) item.read = true;
-  else items.forEach(notice => { notice.read = true; });
+  else {
+    items.forEach(notice => { notice.read = true; });
+    state.noticeSelection?.clear();
+  }
   save();
-  if (!follow) return render();
+  if (!follow) return renderInbox(item?noticeControlId('read',event):'ops-read-all');
   const [type, id] = item.target;
   if (type === 'staff' && state.role === 'amo') {
     const session = sessionById(id);
@@ -170,34 +181,218 @@ function readOperationsNotice(event, follow = false) {
   flash('Cet élément n’est plus accessible.');
 }
 
-function operationsInboxPanel() {
-  const items = inboxItems();
-  const unread = items.filter(item => !item.read).length;
-  const filtered = items.filter(item =>
-    (!state.noticeUnread || !item.read) && (state.noticeType === 'all' || state.noticeType === item.type));
-  return modalBox('Centre de notifications', `${unread} non lue(s) · historique de démonstration`, `
-    <div class="ops-inbox-controls">
-      <div><label for="ops-notice-type">Type</label><select id="ops-notice-type" class="field" onchange="setOperationsNoticeFilter('noticeType',this.value,this.id)">
-        <option value="all">Tous les types</option>${Object.entries(noticeTypes).map(([key,label]) => `<option value="${key}" ${state.noticeType===key?'selected':''}>${label}</option>`).join('')}
-      </select></div>
-      <label><input id="ops-notice-unread" type="checkbox" ${state.noticeUnread?'checked':''} onchange="setOperationsNoticeFilter('noticeUnread',this.checked,this.id)"> Non lues uniquement</label>
-      <button class="secondary tiny" onclick="readOperationsNotice(null)" ${unread?'':'disabled'}>Tout marquer comme lu</button>
-    </div>
-    <ul class="ops-inbox-list">${filtered.map(item => `<li class="ops-notice ${item.read?'':'ops-notice-unread'}">
-      <div><span class="ops-notice-type" data-type="${item.type}">${noticeTypes[item.type]}</span><span class="item-sub">${fmtDate(item.at.slice(0,10))} · ${item.read?'Lue':'Non lue'}</span></div>
-      <h3>${esc(item.title)}</h3><p>${esc(item.detail)}</p>
-      <div class="ops-actions"><button class="secondary tiny" data-notice-key="${esc(item.event)}" onclick="readOperationsNotice(this.dataset.noticeKey,true)">Ouvrir</button>${item.read?'':`<button class="ghost tiny" data-notice-key="${esc(item.event)}" onclick="readOperationsNotice(this.dataset.noticeKey)">Marquer comme lue</button>`}</div>
-    </li>`).join('') || '<li class="empty">Aucune notification pour ces filtres.</li>'}</ul>`);
+function renderInbox(focusId) {
+  const scroll=document.querySelector('.ops-modal')?.scrollTop || 0;
+  render();
+  const panel=document.querySelector('.ops-modal');
+  if(panel)panel.scrollTop=scroll;
+  $(focusId)?.focus({preventScroll:true});
 }
 
-function setOperationsNoticeFilter(key, value, id) {
-  state[key] = value;
-  render();
-  $(id)?.focus({preventScroll:true});
+function toggleNoticeSelection(enabled) {
+  state.noticeSelection=enabled?new Set():null;
+  renderInbox('ops-select-notices');
+}
+
+function selectInboxNotices(key, checked) {
+  const selected=state.noticeSelection;
+  if(!selected)return;
+  const keys=key===null?visibleInboxItems().map(item=>item.event):[key];
+  for(const event of keys){
+    if(checked)selected.add(event);
+    else selected.delete(event);
+  }
+  renderInbox(key===null?'ops-select-all':noticeControlId('card',key));
+}
+
+function noticeControlId(action,key) {
+  return 'ops-notice-'+action+'-'+encodeURIComponent(key);
+}
+
+function updateInboxNotices(action,key,minutes) {
+  const items=inboxItems().filter(item=>key===null?state.noticeSelection?.has(item.event):item.event===key);
+  if(!items.length)return;
+  if(action==='remind' && ![15,60,1440].includes(minutes))return;
+  const now=Date.now();
+  for(const item of items){
+    if(action==='unread')item.read=false;
+    else if(action==='pin')item.pinned=!item.pinned;
+    else if(action==='remind')item.remindAt=now+minutes*60000;
+    else if(action==='cancel-reminder')delete item.remindAt;
+    else if(action==='delete'){
+      item.deletedAt=now;
+    }
+    state.noticeSelection?.delete(item.event);
+  }
+  if(action==='delete')state.noticeUndo=items.map(item=>item.event);
+  save();
+  const focusId=action==='delete'?'ops-undo-delete':key===null?'ops-select-notices':noticeControlId(action==='remind'||action==='cancel-reminder'?'reminder':action==='unread'?'read':action,key);
+  const keys=new Set(items.map(item=>item.event));
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return renderInbox(focusId);
+  if(action==='delete'){
+    const list=document.querySelector('.ops-inbox-list');
+    const animations=inboxCardsByKey(keys).map(burstInboxCard).filter(Boolean);
+    if(animations.length){
+      Promise.allSettled(animations.map(animation=>animation.finished)).then(()=>{
+        if(list?.isConnected)renderInbox(focusId);
+      });
+      return;
+    }
+  }
+  renderInbox(focusId);
+  if(action==='unread'){
+    for(const card of inboxCardsByKey(keys)){
+      card.animate?.([
+        {borderInlineStartColor:'transparent'},
+        {borderInlineStartColor:'var(--purple)'}
+      ],{duration:520,easing:'ease-in-out'});
+    }
+  }
+}
+
+function burstInboxCard(card) {
+  const content=card.querySelector('.ops-notice-content');
+  if(!content?.animate)return;
+  card.inert=true;
+  delete card.dataset.swipe;
+  card.style.removeProperty('--ops-swipe-x');
+  card.classList.add('ops-notice-burst');
+  const duration=380;
+  const burst=document.createElement('span');
+  burst.className='ops-notice-sparks';
+  burst.style.setProperty('--ops-burst-duration',duration+'ms');
+  burst.setAttribute('aria-hidden','true');
+  for(let i=0;i<6;i++)burst.append(document.createElement('i'));
+  card.append(burst);
+  return content.animate([
+    {opacity:1,transform:'scale(1)'},
+    {opacity:.90,transform:'scale(1.012)',offset:.20},
+    {opacity:0,transform:'scale(.985)'}
+  ],{duration,easing:'cubic-bezier(.3,.6,.5,1)',fill:'forwards'});
+}
+
+function inboxCardsByKey(keys) {
+  return [...document.querySelectorAll('.ops-inbox-list .ops-notice')]
+    .filter(card=>keys.has(card.dataset.noticeKey));
+}
+
+function undoInboxDelete() {
+  const inbox=db.operationalNotices?.[noticeRecipient()];
+  for(const key of state.noticeUndo||[]){
+    if(inbox?.[key])delete inbox[key].deletedAt;
+  }
+  state.noticeUndo=null;
+  save();
+  renderInbox('ops-select-notices');
+}
+
+const noticeIconPaths={
+  trash:'<path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/>',
+  unread:'<path d="M20 12v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h10m-10 1 7 6 3-2"/><circle cx="20" cy="6" r="2"/>',
+  read:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  pin:'<path d="m16 3 5 5-3 1-3 3v4l-1 1-7-7 1-1h4l3-3zM10 14l-6 6"/>',
+  select:'<rect x="4" y="4" width="16" height="16" rx="4"/><path d="m8 12 3 3 5-6"/>',
+  all:'<rect x="7" y="7" width="14" height="14" rx="3"/><path d="M3 16V6a3 3 0 0 1 3-3h10m-5 11 2 2 4-5"/>'
+};
+function inboxIcon(name) {
+  return noticeIconPaths[name] ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${noticeIconPaths[name]}</svg>` : mobileIcon(name,18);
+}
+
+function inboxIconButton(icon,label,action,attributes='') {
+  return `<button type="button" class="ops-icon-button ${icon==='trash'?'ops-notice-delete':''}" aria-label="${label}" title="${label}" onclick="${action}" ${attributes}>${inboxIcon(icon)}</button>`;
+}
+
+function operationsInboxPanel() {
+  const unread = inboxItems().filter(item=>!item.read).length;
+  const filtered = visibleInboxItems();
+  const selected = state.noticeSelection;
+  const allSelected=Boolean(filtered.length&&filtered.every(item=>selected?.has(item.event)));
+  return modalBox('Centre de notifications', `${unread} non lue(s) · historique de démonstration`, `
+    <div class="ops-inbox-controls">
+      <select id="ops-notice-type" class="ops-inbox-select" aria-label="Type" onchange="setOperationsNoticeFilter(this.value)">
+        ${[['all','Tous les types'],['unread','Non lues uniquement'],...Object.entries(noticeTypes)].map(([key,label])=>`<option value="${key}" ${state.noticeType===key?'selected':''}>${label}</option>`).join('')}
+      </select>
+      <button id="ops-select-notices" type="button" class="ops-inbox-select" aria-pressed="${Boolean(selected)}" onclick="toggleNoticeSelection(${!selected})">${inboxIcon(selected?'close':'select')}${selected?'Terminer':'Sélectionner'}</button>
+      ${!selected?inboxIconButton('check','Tout marquer comme lu','readOperationsNotice(null)',`id="ops-read-all" ${unread?'':'disabled'}`):''}
+    </div>
+    ${selected?`<div class="ops-inbox-bulk">
+      <span role="status">${selected.size} sélectionnée${selected.size===1?'':'s'}</span>
+      <div class="ops-bulk-actions">
+        ${inboxIconButton('all',allSelected?'Tout désélectionner':'Tout sélectionner',`selectInboxNotices(null,${!allSelected})`,`id="ops-select-all" aria-pressed="${allSelected}" ${filtered.length?'':'disabled'}`)}
+        ${inboxIconButton('unread','Marquer comme non lues',"updateInboxNotices('unread',null)",selected.size?'':'disabled')}
+        ${inboxIconButton('trash','Supprimer la sélection',"updateInboxNotices('delete',null)",selected.size?'':'disabled')}
+      </div>
+    </div>`:''}
+    ${state.noticeUndo?`<div class="ops-inbox-undo" role="status">Suppression effectuée. <button id="ops-undo-delete" class="ghost tiny" onclick="undoInboxDelete()">Annuler la suppression</button></div>`:''}
+    <ul class="ops-inbox-list ${selected?'ops-inbox-selecting':''}">${filtered.map(item=>inboxNoticeCard(item,selected)).join('') || '<li class="empty">Aucune notification pour ces filtres.</li>'}</ul>`);
+}
+
+function inboxNoticeCard(item,selected) {
+  const key=esc(item.event);
+  const control=action=>esc(noticeControlId(action,item.event));
+  const data=action=>`id="${control(action)}" data-notice-key="${key}"`;
+  const checked=Boolean(selected?.has(item.event));
+  const due=item.remindAt?new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(item.remindAt):'';
+  const open=selected?`selectInboxNotices(this.dataset.noticeKey,${!checked})`:'readOperationsNotice(this.dataset.noticeKey,true)';
+  return `<li class="ops-notice ${item.read?'':'ops-notice-unread'} ${checked?'ops-notice-selected':''}" data-notice-key="${key}">
+    <div class="ops-notice-content">
+      <button type="button" class="ops-notice-card" ${data('card')} ${selected?`role="checkbox" aria-checked="${checked}"`:''} onclick="${open}">
+        ${selected?`<span class="ops-notice-check" aria-hidden="true">${checked?inboxIcon('check'):''}</span>`:''}
+        <span class="ops-notice-copy">
+          <span class="ops-notice-meta"><span class="ops-notice-type" data-type="${item.type}">${noticeTypes[item.type]}</span>
+            <span class="item-sub">${fmtDate(item.at.slice(0,10))} · ${item.read?'Lue':'Non lue'}</span>
+            ${item.pinned?'<span class="ops-notice-pinned">Épinglée</span>':''}</span>
+          <strong class="ops-notice-title">${esc(item.title)}</strong><span class="ops-notice-detail">${esc(item.detail)}</span>
+          ${due?`<span class="item-sub">Rappel prévu · ${esc(due)}</span>`:item.remindedAt?'<span class="item-sub">Rappel arrivé à échéance</span>':''}
+        </span>
+      </button>
+      ${selected?'':`<div class="ops-notice-actions">
+        ${item.read?inboxIconButton('unread','Marquer comme non lue',"updateInboxNotices('unread',this.dataset.noticeKey)",data('read')):inboxIconButton('read','Marquer comme lue','readOperationsNotice(this.dataset.noticeKey)',data('read'))}
+        ${inboxIconButton('pin',item.pinned?'Désépingler':'Épingler',"updateInboxNotices('pin',this.dataset.noticeKey)",`${data('pin')} aria-pressed="${Boolean(item.pinned)}"`)}
+        <details class="ops-notice-reminder">
+          <summary id="${control('reminder')}" class="ops-icon-button" aria-label="Programmer un rappel" title="Programmer un rappel">${inboxIcon('bell')}</summary>
+          <div class="ops-notice-menu">
+            <label>Rappel push (démo)<select class="field" data-notice-key="${key}" onchange="updateInboxNotices('remind',this.dataset.noticeKey,Number(this.value))">
+              <option value="">Choisir un délai</option><option value="15">Dans 15 minutes</option><option value="60">Dans 1 heure</option><option value="1440">Dans 24 heures</option>
+            </select></label>
+            ${due?inboxIconButton('close','Annuler le rappel',"updateInboxNotices('cancel-reminder',this.dataset.noticeKey)",`data-notice-key="${key}"`):''}
+          </div>
+        </details>
+        ${inboxIconButton('trash','Supprimer',"updateInboxNotices('delete',this.dataset.noticeKey)",data('delete'))}
+      </div>`}
+    </div></li>`;
+}
+
+function setOperationsNoticeFilter(value) {
+  state.noticeType=value;
+  state.noticeSelection?.clear();
+  renderInbox('ops-notice-type');
+}
+
+function deliverInboxReminders() {
+  const now=Date.now();
+  let arrived=0;
+  let changed=false;
+  for(const [recipient,items] of Object.entries(db.operationalNotices||{})){
+    for(const item of Object.values(items)){
+      if(item.deletedAt||!item.remindAt||item.remindAt>now)continue;
+      item.read=false;
+      item.remindedAt=now;
+      delete item.remindAt;
+      if(recipient===noticeRecipient())arrived++;
+      changed=true;
+    }
+  }
+  if(changed)save();
+  return arrived;
 }
 
 function refreshOperationalInbox() {
-  if (!syncOperationalNotices()) return;
+  const changed=syncOperationalNotices();
+  const arrived=deliverInboxReminders();
+  if(arrived&&['amo-notifications','trainer-notifications'].includes(state.modal?.kind))renderInbox();
+  if(arrived)flash(arrived===1?'Un rappel de notification est arrivé.':arrived+' rappels de notifications sont arrivés.');
+  if(!changed&&!arrived)return;
   const current = document.querySelectorAll('.ops-bell');
   const template = document.createElement('template');
   template.innerHTML = notificationBell();
@@ -320,22 +515,44 @@ function staffJobCard(session, selected) {
   const next = waiting.some(p => p.status === 'Acceptée') ? 'Confirmer une affectation' :
     waiting.some(p => p.status === 'Brouillon') ? 'Autoriser la proposition' :
     waiting.some(p => p.status === 'Autorisée à l’envoi') ? 'Simuler l’envoi' :
-    waiting.length ? 'Suivre les réponses' : 'Choisir un candidat';
-  return `<article class="ops-job ${selected?'ops-job-selected':''}">
-    <div>${badge(openCount(session)+(openCount(session)===1?' poste à pourvoir':' postes à pourvoir'))}<h3>${esc(clientOf(formOf(session)).name)}</h3>
-    <p>${esc(formOf(session).title)}</p>${staffSessionMeta(session)}
-    <span class="item-sub">Expertise recherchée · ${esc(session.topic || 'À préciser')}</span></div>
-    <button class="secondary tiny" aria-pressed="${selected}" onclick="${selected?"document.getElementById('ops-candidates').focus()":'selectStaffSession('+session.id+')'}">${selected?'Voir les candidats':'Choisir cette session'}</button>
-    <p class="ops-next-step">${next}${waiting.some(p => p.status==='Envoyée' && proposalPastDue(p))?' · Délai dépassé':''}</p>
-  </article>`;
+    waiting.length ? 'Suivre les réponses' : '';
+  const overdue = waiting.some(p => p.status === 'Envoyée' && proposalPastDue(p));
+  return `<button type="button" id="ops-session-${session.id}" class="ops-job ${selected?'ops-job-selected':''}"
+    aria-pressed="${selected}" onclick="selectStaffSession(${session.id})">
+    <span class="ops-job-top">${badge(openCount(session)+(openCount(session)===1?' poste à pourvoir':' postes à pourvoir'))}
+    ${mobileIcon(selected?'check':'chevron',16)}</span>
+    <strong class="ops-job-title">${esc(clientOf(formOf(session)).name)}</strong>
+    <span>${esc(formOf(session).title)}</span>${staffSessionMeta(session)}
+    <span class="item-sub">Expertise recherchée · ${esc(session.topic || 'À préciser')}</span>
+    ${next?`<span class="ops-next-step">${next}${overdue?' · Délai dépassé':''}</span>`:''}
+  </button>`;
 }
 
-function selectStaffSession(id) {
-  state.selectedSession = Number(id);
+function animateStaffingResults() {
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.querySelector('.ops-staffing [data-ops-results]')?.animate?.(
+    [{opacity:.65,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],
+    {duration:180,easing:'cubic-bezier(.22,1,.36,1)'});
+}
+
+function selectStaffSession(id, focusId='ops-session-'+id) {
+  if(state.selectedSession===id){
+    $('ops-candidates')?.focus();
+    return;
+  }
+  state.selectedSession = id;
   state.candidate = null;
   render();
-  const selector=$('ops-session-switch');
-  if(selector?.getClientRects().length)selector.focus({preventScroll:true});
+  $(focusId)?.focus({preventScroll:true});
+  animateStaffingResults();
+}
+
+function changeStaffComparison(field, value, control) {
+  state.staffFiltersOpen = $('ops-compare-filters')?.open || false;
+  state[field] = value;
+  render();
+  $(control)?.focus({preventScroll:true});
+  animateStaffingResults();
 }
 
 function staffProposalCard(proposal) {
@@ -377,10 +594,10 @@ function operationsStaffingPage() {
   let content = '<p class="empty">Toutes les sessions ont une équipe complète.</p>';
   if (state.staffTab === 'proposals') {
     const target = archived.some(p=>p.id===state.staffNoticeProposal);
-    content = `<section class="ops-stack" aria-label="Propositions actives">${pending.map(staffProposalCard).join('')||'<p class="empty">Aucune proposition active.</p>'}</section>
+    content = `<section class="ops-stack" data-ops-results aria-label="Propositions actives">${pending.map(staffProposalCard).join('')||'<p class="empty">Aucune proposition active.</p>'}</section>
       <details class="ops-archive"${target?' open':''}><summary>Historique · ${archived.length}</summary><div class="ops-stack">${archived.map(staffProposalCard).join('')||'<p class="empty">Aucune proposition archivée.</p>'}</div></details>`;
   } else if (state.staffTab === 'confirmed') {
-    content = `<section class="ops-stack" aria-label="Affectations">${assignments.map(assignment => {
+    content = `<section class="ops-stack" data-ops-results aria-label="Affectations">${assignments.map(assignment => {
       const session = sessionById(assignment.sessionId);
       if (!session) return '';
       const active = !['Réalisée','Annulée'].includes(session.status);
@@ -393,26 +610,48 @@ function operationsStaffingPage() {
   } else if (selected) {
     state.selectedSession = selected.id;
     const candidates = trainers.map(t => trainerById(t.id)).filter(t => !staffingBlock(selected,t) && !activeProposal(selected.id,t.id))
-      .map(t => ({t, score:compatDetails(t,selected), experience:candidateExperience(t,selected)})).sort((a,b) => {
-        if (state.staffCandidates === 'rate') return a.t.rate-b.t.rate || b.score.total-a.score.total;
+      .map(t => ({t, score:compatDetails(t,selected), experience:candidateExperience(t,selected), nps:trainerNpsValue(t.id)}))
+      .sort((a,b) => {
+        if (state.staffCandidates === 'rate' && a.t.rate!==b.t.rate) return a.t.rate-b.t.rate;
+        if (state.staffCandidates === 'nps') {
+          const difference=(b.nps ?? -Infinity)-(a.nps ?? -Infinity);
+          if(difference)return difference;
+        }
         return b.score.total-a.score.total || Number(b.experience.verified)-Number(a.experience.verified) || b.experience.sameClient-a.experience.sameClient;
       });
-    const shown = state.staffCandidates === 'local' ? candidates.filter(({t}) => t.city===selected.city) : candidates;
-    content = `<div class="ops-staff-grid"><section class="ops-stack" aria-label="Sessions à staffer"><label class="ops-session-switch">Session à examiner
-      <select class="field" id="ops-session-switch" onchange="selectStaffSession(this.value)">${open.map(s=>`<option value="${s.id}" ${s===selected?'selected':''}>${esc(clientOf(formOf(s)).name+' · '+fmtDate(s.date))}</option>`).join('')}</select></label>
+    const ratings = [...new Set(candidates.map(({t})=>t.rating).filter(Boolean))];
+    const rating = ratings.includes(state.staffRating)?state.staffRating:'';
+    const shown = candidates.filter(({t})=>(!state.staffLocal||t.city===selected.city)&&(!rating||t.rating===rating));
+    content = `<div class="ops-staff-grid"><section class="ops-stack ops-session-list" aria-label="Sessions à staffer">
+      <label class="ops-session-switch" for="ops-session-switch">Session à examiner</label>
+      <select class="field ops-session-switch" id="ops-session-switch" onchange="selectStaffSession(Number(this.value),this.id)">
+        ${open.map(s=>`<option value="${s.id}" ${s===selected?'selected':''}>${esc(clientOf(formOf(s)).name+' · '+fmtDate(s.date))}</option>`).join('')}
+      </select>
       ${open.map(s=>staffJobCard(s,s===selected)).join('')}</section>
       <section class="card ops-candidates" id="ops-candidates" tabindex="-1"><header class="ops-card-heading"><div><h2>Formateurs suggérés</h2><p>${esc(formOf(selected).title)}</p></div>
-        <label>Comparer <select class="field" id="ops-candidate-filter" onchange="changeTab('staffCandidates',this.value)">
-          ${[['rank','Compatibilité'],['local','Même ville'],['rate','TJM croissant']].map(([k,v])=>`<option value="${k}" ${state.staffCandidates===k?'selected':''}>${v}</option>`).join('')}
-        </select></label></header>
-        <p class="item-sub">Score indicatif sur données de démonstration. La sélection et la validation restent à la charge de l’AMO.</p>
-        ${shown.map(({t,score,experience})=>staffingCandidateCard(t,selected,score,experience)).join('')||'<p class="empty">Aucun candidat pour ce filtre. Vérifiez les déclarations et les conflits dans le planning.</p>'}
-        <div class="ops-actions"><button class="secondary tiny" onclick="openSession(${selected.id})">Voir la fiche session</button>
-        <button class="ghost tiny" onclick="state.calendarDate='${selected.date}';go('planning')">Vérifier le planning</button></div>
+      </header>
+        <div class="ops-compare">
+          <label for="ops-candidate-filter">Trier par</label>
+          <select class="field" id="ops-candidate-filter" onchange="changeStaffComparison('staffCandidates',this.value,this.id)">
+            ${[['rank','Compatibilité'],['rate','TJM croissant'],['nps','NPS décroissant']].map(([k,v])=>`<option value="${k}" ${state.staffCandidates===k?'selected':''}>${v}</option>`).join('')}
+          </select>
+          <details id="ops-compare-filters" class="ops-compare-filters" ontoggle="if(this.isConnected)state.staffFiltersOpen=this.open" ${state.staffFiltersOpen?'open':''}>
+            <summary>Filtres${rating||state.staffLocal?' · '+(Number(Boolean(rating))+Number(Boolean(state.staffLocal))):''}</summary>
+            <div class="ops-filter-options">
+              <label for="ops-candidate-rating">Statut</label>
+              <select class="field" id="ops-candidate-rating" onchange="changeStaffComparison('staffRating',this.value,this.id)">
+                <option value="">Tous les statuts</option>${ratings.map(value=>`<option value="${esc(value)}" ${rating===value?'selected':''}>${esc(value)}</option>`).join('')}
+              </select>
+              <label class="ops-local-filter"><input type="checkbox" id="ops-candidate-local" ${state.staffLocal?'checked':''} onchange="changeStaffComparison('staffLocal',this.checked,this.id)"> Même ville que la session</label>
+            </div>
+          </details>
+        </div>
+        <div data-ops-results>${shown.map(({t,score,experience,nps})=>staffingCandidateCard(t,selected,score,experience,nps)).join('')||`<p class="empty">${candidates.length?'Aucun profil ne correspond aux filtres sélectionnés.':'Aucun candidat disponible pour ce créneau.'}</p>`}</div>
+        <div class="ops-actions"><button class="secondary tiny" onclick="openSession(${selected.id})">Voir la fiche session</button></div>
       </section></div>`;
   }
   return `<section class="ops-staffing">${intro('Staffing <em>assisté.</em>','Sélection des candidats, propositions et affectations de démonstration.')}
-    <div class="ops-tabs" role="group" aria-label="Étape du staffing">${tabs.map(([key,label,count])=>`<button aria-pressed="${state.staffTab===key}" onclick="state.staffNoticeProposal=null;changeTab('staffTab','${key}')">${label}<small>${count}</small></button>`).join('')}</div>
+    <div class="ops-tabs" role="group" aria-label="Étape du staffing">${tabs.map(([key,label,count])=>`<button aria-pressed="${state.staffTab===key}" id="ops-stage-${key}" onclick="state.staffNoticeProposal=null;changeStaffComparison('staffTab','${key}',this.id)">${label}<small>${count}</small></button>`).join('')}</div>
     ${content}</section>`;
 }
 
@@ -584,4 +823,45 @@ document.addEventListener('keydown',event=>{
     event.preventDefault();
     first?.focus();
   }
+});
+
+let inboxSwipe;
+document.addEventListener('pointerdown',event=>{
+  if(event.pointerType!=='touch'||!event.isPrimary||!matchMedia('(max-width: 640px)').matches)return;
+  if(event.target.closest('button:not(.ops-notice-card),input,select,summary,label,details'))return;
+  const card=event.target.closest('.ops-inbox-list:not(.ops-inbox-selecting) .ops-notice');
+  if(card)inboxSwipe={card,id:event.pointerId,x:event.clientX,y:event.clientY,active:false};
+});
+
+document.addEventListener('pointermove',event=>{
+  const swipe=inboxSwipe;
+  if(swipe?.id!==event.pointerId)return;
+  const dx=event.clientX-swipe.x,dy=event.clientY-swipe.y;
+  if(!swipe.active){
+    if(Math.abs(dy)>10&&Math.abs(dy)>=Math.abs(dx)){inboxSwipe=null;return}
+    if(Math.abs(dx)<12||Math.abs(dx)<=Math.abs(dy))return;
+    swipe.active=true;
+    swipe.card.setPointerCapture(event.pointerId);
+  }
+  swipe.card.dataset.swipe=dx<0?'delete':'unread';
+  swipe.card.style.setProperty('--ops-swipe-x',Math.max(-130,Math.min(130,dx))+'px');
+});
+
+function finishInboxSwipe(event) {
+  const swipe=inboxSwipe;
+  if(swipe?.id!==event.pointerId)return;
+  inboxSwipe=null;
+  const dx=event.clientX-swipe.x;
+  const dy=event.clientY-swipe.y;
+  if(event.type==='pointerup'&&swipe.active&&Math.abs(dx)>=85&&Math.abs(dx)>Math.abs(dy)*1.3){
+    updateInboxNotices(dx<0?'delete':'unread',swipe.card.dataset.noticeKey);
+    if(dx<0)return;
+  }
+  delete swipe.card.dataset.swipe;
+  swipe.card.style.removeProperty('--ops-swipe-x');
+}
+document.addEventListener('pointerup',finishInboxSwipe);
+document.addEventListener('pointercancel',finishInboxSwipe);
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden)refreshOperationalInbox();
 });

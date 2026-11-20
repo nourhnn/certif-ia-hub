@@ -73,13 +73,13 @@ try {
       await chooseRole(page,trainer);
       const messages = await inbox(page);
       const notice = messages.locator('li').filter({hasText:'Nouvelle proposition de mission'}).first();
-      await button(notice,'Ouvrir').click();
+      await notice.locator('.ops-notice-title').click();
       await page.waitForURL('**/#/formateur/trainer-missions');
       await button(page,'Accepter').first().click();
       await button(page.getByRole('navigation',{name:'Navigation principale sur téléphone'}),'Profil').click();
       await chooseRole(page,'amo');
       const incoming = await inbox(page);
-      await button(incoming.locator('li').filter({hasText:'Proposition acceptée'}).first(),'Ouvrir').click();
+      await incoming.locator('li').filter({hasText:'Proposition acceptée'}).first().locator('.ops-notice-title').click();
       await page.waitForURL('**/#/interne/staffing');
       await button(proposal(page),'Confirmer').click();
       await button(dialog(page),'Confirmer l’affectation').click();
@@ -110,7 +110,7 @@ try {
       await button(page.getByRole('navigation',{name:'Navigation principale sur téléphone'}),'Profil').click();
       await chooseRole(page,'amo');
       const panel = await inbox(page);
-      await button(panel.locator('li').filter({hasText:'Proposition refusée'}).first(),'Ouvrir').click();
+      await panel.locator('li').filter({hasText:'Proposition refusée'}).first().locator('.ops-notice-title').click();
       await proposal(page).getByText('Refusée',{exact:true}).waitFor();
     });
 
@@ -124,7 +124,33 @@ try {
       await page.getByText(/^Historique/).click();
       await late.getByText('Expirée',{exact:true}).waitFor();
       const panel=await inbox(page);
-      await panel.getByRole('heading',{name:'Proposition sans réponse'}).waitFor();
+      await panel.getByText('Proposition sans réponse',{exact:true}).waitFor();
+    });
+
+    await run('Staffing · choix de session mobile, filtres combinés et NPS',async page=>{
+      await page.goto(url+'#/interne/staffing');
+      const sessions=page.getByRole('combobox',{name:'Session à examiner'});
+      await sessions.waitFor();
+      const previous=await sessions.inputValue();
+      const next=await sessions.locator('option').evaluateAll((options,current)=>options.find(option=>option.value!==current)?.value,previous);
+      assert.ok(next);
+      await sessions.selectOption(next);
+      assert.equal(await page.locator('#ops-session-'+next).getAttribute('aria-pressed'),'true');
+      assert.equal(await sessions.inputValue(),next);
+      assert.equal(await page.getByText('Choisir un candidat',{exact:true}).count(),0);
+      await page.getByLabel('Trier par').selectOption('nps');
+      assert.equal(await page.getByLabel('Trier par').inputValue(),'nps');
+      const rating=page.locator('#ops-candidate-rating');
+      assert.equal(await rating.isVisible(),false);
+      await page.getByText('Filtres',{exact:true}).click();
+      await rating.locator('option').nth(1).waitFor({state:'attached'});
+      const category=await rating.locator('option').nth(1).textContent();
+      await rating.selectOption({label:category});
+      const card=page.locator('.staffing-profile').first();
+      await card.getByText('NPS indicatif',{exact:true}).waitFor();
+      await card.getByText(category,{exact:true}).waitFor();
+      await page.getByLabel('Même ville que la session').check();
+      assert.equal(await page.getByLabel('Même ville que la session').isChecked(),true);
     });
 
     await run('Notifications · filtres, lecture et persistance', async page=>{
@@ -136,12 +162,71 @@ try {
       await button(first,'Marquer comme lue').click();
       await first.getByText(/· Lue/).waitFor();
       await button(panel,'Tout marquer comme lu').click();
-      await panel.getByLabel('Non lues uniquement').check();
+      await panel.getByLabel('Type',{exact:true}).selectOption('unread');
       await panel.getByText('Aucune notification pour ces filtres.',{exact:true}).waitFor();
       await page.keyboard.press('Escape');
       assert.equal(await page.evaluate(()=>document.activeElement.dataset.opsTrigger),'notifications');
       await page.reload();
       assert.equal(await button(page,'Notifications').count(),1);
+    });
+
+    await run('Notifications · épinglage, rappel et sélection multiple', async page=>{
+      await page.goto(url);
+      const panel=await inbox(page);
+      const cards=panel.locator('.ops-notice');
+      const count=await cards.count();
+      const key=await cards.nth(1).getAttribute('data-notice-key');
+      const item=panel.locator(`[data-notice-key="${key}"].ops-notice`);
+      await button(item,'Épingler').click();
+      assert.equal(await cards.first().getAttribute('data-notice-key'),key);
+      await item.getByLabel('Programmer un rappel',{exact:true}).click();
+      await item.getByLabel('Rappel push (démo)').selectOption('15');
+      await item.getByText(/Rappel prévu/).waitFor();
+      await button(panel,'Tout marquer comme lu').click();
+      await button(panel,'Sélectionner').click();
+      await item.getByRole('checkbox').click();
+      assert.equal(await item.getByRole('checkbox').getAttribute('aria-checked'),'true');
+      await button(panel,'Marquer comme non lues').click();
+      assert.ok(await item.evaluate(node=>node.classList.contains('ops-notice-unread')));
+      await button(panel,'Tout sélectionner').click();
+      await button(panel,'Supprimer la sélection').click();
+      assert.equal(await cards.count(),0);
+      await button(panel,'Annuler la suppression').click();
+      assert.equal(await cards.count(),count);
+      await page.evaluate(key=>{
+        db.operationalNotices.amo[key].read=true;
+        db.operationalNotices.amo[key].remindAt=Date.now()-1;
+        refreshOperationalInbox();
+      },key);
+      await item.getByText('Rappel arrivé à échéance',{exact:true}).waitFor();
+    });
+
+    await run('Notifications · balayages tactiles gauche et droite', async (page)=>{
+      await page.goto(url);
+      const panel=await inbox(page);
+      const cards=panel.locator('.ops-notice');
+      const key=await cards.first().getAttribute('data-notice-key');
+      const item=panel.locator(`[data-notice-key="${key}"].ops-notice`);
+      await button(panel,'Tout marquer comme lu').click();
+      const session=await page.context().newCDPSession(page);
+      async function swipe(direction){
+        const heading=item.locator('.ops-notice-title');
+        await heading.scrollIntoViewIfNeeded();
+        const box=await heading.boundingBox();
+        const x=box.x+box.width/2,y=box.y+box.height/2;
+        await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+        for (const distance of [22,55,95,110]) {
+          await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+direction*distance,y}]});
+        }
+        await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      }
+      await swipe(1);
+      await item.locator('.ops-notice-meta').getByText(/Non lue/).waitFor();
+      await swipe(-1);
+      await item.waitFor({state:'hidden'});
+      await page.reload();
+      await inbox(page);
+      assert.equal(await item.count(),0);
     });
 
     await run('Relances · délai 48 h, doublons et annulation après dépôt', async page=>{
@@ -190,7 +275,15 @@ try {
       await button(dialog(page),'Voir la proposition').first().click();
       await page.locator('#staff-proposal-P1').waitFor();
       await button(page,/^À staffer/).click();
-      await button(page.locator('.staffing-profile').first(),'Fiche').click();
+      const candidate = page.locator('.staffing-profile').first();
+      const candidateName = await candidate.locator('.staffing-profile-name').innerText();
+      await button(candidate,/Vérifier le planning de/).click();
+      await page.waitForURL('**/#/interne/trainer-detail/*');
+      await page.getByRole('heading',{name:candidateName.trim(),exact:true}).waitFor();
+      await page.getByRole('heading',{name:'Disponibilités déclarées',exact:true}).waitFor();
+      await button(page,/Retour au staffing/).click();
+      await page.waitForURL('**/#/interne/staffing');
+      await button(candidate,candidateName.trim()).click();
       await button(page,'Proposer une mission').click();
       await button(dialog(page),'Préparer').first().click();
       await dialog(page).getByRole('heading',{name:'Préparer une proposition'}).waitFor();
@@ -218,7 +311,7 @@ try {
       await page.getByRole('heading',{level:1}).waitFor();
       await capture('staffing');
       if(width<=430){
-        await button(page,'Voir les candidats').click();
+        await page.locator('.ops-job[aria-pressed=true]').click();
         await capture('candidats');
         await page.evaluate(()=>window.scrollTo(0,0));
       }

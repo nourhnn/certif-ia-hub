@@ -7,11 +7,48 @@ function proposalStats(items){
 function proposalAction(title,subtitle,label,action,tone='neutral'){
   return `<div class="pd-action"><span class="pd-action-dot ${tone}" aria-hidden="true"></span><div><strong>${title}</strong><p>${subtitle}</p></div><button class="pd-action-button" onclick="${action}">${label}${mobileIcon('chevron',14)}</button></div>`;
 }
-function proposalWeek(person=false){
-  const days=Array.from({length:7},(_,i)=>shiftDate(toISO(weekStart(parisToday())),i));
-  const sessions=person?trainerMissionsInCalendar(state.trainerId):db.sessions;
-  return `<div class="pd-week">${days.map(day=>`<button class="${day===parisToday()?'today':''}" aria-label="Voir le planning du ${fmtDate(day)}" onclick="state.calendarDate='${day}';go('${person?'trainer-calendar':'planning'}')"><small>${fmtDate(day,{weekday:'short'}).replace('.','')}</small><strong>${Number(day.slice(8))}</strong><span class="${sessions.some(s=>s.date===day)?'has-event':''}"></span></button>`).join('')}</div>`;
+function contactAgendaSessions(){
+  return db.sessions.filter(session=>session.status!=='Annulée');
 }
+
+function proposalWeek(person=false){
+  const today=parisToday();
+  const days=Array.from({length:7},(_,i)=>shiftDate(toISO(weekStart(today)),i));
+  const sessions=person?trainerMissionsInCalendar(state.trainerId):contactAgendaSessions();
+  return `<div class="pd-week" ${person?'':'role="group" aria-label="Jour de la semaine"'}>${days.map(day=>{
+    const action=person?`state.calendarDate='${day}';go('trainer-calendar')`:`pickContactAgendaDay('${day}')`;
+    return `<button class="${day===today?'today':''}" aria-label="${person?'Voir le planning':'Voir les sessions'} du ${fmtDate(day)}"
+      ${person?'':`data-contact-day="${day}" aria-pressed="${day===state.contactPreviewDay}" aria-controls="pd-contact-preview"`} onclick="${action}">
+      <small>${fmtDate(day,{weekday:'short'}).replace('.','')}</small><strong>${Number(day.slice(8))}</strong><span class="${sessions.some(s=>s.date===day)?'has-event':''}"></span></button>`;
+  }).join('')}</div>`;
+}
+
+function pickContactAgendaDay(day){
+  const preview=$('pd-contact-preview');
+  if(!preview)return;
+  state.contactPreviewDay=day;
+  document.querySelectorAll('[data-contact-day]').forEach(button=>{
+    button.setAttribute('aria-pressed',String(button.dataset.contactDay===day));
+  });
+  preview.innerHTML=proposalContactPreview();
+}
+
+function proposalContactPreview(){
+  const sessions=contactAgendaSessions().sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  const day=state.contactPreviewDay;
+  if(!day)return proposalUpcoming(sessions.find(session=>session.date>=parisToday()&&session.status!=='Réalisée'));
+  const entries=sessions.filter(session=>session.date===day);
+  return `<div class="pd-next pd-next-day">
+    <div class="pd-next-label">${mobileIcon('calendar',15)} ${entries.length>1?'Sessions du jour':'Session du jour'}</div>
+    <div class="pd-next-date">${fmtDate(day,{weekday:'long',day:'numeric',month:'long'})}</div>
+    ${entries.map(session=>{
+      const formation=formOf(session);
+      return `<section class="pd-day-session"><h3>${esc(clientOf(formation).name)}</h3><p>${esc(formation.title)}</p>
+        <div class="pd-next-meta">${esc(session.start+' – '+session.end)} · ${esc(session.city)} · ${session.people} participants</div>
+        <button onclick="openSession(${session.id})">Voir la session ${mobileIcon('chevron',16)}</button></section>`;
+    }).join('')||'<p class="pd-next-empty">Aucune session prévue ce jour.</p>'}</div>`;
+}
+
 function proposalUpcoming(session,person=false){
   if(!session)return '<div class="empty">Aucune session à venir.</div>';
   const f=formOf(session);
@@ -31,11 +68,13 @@ function homePage(){
   actions.push(...docs.slice(0,2).map(d=>proposalAction(esc(d.title),esc(clientOf(formOf(sessionById(d.sessionId))).name)+' · '+esc(d.status),d.versions.length?'Vérifier':'Ouvrir',d.versions.length?`openModal('review','${d.id}')`:`openFolder('${d.formationId}')`,d.status==='Refusé'?'red':'violet')));
   return `<header class="pd-page-heading"><div><p class="pd-date">${proposalDateHeading()}</p><h1>Bonjour <span class="pd-greeting-name">Nour</span><span>.</span></h1></div><button class="secondary pd-calendar-button" onclick="go('planning')">${mobileIcon('calendar',16)} <span>Ouvrir le planning</span></button></header>
     ${proposalStats([['Formations',formations.length,'dossiers en cours',`go('formations')`],['Staffing',staff.length,'sessions à compléter',`dashboardGo('staffing','all')`],['Formateurs',trainers.length,'profils référencés',`go('trainers')`],['Livrables',docs.length,'documents à suivre',`dashboardGo('documents','open')`]])}
-    <div class="pd-dashboard"><div class="pd-work">
-      <section class="pd-panel"><header><h2>À traiter</h2><span class="pd-counter">${actions.length}</span></header><div>${actions.join('')||'<p class="empty">Tout est à jour.</p>'}</div></section>
+    <div class="pd-dashboard pd-amo-dashboard">
+      <aside class="pd-rail"><section class="pd-panel pd-week-panel"><header><h2>Cette semaine</h2><span>${fmtDate(today,{month:'long'})}</span></header>${proposalWeek()}</section>
+        <div id="pd-contact-preview" aria-live="polite" aria-atomic="true">${proposalContactPreview()}</div></aside>
+      <div class="pd-work"><section class="pd-panel"><header><h2>À traiter</h2><span class="pd-counter">${actions.length}</span></header><div>${actions.join('')||'<p class="empty">Tout est à jour.</p>'}</div></section>
       <section class="pd-panel"><header><h2>Les prochaines sessions</h2><button class="pd-text-button" onclick="go('formations')">Toutes les formations ${mobileIcon('chevron',14)}</button></header><div>${upcoming.map(s=>proposalSessionRow(s)).join('')}</div></section>
       <section class="pd-milestones"><div class="pd-milestones-icon">${mobileIcon('check',18)}</div><div><h2>Jalons de préparation</h2><p>${milestones.length} étapes à traiter dans les dossiers de formation</p></div><button class="secondary tiny" onclick="openModal('amo-milestones')">Consulter ${mobileIcon('chevron',14)}</button></section>
-    </div><aside class="pd-rail"><section class="pd-panel pd-week-panel"><header><h2>Cette semaine</h2><span>${fmtDate(today,{month:'long'})}</span></header>${proposalWeek()}</section>${proposalUpcoming(upcoming[0])}</aside></div>`;
+    </div></div>`;
 }
 function trainerHome(){
   const t=trainerById(state.trainerId),today=parisToday();

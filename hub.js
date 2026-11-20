@@ -665,9 +665,12 @@ function openTrainerFolder(id){
   go('trainer-folder');
 }
 
-function trainerNps(id){
+function trainerNpsValue(id){
   const scores=db.assignments.filter(a=>a.trainerId===id&&a.status==='Réalisée').map(a=>missionRatings[a.id]?.nps).filter(Number.isFinite);
-  const value=scores.length?scores.reduce((sum,n)=>sum+n,0)/scores.length:trainerProfileField(id).nps;
+  return scores.length?scores.reduce((sum,n)=>sum+n,0)/scores.length:trainerProfileField(id).nps;
+}
+
+function trainerNps(id,value=trainerNpsValue(id)){
   return Number.isFinite(value)?new Intl.NumberFormat('fr-FR',{maximumFractionDigits:1}).format(value)+' / 10':'—';
 }
 
@@ -1788,7 +1791,7 @@ applyHubTheme(savedTheme);
 hubSystemTheme.addEventListener('change',()=>{if(currentHubTheme()==='auto')applyHubTheme('auto')});
 
 let savedAppearance='violet';try{savedAppearance=localStorage.getItem('certifia-hub-appearance')}catch(e){}applyHubAppearance(savedAppearance);
-initV17();state.calendarDate=parisToday();const upcomingStaffing=db.sessions.filter(s=>s.date>=state.calendarDate&&s.status!=='Annulée'&&openCount(s)>0).sort((a,b)=>a.date.localeCompare(b.date))[0];if(upcomingStaffing)state.selectedSession=upcomingStaffing.id;try{const id=Number(localStorage.getItem(DEMO_KEY+'-active-trainer'));if(trainerById(id))state.trainerId=id}catch(e){}simulateDueReminders(true);restoreHash();render();setInterval(()=>{simulateDueReminders(true);refreshOperationalInbox()},60000);
+initV17();state.calendarDate=parisToday();const upcomingStaffing=db.sessions.filter(s=>s.date>=state.calendarDate&&s.status!=='Annulée'&&openCount(s)>0).sort((a,b)=>a.date.localeCompare(b.date))[0];if(upcomingStaffing)state.selectedSession=upcomingStaffing.id;try{const id=Number(localStorage.getItem(DEMO_KEY+'-active-trainer'));if(trainerById(id))state.trainerId=id}catch(e){}simulateDueReminders(true);restoreHash();deliverInboxReminders();render();setInterval(()=>{simulateDueReminders(true);refreshOperationalInbox()},60000);
 window.addEventListener('hashchange',()=>{restoreHash();render()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(state.modal)closeModal();else if(state.mobileMore)closeMobileMore();}});
 
@@ -1799,14 +1802,15 @@ function sessionFeedbackDeliverables(session){
  }).join('')).join('');
 }
 
-function staffingCandidateCard(t,s,score=compatDetails(t,s),experience=candidateExperience(t,s)){
+function staffingCandidateCard(t,s,score=compatDetails(t,s),experience=candidateExperience(t,s),nps=trainerNpsValue(t.id)){
  const reasons=new Set([...score.reasons.filter(r=>!r.toLowerCase().includes('disponib')&&r!=='Mobilité à confirmer'),mobilitySummary(t,s)]);
  if(experience.verified)reasons.add('Expertise vérifiée');
  if(experience.sameClient)reasons.add('Est déjà intervenu chez ce client');
- return `<article class="staffing-profile"><header class="staffing-profile-head">${trainerAvatar(t,42)}<div class="grow"><div class="staffing-profile-name">${trainerName(t)}</div><div class="staffing-location">${mobileIcon('pin',13)} ${esc(t.city)}</div></div><div class="staffing-rate"><strong>${esc(t.rate)} €</strong><span>TTC / jour</span></div></header>
- <div class="staffing-availability">${mobileIcon('check',14)} Disponible sur le créneau</div>
+ return `<article class="staffing-profile"><header class="staffing-profile-head">${trainerAvatar(t,42)}<div class="grow"><button type="button" class="staffing-profile-name ops-profile-link" onclick="state.trainerDetailTab='overview';openTrainer(${t.id})">${trainerName(t)} ${mobileIcon('chevron',14)}</button><div class="staffing-location">${mobileIcon('pin',13)} ${esc(t.city)}</div></div><div class="staffing-rate"><strong>${esc(t.rate)} €</strong><span>TTC / jour</span></div></header>
+ <div class="ops-candidate-facts">${trainerRatingBadge(t.rating)}<span class="ops-candidate-nps"><small>NPS indicatif</small><strong>${Number.isFinite(nps)?trainerNps(t.id,nps):'Non renseigné'}</strong></span></div>
+ <div class="ops-candidate-availability"><span class="staffing-availability">${mobileIcon('check',14)} Disponible sur le créneau</span><button class="ghost tiny" aria-label="Vérifier le planning de ${esc(t.name)}" onclick="openTrainerPlanning(${t.id})">Vérifier le planning</button></div>
  <div class="staffing-criteria">${[...reasons].map(r=>`<span>${esc(r)}</span>`).join('')}</div>
- <div class="ops-candidate-context">${reliabilityBadge(t)} · ${experience.finished} mission(s) terminée(s) recensée(s)</div><footer class="staffing-profile-footer"><button class="staffing-match" onclick="openModal('matching',${t.id})" aria-label="Détail de compatibilité de ${esc(t.name)} : ${score.total}%"><span>Compatibilité indicative</span><strong>${score.total}<small>%</small></strong><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button><button class="ghost tiny" onclick="openTrainer(${t.id})">Fiche</button><button class="primary tiny" onclick="prepareProposal(${t.id})">Préparer une proposition ${mobileIcon('chevron',14)}</button></footer></article>`;
+ <div class="ops-candidate-context">${reliabilityBadge(t)} · ${experience.finished} mission(s) terminée(s) recensée(s)</div><footer class="staffing-profile-footer"><button class="staffing-match" onclick="openModal('matching',${t.id})" aria-label="Détail de compatibilité de ${esc(t.name)} : ${score.total}%"><span>Compatibilité indicative</span><strong>${score.total}<small>%</small></strong><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button><button class="primary tiny" onclick="prepareProposal(${t.id})">Préparer une proposition ${mobileIcon('chevron',14)}</button></footer></article>`;
 }
 
 function matchingDetailsModal(id){
