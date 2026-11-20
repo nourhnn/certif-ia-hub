@@ -1,6 +1,6 @@
-const CACHE='certifia-hub-demo-v47-matching-details';
+const CACHE='certifia-hub-demo-v48-staffing-notifications-profile';
 const URLS=[
-  './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './manifest.webmanifest', './assets/certifia-logo.png',
+  './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
   './assets/icons/apple-touch-icon.png',
   './assets/icons/favicon-16.png',
