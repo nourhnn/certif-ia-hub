@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v49-staffing-notifications-home';
+const CACHE='certifia-hub-demo-v50-formation-folder';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
