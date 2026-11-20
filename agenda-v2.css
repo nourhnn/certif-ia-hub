@@ -44,3 +44,60 @@
 .av2-times input{width:100%;min-width:0}.av2-simulation{align-items:flex-start;flex-direction:column}
 .av2-connectrow{align-items:flex-start}.av2-provider span{overflow-wrap:anywhere}
 }
+
+/* Agenda V2 — alignement desktop et contraste sombre (2026-11-20). */
+@media(min-width:701px){
+  .av2-tabs{width:min(100%,565px);margin-inline:auto}
+}
+:root[data-hub-tone="dark"] .av2-root{color:var(--dark-text)}
+:root[data-hub-tone="dark"] .av2-hero{
+  background:linear-gradient(120deg,#302341 0%,#251d32 80%);
+  border-color:var(--border);
+  color:var(--dark-text);
+}
+:root[data-hub-tone="dark"] .av2-hero :is(.headline,h1){color:#f7f0ff}
+:root[data-hub-tone="dark"] .av2-hero p,
+:root[data-hub-tone="dark"] .av2-cardhead p,
+:root[data-hub-tone="dark"] .av2-summary span,
+:root[data-hub-tone="dark"] .av2-summary small,
+:root[data-hub-tone="dark"] .av2-provider span,
+:root[data-hub-tone="dark"] .av2-simulation p,
+:root[data-hub-tone="dark"] .av2-privacy,
+:root[data-hub-tone="dark"] .av2-disclaimer,
+:root[data-hub-tone="dark"] .av2-times label{color:#ded2e9}
+:root[data-hub-tone="dark"] .av2-eyebrow{color:#d0b2ff}
+:root[data-hub-tone="dark"] .av2-demo-label{background:#44345f;color:#f0e4ff}
+:root[data-hub-tone="dark"] .av2-tabs{background:#30263e;border:1px solid #514063}
+:root[data-hub-tone="dark"] .av2-tabs button{color:#d6cae4}
+:root[data-hub-tone="dark"] .av2-tabs button:hover{background:#413153;color:#fff}
+:root[data-hub-tone="dark"] .av2-tabs button.selected{
+  background:#66449a;color:#fff;box-shadow:0 1px 10px #100c1670
+}
+:root[data-hub-tone="dark"] .av2-summary>div,
+:root[data-hub-tone="dark"] .av2-pane,
+:root[data-hub-tone="dark"] .av2-connectrow{
+  background:var(--dark-panel);
+  border-color:var(--border);
+  color:var(--dark-text)
+}
+:root[data-hub-tone="dark"] .av2-summary strong,
+:root[data-hub-tone="dark"] .av2-cardhead h2,
+:root[data-hub-tone="dark"] .av2-provider strong,
+:root[data-hub-tone="dark"] .av2-simulation strong,
+:root[data-hub-tone="dark"] .av2-daytoggle strong{color:#f7f0ff}
+:root[data-hub-tone="dark"] .av2-summary strong.av2-status{color:#d1b4ff}
+:root[data-hub-tone="dark"] .av2-weekrow,
+:root[data-hub-tone="dark"] .av2-simulation{
+  background:var(--dark-subpanel);
+  border-color:var(--border);
+  color:var(--dark-text)
+}
+:root[data-hub-tone="dark"] .av2-spaced{border-top-color:var(--border)}
+:root[data-hub-tone="dark"] .av2-times input{
+  background:#211a2e;
+  border-color:#6a557f;
+  color:#f7f0ff;
+  color-scheme:dark
+}
+:root[data-hub-tone="dark"] .av2-times input:disabled{opacity:.5}
+:root[data-hub-tone="dark"] .av2-provider>svg{color:#cfb1ff}
