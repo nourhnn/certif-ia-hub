@@ -45,22 +45,6 @@
     });
     return rows;
   };
-  function bonusIcon(t){
-    const n=(db.internalReviews||[]).filter(r=>r.kind==='bonus'&&r.trainerId===t.id).length;
-    if(!n)return null;
-    const el=document.createElement('span');
-    el.className='hub-v2-bonus';
-    el.setAttribute('role','img');
-    el.setAttribute('aria-label',n+' bonus attribué'+(n>1?'s':''));
-    el.title=n+' bonus attribué'+(n>1?'s':'');
-    el.textContent='★ '+n;
-    return el;
-  }
-  function addBonus(node,t){
-    if(!node||node.querySelector('.hub-v2-bonus'))return;
-    const el=bonusIcon(t);
-    if(el)node.appendChild(el);
-  }
   function metrics(id){
     const el=document.createElement('div');
     el.className='hub-v2-kpis';
@@ -81,7 +65,6 @@
       const id=Number(card.querySelector('button[onclick^="openTrainer("]')?.getAttribute('onclick')?.match(/\d+/)?.[0]);
       const t=trainerById(id);
       if(!t)return;
-      addBonus(card.querySelector('.trainer-name'),t);
       card.querySelectorAll('.badge').forEach(b=>{if(b.textContent.includes('Fiabilité')){const parent=b.parentElement;if(parent?.getAttribute('style')?.includes('margin:9px'))parent.remove();else b.remove();}});
       card.querySelector('.trainer-stats')?.before(metrics(id));
       card.querySelectorAll('.item-sub').forEach(el=>{if(el.textContent.includes('Satisfaction ')&&el.textContent.includes('/10'))el.textContent=trainerProfileField(id).domain||'Spécialité à renseigner';});
@@ -99,7 +82,6 @@
         if(!trainerById(id))return;
         if(npsColumn>=0&&tds[npsColumn])tds[npsColumn].textContent=trainerNps(id);
         if(tds[reliability])tds[reliability].textContent=text5(trainerMetric(id,'satisfaction').value);
-        addBonus(tds[0]?.querySelector('strong'),trainerById(id));
       });
     });
   }
@@ -108,7 +90,6 @@
     if(!fiche)return;
     const t=trainerById(state.selectedTrainer);
     if(!t)return;
-    addBonus(fiche.querySelector('.fiche-hero h1'),t);
     fiche.querySelectorAll('.badge').forEach(b=>{if(b.textContent.includes('Fiabilité'))b.remove()});
     const top=fiche.querySelector('.fiche-hero .trainer-meta');
     if(top)top.after(metrics(t.id));

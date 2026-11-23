@@ -18,22 +18,37 @@ function proposalWeek(person=false){
   const today=parisToday();
   const days=Array.from({length:7},(_,i)=>shiftDate(toISO(weekStart(today)),i));
   const sessions=person?trainerMissionsInCalendar(state.trainerId):contactAgendaSessions();
-  return `<div class="pd-week" ${person?'':'role="group" aria-label="Jour de la semaine"'}>${days.map(day=>{
-    const action=person?`state.calendarDate='${day}';go('trainer-calendar')`:`pickContactAgendaDay('${day}')`;
-    return `<button class="${day===today?'today':''}" aria-label="${person?'Voir le planning':'Voir les sessions'} du ${fmtDate(day)}"
-      ${person?'':`data-contact-day="${day}" aria-pressed="${day===state.contactPreviewDay}" aria-controls="pd-contact-preview"`} onclick="${action}">
+  const selected=person?state.trainerPreviewDay:state.contactPreviewDay;
+  const previewId=person?'pd-trainer-preview':'pd-contact-preview';
+  return `<div class="pd-week" role="group" aria-label="Jour de la semaine">${days.map(day=>{
+    return `<button class="${day===today?'today':''}" aria-label="${person?'Voir les missions':'Voir les sessions'} du ${fmtDate(day)}"
+      data-preview-day="${day}" aria-pressed="${day===selected}" aria-controls="${previewId}" onclick="pickHomeAgendaDay('${day}',${person})">
       <small>${fmtDate(day,{weekday:'short'}).replace('.','')}</small><strong>${Number(day.slice(8))}</strong><span class="${sessions.some(s=>s.date===day)?'has-event':''}"></span></button>`;
   }).join('')}</div>`;
 }
 
-function pickContactAgendaDay(day){
-  const preview=$('pd-contact-preview');
+function pickHomeAgendaDay(day,person){
+  const previewId=person?'pd-trainer-preview':'pd-contact-preview';
+  const preview=$(previewId);
   if(!preview)return;
-  state.contactPreviewDay=day;
-  document.querySelectorAll('[data-contact-day]').forEach(button=>{
-    button.setAttribute('aria-pressed',String(button.dataset.contactDay===day));
+  state[person?'trainerPreviewDay':'contactPreviewDay']=day;
+  document.querySelectorAll(`[aria-controls="${previewId}"][data-preview-day]`).forEach(button=>{
+    button.setAttribute('aria-pressed',String(button.dataset.previewDay===day));
   });
-  preview.innerHTML=proposalContactPreview();
+  preview.innerHTML=person?proposalTrainerPreview():proposalContactPreview();
+}
+
+function proposalTrainerPreview(){
+  const day=state.trainerPreviewDay;
+  const missions=trainerMissionsInCalendar(state.trainerId).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  if(!day)return proposalUpcoming(missions.find(s=>s.date>=parisToday()),true);
+  const entries=missions.filter(s=>s.date===day);
+  return `<div class="pd-next pd-next-day">
+    <div class="pd-next-label">${mobileIcon('calendar',15)} ${entries.length>1?'Missions du jour':'Mission du jour'}</div>
+    <div class="pd-next-date">${fmtDate(day,{weekday:'long',day:'numeric',month:'long'})}</div>
+    ${entries.map(s=>`<section class="pd-day-session"><h3>${esc(clientOf(formOf(s)).name)}</h3><p>${esc(formOf(s).title)}</p>
+      <div class="pd-next-meta">${esc(s.start+' – '+s.end)} · ${esc(s.city)}</div>
+      <button onclick="openModal('mission-info',${s.id})">Voir la mission ${mobileIcon('chevron',16)}</button></section>`).join('')||'<p class="pd-next-empty">Aucune mission prévue ce jour.</p>'}</div>`;
 }
 
 function proposalContactPreview(){
@@ -100,9 +115,10 @@ function trainerHome(){
   const finished=db.assignments.filter(a=>a.trainerId===t.id&&a.status==='Réalisée').length;
   const actions=proposals.map(p=>proposalAction(esc(clientOf(formOf(sessionById(p.sessionId))).name),'Une nouvelle proposition de mission','Répondre',`dashboardGo('trainer-missions','proposals')`,'violet'));
   actions.push(...docs.slice(0,3).map(d=>proposalAction(esc(d.title),esc(d.status)+' · '+fmtDate(d.dueDate),'Ouvrir',`openModal('document-preview','${d.id}')`,d.status==='Refusé'?'red':'amber')));
-  return `<header class="pd-page-heading"><div><p class="pd-date">${proposalDateHeading()}</p><h1>Bonjour <span class="pd-greeting-name">${esc(t.name.split(' ')[0])}</span><span>.</span></h1></div><button class="secondary pd-calendar-button" onclick="go('trainer-calendar')">${mobileIcon('calendar',16)} <span>Mon agenda</span></button></header>
+  return `<header class="pd-page-heading"><div><p class="pd-date">${proposalDateHeading()}</p><h1>Bonjour <span class="pd-greeting-name">${esc(t.name.split(' ')[0])}</span><span>.</span></h1></div><button id="trainer-home-agenda-toggle" class="secondary pd-calendar-button" aria-label="Mon agenda" aria-expanded="${Boolean(state.trainerHomeAgendaOpen)}" aria-controls="trainer-home-agenda" onclick="toggleTrainerHomeAgenda()">${mobileIcon('calendar',16)} <span>Mon agenda</span></button></header>
+    ${trainerHomeAgenda()}
     ${proposalStats([['Propositions',proposals.length,'à examiner',`dashboardGo('trainer-missions','proposals')`],['Livrables',docs.length,'documents à suivre',`dashboardGo('trainer-docs','open')`],['Missions réalisées',finished,'missions terminées',`dashboardGo('trainer-missions','finished')`],['NPS moyen',trainerNps(t.id),'évaluations des missions',`go('trainer-profile')`]])}
-    <div class="pd-dashboard"><div class="pd-work"><section class="pd-panel"><header><h2>À traiter</h2><span class="pd-counter">${actions.length}</span></header>${actions.join('')||'<p class="empty">Tout est à jour.</p>'}</section><section class="pd-panel"><header><h2>Les prochaines missions</h2><button class="pd-text-button" onclick="go('trainer-missions')">Toutes mes missions ${mobileIcon('chevron',14)}</button></header>${missions.map(s=>proposalSessionRow(s,true)).join('')||'<p class="empty">Aucune mission programmée.</p>'}</section></div><aside class="pd-rail"><section class="pd-panel pd-week-panel"><header><h2>Cette semaine</h2></header>${proposalWeek(true)}</section>${proposalUpcoming(missions[0],true)}</aside></div>`;
+    <div class="pd-dashboard"><div class="pd-work"><section class="pd-panel"><header><h2>À traiter</h2><span class="pd-counter">${actions.length}</span></header>${actions.join('')||'<p class="empty">Tout est à jour.</p>'}</section><section class="pd-panel"><header><h2>Les prochaines missions</h2><button class="pd-text-button" onclick="go('trainer-missions')">Toutes mes missions ${mobileIcon('chevron',14)}</button></header>${missions.map(s=>proposalSessionRow(s,true)).join('')||'<p class="empty">Aucune mission programmée.</p>'}</section></div><aside class="pd-rail"><section class="pd-panel pd-week-panel"><header><h2>Cette semaine</h2></header>${proposalWeek(true)}</section><div id="pd-trainer-preview" aria-live="polite" aria-atomic="true">${proposalTrainerPreview()}</div></aside></div>`;
 }
 
 const originalProposalRender=render;

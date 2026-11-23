@@ -670,3 +670,11 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
 
 .monthly-preparation{margin-block:16px}
 .monthly-preparation summary{cursor:pointer;margin-block:10px;font-weight:700}
+
+.trainer-home-agenda{margin-bottom:14px}
+.trainer-review-cell{display:flex;align-items:center;gap:8px}
+.trainer-review-buttons{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;margin-inline-start:auto}
+.trainer-review-button.secondary.tiny{display:grid;place-items:center;min-width:36px;min-height:36px;padding:4px}
+.trainer-review-button .trainer-warning{margin:0}
+.trainer-review-button.secondary.tiny.bonus{display:flex;gap:4px;background:#fff2cf;color:#835a00}
+:root[data-hub-tone="dark"] .trainer-review-button.secondary.tiny.bonus{background:#4b391f;color:#ffe2a2}

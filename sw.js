@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v51-search-monthly-agenda';
+const CACHE='certifia-hub-demo-v52-home-trainer-reviews';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
