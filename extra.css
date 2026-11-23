@@ -678,3 +678,9 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
 .trainer-review-button .trainer-warning{margin:0}
 .trainer-review-button.secondary.tiny.bonus{display:flex;gap:4px;background:#fff2cf;color:#835a00}
 :root[data-hub-tone="dark"] .trainer-review-button.secondary.tiny.bonus{background:#4b391f;color:#ffe2a2}
+
+.carton-reason{margin:8px 0;padding:10px 12px;border:1px solid;border-radius:8px;overflow-wrap:anywhere;white-space:pre-wrap}
+.carton-reason.rouge{background:#fff0f1;border-color:#c04a5e;color:#791a2b}
+.carton-reason.jaune{background:#fff8df;border-color:#a8791f;color:#694800}
+:root[data-hub-tone="dark"] .carton-reason.rouge{background:#402334;border-color:#d38398;color:#ffdce1}
+:root[data-hub-tone="dark"] .carton-reason.jaune{background:#39311f;border-color:#d4ac58;color:#ffeaba}
