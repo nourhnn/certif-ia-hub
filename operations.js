@@ -797,7 +797,7 @@ function trainerOperationalAvailability(trainer) {
 
 function saveIncidentFollowUp(id, verify = false) {
   if (state.role !== 'amo') return;
-  const incident = db.internalReviews.find(r=>r.id===id&&r.kind==='carton'&&r.trainerId===state.selectedTrainer);
+  const incident = db.internalReviews.find(r=>r.id===id&&isActiveCarton(r)&&r.trainerId===state.selectedTrainer);
   const note = $('incident-'+id)?.value.trim();
   if (!incident || !note || note.length<10) return flash('Précisez l’action corrective en au moins 10 caractères.');
   incident.followUps ||= [];
@@ -814,10 +814,10 @@ function incidentFollowUp(record) {
   const id = esc(record.id);
   return `<details class="ops-incident"><summary>Actions correctives · ${record.followUps?.length||0}</summary>
     ${(record.followUps||[]).map(action=>`<p>${esc(fmtDate(action.at.slice(0,10)))} · ${action.verification?'Vérification · ':''}${esc(action.note)}</p>`).join('')}
-    <label class="form-label" for="incident-${id}">Nouvelle action corrective</label>
+    ${isActiveCarton(record)?`<label class="form-label" for="incident-${id}">Nouvelle action corrective</label>
     <textarea class="field" id="incident-${id}" rows="2" maxlength="1000"></textarea>
     <button class="secondary tiny" onclick="saveIncidentFollowUp('${id}')">Ajouter au suivi</button>
-    ${record.verified?'':`<button class="secondary tiny" onclick="saveIncidentFollowUp('${id}',true)">Vérifier avec ce justificatif</button>`}
+    ${record.verified?'':`<button class="secondary tiny" onclick="saveIncidentFollowUp('${id}',true)">Vérifier avec ce justificatif</button>`}`: ''}
   </details>`;
 }
 

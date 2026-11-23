@@ -84,7 +84,7 @@ function reliabilityScore(t){
  const satisfaction=trainerProfileField(t.id).nps==null?null:Math.min(100,Math.round(trainerProfileField(t.id).nps*10));
  const returns=db.feedback.filter(f=>f.trainerId===t.id && f.public === true && Number.isFinite(f.score));
  const feedback=returns.length?Math.round(returns.reduce((n,f)=>n+f.score,0)/returns.length*10):null;
- const incidents=db.internalReviews.filter(r=>r.trainerId===t.id&&r.kind==='carton'&&r.verified===true);
+ const incidents=db.internalReviews.filter(r=>r.trainerId===t.id&&isActiveCarton(r)&&r.verified===true);
  const incidentQuality=incidents.length?Math.max(0,100-incidents.reduce((v,r)=>v+(r.level==='rouge'?45:15),0)):null;
  const parts=[['Ponctualité documentaire',punctuality,30],['Satisfaction contextualisée',satisfaction,40],['Retours des missions',feedback,10],['Incidents vérifiés',incidentQuality,20]];
  const complete=parts.every(x=>x[1]!==null);
@@ -99,7 +99,49 @@ function gainsEstimate(t){return t.rate*t.missions;}
 function money(n){return Number(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});}
 function safeContact(value,type){if(!value)return '<span class="item-sub">Non renseigné</span>';let href=type==='phone'?'tel:'+String(value).replace(/[^+0-9]/g,''):'mailto:'+value;return `<a class="text-link" href="${esc(href)}">${esc(value)}</a>`;}
 function responseRate(t){let p=db.proposals.filter(x=>x.trainerId===t.id&&(x.sent||['Envoyée','Acceptée','Refusée','Expirée'].includes(x.status)));let a=p.filter(x=>['Acceptée','Refusée'].includes(x.status));return p.length?`${Math.round(100*a.length/p.length)} % (${a.length}/${p.length} propositions démo)`:'Aucune sollicitation mesurable';}
-function submitInternalReview(id){if(state.role!=='amo')return flash('Action interne uniquement');let kind=$('review-kind')?.value,level=$('review-level')?.value,memo=$('review-reason')?.value.trim();if(!['observation','carton','bonus'].includes(kind))return flash('Choisissez une nature.');if(kind==='carton'&&!['jaune','rouge'].includes(level))return flash('Sélectionnez un type de carton.');if(!memo||memo.length<10)return flash('Un justificatif de 10 caractères minimum est obligatoire');db.internalReviews.push({id:'IR'+Date.now(),trainerId:id,kind,level:kind==='carton'?level:null,reason:memo,verified:false,public:false,createdAt:new Date().toISOString(),author:'AMO (démonstration)'});if(kind==='carton')state.freshCard=id;if(kind==='bonus')state.freshBonus=db.internalReviews.at(-1).id;log(kind==='bonus'?'Bonus enregistré':'Observation interne simulée',`${id} · ${kind}`);render();flash(kind==='bonus'?'Bonus enregistré dans la fiche interne.':'Observation enregistrée en démo');}
+function isActiveCarton(record){
+ return record.kind==='carton'&&!record.withdrawal&&!record.mergedInto;
+}
+
+function submitInternalReview(id){
+ if(state.role!=='amo')return flash('Action interne uniquement');
+ const kind=$('review-kind')?.value,level=$('review-level')?.value,memo=$('review-reason')?.value.trim();
+ if(!['observation','carton','bonus'].includes(kind))return flash('Choisissez une nature.');
+ if(kind==='carton'&&!['jaune','rouge'].includes(level))return flash('Sélectionnez un type de carton.');
+ if(!memo||memo.length<10)return flash('Un justificatif de 10 caractères minimum est obligatoire');
+ const record={id:'IR'+crypto.randomUUID(),trainerId:id,kind,level:kind==='carton'?level:null,reason:memo,
+   verified:false,public:false,createdAt:new Date().toISOString(),author:'AMO (démonstration)'};
+ const previousYellow=level==='jaune'&&kind==='carton'&&db.internalReviews.findLast(r=>
+   r.trainerId===id&&isActiveCarton(r)&&r.level==='jaune');
+ if(previousYellow){
+   previousYellow.mergedInto=record.id;
+   record.level='rouge';
+   record.escalatedFrom=previousYellow.id;
+ }
+ db.internalReviews.push(record);
+ if(kind==='carton')state.freshCard=id;
+ if(kind==='bonus')state.freshBonus=record.id;
+ log(previousYellow?'Deux cartons jaunes convertis en carton rouge':kind==='bonus'?'Bonus enregistré':kind==='carton'?'Carton enregistré':'Observation interne simulée',record.id);
+ render();
+ flash(previousYellow?'Deux cartons jaunes ont été convertis en un carton rouge.':kind==='bonus'?'Bonus enregistré dans la fiche interne.':kind==='carton'?'Carton enregistré.':'Observation enregistrée en démo');
+}
+
+function withdrawTrainerCarton(form){
+ if(state.role!=='amo'||state.page!=='trainer-detail'||state.trainerDetailTab!=='internal')return;
+ const record=db.internalReviews.find(r=>r.id===form.dataset.cartonId&&r.trainerId===state.selectedTrainer&&isActiveCarton(r));
+ if(!record)return;
+ const reason=new FormData(form).get('reason')?.trim();
+ if(!reason||reason.length<10){
+   form.querySelector('[role="alert"]').textContent='Saisissez un motif de retrait d’au moins 10 caractères.';
+   form.elements.namedItem('reason').focus();
+   return;
+ }
+ record.withdrawal={reason,at:new Date().toISOString(),author:'AMO (démonstration)'};
+ log('Carton retiré',record.id);
+ render();
+ $('review-reason-'+record.id)?.focus();
+ flash('Carton retiré. Le motif est conservé dans l’historique.');
+}
 function internalReviewsCard(t){
  const items=db.internalReviews.filter(r=>r.trainerId===t.id).reverse();
  return `<div class="card internal-reviews">
@@ -133,15 +175,26 @@ function internalReviewEntry(record){
  const bonus=record.kind==='bonus';
  const carton=record.kind==='carton';
  const level=carton&&['jaune','rouge'].includes(record.level)?record.level:'';
- const style=bonus?'bonus-review':level?'carton-review '+level:'';
+ const active=isActiveCarton(record);
+ const style=bonus?'bonus-review':active&&level?'carton-review '+level:'';
  const title=bonus?'Bonus':carton?'Carton '+esc(record.level):'Observation';
  const icon=bonus?mobileIcon('bonus',16):level?`<span class="trainer-warning ${level}" aria-hidden="true"></span>`:'';
- const status=bonus?'Reconnaissance interne':record.verified?'Vérifié':'Non vérifié — aucune pénalité';
+ const previous=db.internalReviews.find(r=>r.id===record.escalatedFrom&&r.trainerId===record.trainerId);
+ const status=record.withdrawal?'Retiré':record.mergedInto?'Converti en carton rouge':bonus?'Reconnaissance interne':record.verified?'Vérifié':'Non vérifié — aucune pénalité';
  return `<div class="info ${style} ${state.freshBonus===record.id?'bonus-reveal':''}">
    <strong>${icon} ${title} · ${esc(record.createdAt.slice(0,10))}</strong>
    <p class="review-reason" id="review-reason-${esc(record.id)}" tabindex="-1">${esc(record.reason)}</p>
    <small>${esc(record.author)} · ${status}</small>
+   ${previous?`<details class="ops-incident"><summary>Conversion de deux cartons jaunes</summary><p>Justificatif du premier carton jaune</p><p class="review-reason">${esc(previous.reason)}</p></details>`:''}
    ${incidentFollowUp(record)}
+   ${record.withdrawal?`<div class="carton-withdrawal"><strong>Motif du retrait</strong><p class="review-reason">${esc(record.withdrawal.reason)}</p><small>${fmtDate(record.withdrawal.at.slice(0,10))} · ${esc(record.withdrawal.author)}</small></div>`:''}
+   ${active?`<details class="ops-incident carton-withdrawal"><summary>Retirer le carton</summary>
+     <form onsubmit="event.preventDefault();withdrawTrainerCarton(this)" data-carton-id="${esc(record.id)}">
+       <label class="form-label" for="withdraw-${esc(record.id)}">Motif du retrait</label>
+       <textarea class="field" id="withdraw-${esc(record.id)}" name="reason" rows="3" required maxlength="1000" placeholder="10 caractères minimum"></textarea>
+       <p role="alert"></p>
+       <button class="secondary tiny" type="submit">Confirmer le retrait</button>
+     </form></details>`:''}
  </div>`;
 }
 
@@ -1107,7 +1160,10 @@ function parisToday(date=new Date()){
 }
 
 function latestTrainerReview(trainerId,kind){
-  return db.internalReviews.findLast(review=>review.trainerId===trainerId&&review.kind===kind);
+  const matches=review=>review.trainerId===trainerId&&review.kind===kind;
+ if(kind!=='carton')return db.internalReviews.findLast(matches);
+ const active=review=>matches(review)&&isActiveCarton(review);
+ return db.internalReviews.findLast(review=>active(review)&&review.level==='rouge')||db.internalReviews.findLast(active);
 }
 
 function trainerCardLevel(t){
@@ -1383,7 +1439,7 @@ function monthlyReport(){
   const assessed=assignments.map(a=>missionRatings[a.id]?.nps).filter(Number.isFinite);
   const punctual=docs.filter(d=>d.dueDate&&d.versions[0]?.at);
   const onTime=punctual.filter(d=>d.versions[0].at.slice(0,10)<=d.dueDate).length;
-  const cards=db.internalReviews.filter(r=>r.kind==='carton'&&r.createdAt?.startsWith(month));
+  const cards=db.internalReviews.filter(r=>isActiveCarton(r)&&r.createdAt?.startsWith(month));
   const bonuses=db.internalReviews.filter(r=>r.kind==='bonus'&&r.createdAt?.startsWith(month));
   const bonusCounts=new Map();
   for(const b of bonuses)bonusCounts.set(b.trainerId,(bonusCounts.get(b.trainerId)||0)+1);

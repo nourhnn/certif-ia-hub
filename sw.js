@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v55-silver-bonus';
+const CACHE='certifia-hub-demo-v56-carton-lifecycle';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
