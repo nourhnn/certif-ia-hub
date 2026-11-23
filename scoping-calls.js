@@ -150,6 +150,6 @@ render=function(){const special=state.role==='amo'&&state.page===PAGE;
  if(special){state.page='home';previousRender();state.page=PAGE;const main=document.getElementById('main-content');if(main)main.innerHTML=scopingPage();document.title='Certif-IA Hub — Calls de cadrage';const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / AMO / Calls de cadrage';}
  else previousRender();sidebarLink();};
 // La restauration initiale du hash a précédé le chargement de ce module.
-if(location.hash==='#/interne/scoping-calls'){state.role='amo';state.page=PAGE;}
+if(typeof location!=='undefined'&&location.hash==='#/interne/scoping-calls'){state.role='amo';state.page=PAGE;}
 render();
 })();
