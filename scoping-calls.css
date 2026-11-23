@@ -100,3 +100,33 @@
 :root[data-hub-tone="dark"] .scope-ai-eyebrow,:root[data-hub-tone="dark"] .scope-ai-topics b{color:#d5b5ff}
 :root[data-hub-tone="dark"] .scope-doc-state{background:#554023;color:#ffe2a2}
 :root[data-hub-tone="dark"] .scope-doc-state.ready{background:#244537;color:#c2f2d7}
+
+/* V2: données du client/livrables, calendrier libre et parcours formateur */
+.scope-contact-card{padding:16px;border:1px solid #e9e0f2;border-radius:14px;background:#fdfbff}
+.scope-contact-person{display:flex;gap:11px;align-items:center;margin-bottom:14px}
+.scope-contact-person>div{display:grid;gap:4px}.scope-contact-person small,.scope-contact-facts small{color:#81728d;font-size:11px}
+.scope-contact-avatar{width:39px;height:39px;display:grid;place-items:center;border-radius:12px;background:#eee3ff;color:#6c3ab6}
+.scope-contact-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:11px 0 18px}
+.scope-contact-facts>div{display:grid;gap:5px;min-width:0}.scope-contact-facts strong{overflow-wrap:anywhere}
+.scope-date-picker{padding:8px;border:1px solid #ded4e8;border-radius:8px;min-height:37px;background:#fff;color:#342547}
+.scope-smart-message{margin-top:18px;padding:17px;background:linear-gradient(125deg,#f4edff,#fff);border:1px solid #ddd1f0;border-radius:15px;display:grid;gap:12px}
+.scope-smart-message>div:first-child strong{font-size:14px;color:#553084}.scope-smart-message p{margin:4px 0 0;color:#8a7898;font-size:12px}
+.scope-message-preview{background:white;border:1px solid #e8dff2;border-radius:12px;padding:16px 18px;white-space:pre-line;color:#40324e;line-height:1.6;font-size:13px}
+.scope-smart-message>.primary{justify-self:start}.scope-confirm-options{display:grid;gap:8px}
+.scope-confirm-option{display:flex;align-items:center;gap:12px;border:1px solid #e6ddec;border-radius:11px;padding:13px;cursor:pointer}
+.scope-confirm-option:has(input:checked){background:#f5efff;border-color:#8a61c3}
+.scope-confirm-option input{accent-color:#7134f5}.scope-confirm-option span{display:grid;gap:3px}
+.scope-confirm-option small{color:#82748e}.scope-success{border-radius:11px;padding:13px;background:#e7f7ed;color:#136643;font-weight:650}
+.scope-trainer-options{display:grid;gap:10px}
+.scope-trainer-option{padding:13px;border:1px solid #e8deef;border-radius:12px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.scope-trainer-option>div:first-child{display:grid;gap:5px}.scope-trainer-option small{color:#857990}.scope-trainer-option>div:first-child span{font-size:11px;color:#735292}
+.scope-trainer-option .scope-actionrow{margin:0;flex-wrap:wrap}.scope-trainer-alternative{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:10px}
+.scope-trainer-alternative button{grid-column:1/-1;justify-self:start}
+.scope-proposal-line{flex-wrap:wrap}
+@media(max-width:740px){.scope-contact-facts,.scope-trainer-alternative{grid-template-columns:1fr}.scope-trainer-option{align-items:flex-start;flex-direction:column}.scope-trainer-option .scope-actionrow{width:100%}.scope-trainer-option .scope-actionrow button{flex:1}}
+:root[data-hub-tone="dark"] .scope-contact-card,:root[data-hub-tone="dark"] .scope-message-preview,:root[data-hub-tone="dark"] .scope-confirm-option,:root[data-hub-tone="dark"] .scope-trainer-option{background:#30263e;color:#f3eafd;border-color:#604d72}
+:root[data-hub-tone="dark"] .scope-smart-message{background:linear-gradient(125deg,#372647,#251d32);border-color:#60477b}
+:root[data-hub-tone="dark"] .scope-smart-message strong,:root[data-hub-tone="dark"] .scope-smart-message p,:root[data-hub-tone="dark"] .scope-contact-facts small,:root[data-hub-tone="dark"] .scope-contact-person small,:root[data-hub-tone="dark"] .scope-confirm-option small,:root[data-hub-tone="dark"] .scope-trainer-option small{color:#eadbfa}
+:root[data-hub-tone="dark"] .scope-date-picker{background:#271f32;border-color:#725784;color:#f3eafd;color-scheme:dark}
+:root[data-hub-tone="dark"] .scope-confirm-option:has(input:checked){background:#46335b;border-color:#af8ed3}
+:root[data-hub-tone="dark"] .scope-success{background:#1e4436;color:#c2f4da}

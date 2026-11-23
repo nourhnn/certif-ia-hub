@@ -41,18 +41,20 @@ function trainerBusy(trainer,date,start,end,ignoreCall){
  return false;
 }
 function calendarMode(trainer){if(!trainer)return {kind:'none',label:'Formateur à affecter'};const demo=!!db.agendaV2?.[trainer.id]?.demoCalendar;return demo?{kind:'simulation',label:'Calendrier libre (simulation)'}:{kind:'unknown',label:'Agenda formateur non vérifié'};}
-function slotsFor(f,record,days=10){const trainer=formTrainer(f),startDate=localDate(),out=[];const duration=Number(record.duration||30);
- for(let d=0;d<days&&out.length<9;d++){
-  const date=addDays(startDate,d);const weekday=new Date(date+'T12:00:00').getDay();if(weekday===0||weekday===6)continue;
+function slotsFor(f,record,days=10){
+ const trainer=formTrainer(f),today=localDate(),startDate=state.scopingStartDate&&state.scopingStartDate>today?state.scopingStartDate:today,out=[];
+ const duration=Number(record.duration||30);
+ for(let d=0;d<days&&out.length<12;d++){
+  const date=addDays(startDate,d),weekday=new Date(date+'T12:00:00').getDay();if(weekday===0||weekday===6)continue;
   for(const hour of ['09:00','10:00','11:00','14:00','15:00','16:00']){
-   const end=timeFromMinutes(durationToMinutes(hour)+duration);if(durationToMinutes(end)>1080)continue;
-   if(trainerBusy(trainer,date,hour,end,f.id))continue;
+   const end=timeFromMinutes(durationToMinutes(hour)+duration);if(durationToMinutes(end)>1080||trainerBusy(trainer,date,hour,end,f.id))continue;
    const mode=calendarMode(trainer);out.push({date,start:hour,end,mode:mode.kind,label:mode.label,amo:'À vérifier',client:'À confirmer'});
-   if(out.length>=9)break;
+   if(out.length>=12)break;
   }
  }
  return out;
 }
+
 function markupPill(status){let text=LABELS[status]||status;return `<span class="scope-pill scope-${escapeText(status)}">${escapeText(text)}</span>`;}
 function progress(record){const checks=PREP.filter(([k])=>record.checklist[k]).length;return {checks,total:PREP.length};}
 function input(label,id,value,type='text',placeholder=''){return `<label class="scope-field"><span>${escapeText(label)}</span><input id="${id}" type="${type}" value="${escapeText(value||'')}" placeholder="${escapeText(placeholder)}"></label>`;}
@@ -65,13 +67,42 @@ function listMarkup(rows){const search=(state.scopingSearch||'').trim().toLowerC
  const days=daysBefore(date),isUrgent=statusOf(f,record)==='due';const active=state.scopingSelected===f.id;
  return `<button class="scope-item ${active?'active':''}" onclick="scopingSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${markupPill(record.status)}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta"><span>📅 ${fmt(date)}${days!==null&&days>=0?` · J-${days}`:''}</span><span>👤 ${escapeText(trainer?.name||'Formateur à staffer')}</span></div>${isUrgent?'<span class="scope-urgent">⚠ Cadrage à prioriser</span>':''}<span class="scope-itemgo">Voir le cadrage ›</span></button>`}).join('')||'<p class="scope-empty">Aucun dossier pour ce filtre.</p>'}</div></section>`;
 }
-function contactMarkup(r){const p=r.contact||{},number=telLink(p.phone),email=p.email?.trim(),emailValid=email&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
- return `<div class="scope-sectionhead"><h3>Contact client</h3><small>Informations du dossier · modifiables en local</small></div><div class="scope-grid">${input('Nom du contact','scope-contact-name',p.name,'text','À renseigner')}${input('Fonction','scope-contact-role',p.role,'text','Responsable formation')}${input('Téléphone','scope-contact-phone',p.phone,'tel','+33…')}${input('E-mail','scope-contact-email',p.email,'email','contact@entreprise.fr')}</div><div class="scope-actionrow">${number?`<a class="primary scope-main-action" href="${escapeText(number)}">☎ Appeler</a>`:'<button class="secondary" disabled title="Numéro de téléphone absent ou invalide">☎ Appeler · n° manquant</button>'}${emailValid?`<a class="secondary scope-main-action" href="mailto:${escapeText(email)}">✉ E-mail</a>`:'<button class="secondary" disabled>✉ E-mail indisponible</button>'}<button class="secondary" onclick="scopingSaveContact()">Enregistrer le contact</button></div>`;
+function clientContact(f){
+ const d=clientDetails?.[f.clientId]||{};
+ const clean=v=>String(v||'').trim();
+ return {name:/^(contact client non renseigné|non renseigné)$/i.test(clean(d.contact))?'':clean(d.contact),
+ role:clean(d.contactRole||d.roleContact),phone:clean(d.contactPhone||d.phone||d.telephone),
+ email:clean(d.contactEmail||d.email),url:clean(d.hubspotUrl||d.contactUrl)};
 }
-function availabilityMarkup(f,r){const trainer=formTrainer(f);const mode=calendarMode(trainer),list=slotsFor(f,r);
- return `<div class="scope-sectionhead"><h3>Trouver un créneau</h3><small>Suggestions calculées · aucun envoi automatique</small></div><div class="scope-availabilitytop"><span class="scope-availability ${mode.kind}">${escapeText(mode.label)}</span><label class="scope-inline">Durée <select id="scope-duration" onchange="scopingDuration(this.value)">${[15,30,45,60].map(n=>`<option ${r.duration===n?'selected':''} value="${n}">${n} min</option>`).join('')}</select></label></div>${!trainer?'<p class="scope-warning">Aucun formateur confirmé. Affecte d’abord un formateur dans Staffing assisté.</p><button class="secondary tiny" onclick="go(\'staffing\')">Ouvrir Staffing assisté</button>':`<p class="scope-help">Les plages habituelles ne bloquent pas les propositions. Les événements occupés connus sont exclus ; les calendriers non connectés restent <strong>non vérifiés</strong>. AMO et client : disponibilités à confirmer.</p><div class="scope-slotlist">${list.slice(0,6).map(s=>`<button class="scope-slot" onclick="scopingChooseSlot('${s.date}','${s.start}','${s.end}')"><span class="scope-slotdate"><strong>${fmt(s.date)}</strong><small>${s.start} – ${s.end}</small></span><span class="scope-slotstatus ${s.mode}">${s.mode==='simulation'?'Libre · simulation':'Non vérifié'}</span><span class="scope-slotarrow">+</span></button>`).join('')||'<p class="scope-empty">Aucun créneau sans conflit détecté.</p>'}</div>`}
- ${r.proposals.length?`<div class="scope-proposals"><strong>Créneaux proposés (${r.proposals.length})</strong>${r.proposals.map((s,i)=>`<div><span>${fmt(s.date)} · ${s.start}–${s.end} <small>· ${s.mode==='simulation'?'simulation':'à vérifier'}</small></span><button class="scope-icon-button" onclick="scopingRemoveSlot(${i})" aria-label="Retirer le créneau">×</button></div>`).join('')}</div><button class="secondary tiny" onclick="scopingCopyMessage()">Copier le message de proposition</button>`:''}`;
+function contactMarkup(f){
+ const p=clientContact(f),number=telLink(p.phone),email=p.email,emailValid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+ return `<div class="scope-sectionhead"><h3>Contact client</h3><small>Informations issues de la fiche Client</small></div>
+ <div class="scope-contact-card"><div class="scope-contact-person"><span class="scope-contact-avatar">☎</span><div><strong>${escapeText(p.name||'Interlocuteur à renseigner')}</strong><small>${escapeText(p.role||clientRecord(f).name)}</small></div></div>
+ <div class="scope-contact-facts"><div><small>Téléphone</small><strong>${escapeText(p.phone||'Non renseigné')}</strong></div><div><small>E-mail</small><strong>${escapeText(p.email||'Non renseigné')}</strong></div></div>
+ <div class="scope-actionrow">${number?`<a class="primary scope-main-action" href="${escapeText(number)}">☎ Appeler</a>`:'<button class="secondary" disabled>☎ Numéro manquant</button>'}
+ ${emailValid?`<a class="secondary scope-main-action" href="mailto:${escapeText(email)}">✉ E-mail</a>`:'<button class="secondary" disabled>E-mail manquant</button>'}
+ <button class="secondary tiny" onclick="openClient('${escapeText(f.clientId)}')">↗ Fiche client</button></div>
+ <p class="scope-help">Les données viennent de la fiche Client du Hub. Aucune modification locale ne crée de contact distinct.</p></div>`;
 }
+
+function scopingMessageText(f,r){
+ const c=clientRecord(f),contact=clientContact(f),hello=contact.name?' '+contact.name.split(/\s+/)[0]:'';
+ return `Bonjour${hello} 👋\n\nPour préparer au mieux votre formation « ${f.title} », nous vous proposons un petit call de cadrage de ${r.duration} min avec votre formateur.\n\n📅 Voici quelques créneaux possibles :\n${r.proposals.map(s=>`• ${fmt(s.date)} · ${s.start}–${s.end}`).join('\n')}\n\n✨ Quel créneau vous conviendrait le mieux ?\n\nMerci et belle journée !\nL’équipe Certif-IA`;
+}
+function availabilityMarkup(f,r){
+ const trainer=formTrainer(f),mode=calendarMode(trainer),list=slotsFor(f,r,14),from=state.scopingStartDate||localDate();
+ return `<div class="scope-sectionhead"><h3>Trouver un créneau</h3><small>Choisissez une date de départ</small></div>
+ <div class="scope-availabilitytop"><span class="scope-availability ${mode.kind}">${escapeText(mode.label)}</span>
+ <label class="scope-inline">À partir du <input class="scope-date-picker" type="date" value="${escapeText(from)}" min="${localDate()}" onchange="scopingSetStartDate(this.value)"></label>
+ <label class="scope-inline">Durée <select id="scope-duration" onchange="scopingDuration(this.value)">${[15,30,45,60].map(n=>`<option ${r.duration===n?'selected':''} value="${n}">${n} min</option>`).join('')}</select></label></div>
+ ${!trainer?'<p class="scope-warning">Aucun formateur confirmé. Affectez d’abord le formateur depuis Staffing assisté.</p><button class="secondary tiny" onclick="go(\'staffing\')">Ouvrir Staffing</button>':`<p class="scope-help">Les horaires déclarés sont indicatifs. Seuls les conflits connus sont bloquants, les calendriers non connectés restent non vérifiés.</p>
+ <div class="scope-slotlist">${list.map(slot=>`<button class="scope-slot" onclick="scopingChooseSlot('${slot.date}','${slot.start}','${slot.end}')"><span class="scope-slotdate"><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small></span><span class="scope-slotstatus ${slot.mode}">${slot.mode==='simulation'?'Libre · simulation':'Non vérifié'}</span><span class="scope-slotarrow">+</span></button>`).join('')||'<p class="scope-empty">Aucun créneau sans conflit sur la période choisie.</p>'}</div>`}
+ ${r.proposals.length?`<div class="scope-proposals"><strong>Créneaux proposés (${r.proposals.length})</strong>
+ ${r.proposals.map((slot,i)=>`<div><span>${fmt(slot.date)} · ${slot.start}–${slot.end}${slot.trainerAccepted?' · ✓ Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':''}</span><button class="scope-icon-button" onclick="scopingRemoveSlot(${i})" aria-label="Retirer ce créneau">×</button></div>`).join('')}</div>
+ <div class="scope-smart-message"><div><strong>💬 Message prêt à envoyer</strong><p>Une proposition sympa, prête à copier comme pour le staffing WhatsApp.</p></div><div class="scope-message-preview">${escapeText(scopingMessageText(f,r))}</div><button class="primary tiny" onclick="scopingCopyMessage()">✦ Copier le message</button></div>`:''}
+ ${r.trainerSuggested?.length?`<div class="scope-proposals"><strong>Autres propositions du formateur</strong>${r.trainerSuggested.map((slot,i)=>`<div><span>${fmt(slot.date)} · ${slot.start}–${slot.end}</span><button class="secondary tiny" onclick="scopingAddTrainerSuggestion(${i})">Ajouter aux propositions</button></div>`).join('')}</div>`:''}`;
+}
+
 function scopeDocumentUrl(url){
  const value=String(url||'').trim();if(!value)return '';
  try{const u=new URL(value);return u.protocol==='https:'&&(/(^|\.)drive\.google\.com$/.test(u.hostname)||/(^|\.)docs\.google\.com$/.test(u.hostname))?u.href:''}catch(e){return ''}
@@ -85,26 +116,43 @@ function scopeDocCard(r,key,title,description,icon){
  <label class="scope-field"><span>Lien Google Drive / Docs / Slides</span><input type="url" id="scope-doc-${key}" value="${escapeText(data.url||'')}" placeholder="https://drive.google.com/…" autocomplete="url"></label>
  <div class="scope-doc-actions"><button class="secondary tiny" onclick="scopingSaveDocument('${key}')">Enregistrer le lien</button>${has?`<a class="secondary tiny scope-doc-open" href="${escapeText(url)}" target="_blank" rel="noopener noreferrer">↗ Voir le document</a>`:'<button class="secondary tiny" disabled title="Ajoutez un lien Drive valide">↗ Voir le document</button>'}</div></article>`;
 }
-function documentsMarkup(r){
- const audit=!!scopeDocumentUrl(scopeDocInfo(r,'audit').url),cadrage=!!scopeDocumentUrl(scopeDocInfo(r,'cadrage').url),total=Number(audit)+Number(cadrage);
- const status=total===2?'2 sources prêtes':`${total}/2 sources renseignées`;
- return `<div class="scope-sectionhead"><h3>Documents & synthèse du cadrage</h3><small>${status}</small></div>
- <p class="scope-help scope-doc-lead">Retrouvez les deux supports du call, puis préparez leur analyse croisée. Les liens sont enregistrés localement dans cette démonstration, sans connexion automatique à Drive.</p>
- <div class="scope-doc-grid">${scopeDocCard(r,'audit','Audit client','Enjeux, maturité IA et besoins identifiés','▤')}${scopeDocCard(r,'cadrage','Support de cadrage','Programme, questions et éléments pédagogiques','▦')}</div>
- <div class="scope-ai-panel"><div class="scope-ai-heading"><div><span class="scope-ai-eyebrow">✦ ANALYSE CROISÉE</span><h4>Synthèse IA du cadrage</h4><p>Une seule synthèse à partir des deux documents, avec les écarts et questions utiles pour l'AMO.</p></div><span class="scope-ai-chip">API à connecter</span></div>
- <div class="scope-ai-topics">${[['◎','Contexte & objectifs'],['◈','Résultats de l’audit'],['◇','Écarts et points à clarifier'],['?','Questions pour le call']].map(([icon,label])=>`<span><b>${icon}</b>${label}</span>`).join('')}</div>
- ${total<2?`<p class="scope-ai-empty">${total===0?'Ajoutez les liens vers l’audit et le support de cadrage pour préparer la future analyse.':'Il manque un document : renseignez les deux sources pour permettre une analyse croisée.'}</p>`:'<p class="scope-ai-empty">Les deux liens sont enregistrés. La génération IA sera activée après l’intégration de Google Drive API et OpenAI API.</p>'}
- <button class="primary scope-ai-generate" type="button" disabled title="La génération sera disponible après la connexion sécurisée des API">✦ Générer la synthèse <span>· bientôt disponible</span></button>
- <p class="scope-ai-disclaimer">Aucune analyse n’est générée pour le moment. La future synthèse citera ses sources et distinguera faits, hypothèses et questions à vérifier.</p></div>`;
+function docsForFormation(f){
+ return ['AUDIT','CADRAGE'].map(category=>{
+  const matches=(db.deliverables||[]).filter(d=>d.formationId===f.id&&docCategory(d)===category)
+   .sort((a,b)=>(b.versions?.length||0)-(a.versions?.length||0));
+  return {category,doc:matches[0],available:!!matches[0]?.versions?.length};
+ });
+}
+function documentsMarkup(f){
+ const docs=docsForFormation(f),count=docs.filter(d=>d.available).length;
+ return `<div class="scope-sectionhead"><h3>Documents & synthèse du cadrage</h3><small>${count}/2 livrables déposés</small></div>
+ <p class="scope-help scope-doc-lead">Les documents proviennent directement des livrables de cette formation. Plus de liens Drive à saisir.</p>
+ <div class="scope-doc-grid">${docs.map(({category,doc,available})=>`<article class="scope-doc-card ${available?'ready':'missing'}"><div class="scope-doc-top"><span class="scope-doc-icon">${category==='AUDIT'?'▤':'▦'}</span><div class="scope-doc-name"><strong>${category==='AUDIT'?'Audit client':'Support de cadrage'}</strong><small>${escapeText(doc?.title||'Aucun livrable associé')}</small></div><span class="scope-doc-state ${available?'ready':''}">${available?escapeText(doc.status):'Manquant'}</span></div>
+ <p class="scope-help">${escapeText(doc?.versions?.at(-1)?.filename||'Aucune version enregistrée')}</p><div class="scope-doc-actions"><button class="secondary tiny" onclick="scopingOpenDeliverable('${escapeText(f.id)}','${category}')">↗ ${doc?'Voir le livrable':'Ouvrir les livrables'}</button></div></article>`).join('')}</div>
+ <div class="scope-ai-panel"><div class="scope-ai-heading"><div><span class="scope-ai-eyebrow">✦ ANALYSE CROISÉE</span><h4>Synthèse IA du cadrage</h4><p>Contexte, résultats de l'audit, points de vigilance et questions pertinentes.</p></div><span class="scope-ai-chip">API à connecter</span></div>
+ <div class="scope-ai-topics">${[['◎','Contexte & objectifs'],['◈','Résultats d’audit'],['◇','Écarts & vigilance'],['?','Questions pour le call']].map(([ic,label])=>`<span><b>${ic}</b>${label}</span>`).join('')}</div>
+ <p class="scope-ai-empty">${count<2?'La synthèse nécessite les deux livrables déposés dans le Hub.':'Les deux livrables sont identifiés. La génération sera disponible après connexion de l’API.'}</p>
+ <button class="primary scope-ai-generate" disabled>✦ Générer la synthèse · API à connecter</button><p class="scope-ai-disclaimer">Aucune synthèse fictive. Les fichiers sont ceux de la formation concernée.</p></div>`;
 }
 
 function historyMarkup(r){return r.history.length?`<details class="scope-history"><summary>Historique des modifications (${r.history.length})</summary>${r.history.slice(-7).reverse().map(e=>`<div>${escapeText(e.at.slice(0,16).replace('T',' '))} · ${escapeText(e.text)}</div>`).join('')}</details>`:'';}
 function summaryMarkup(f,r){const trainer=formTrainer(f),client=clientRecord(f),dates=sessionsOf(f),date=callSessionDate(f),days=daysBefore(date);
  return `<div class="scope-detailtitle"><div><span class="scope-eyebrow">FICHE DE CADRAGE</span><h2>${escapeText(client.name)}</h2><p>${escapeText(f.title)}</p></div>${markupPill(r.status)}</div><div class="scope-facts"><div><span>Formation</span><strong>${fmt(date)}</strong></div><div><span>Formateur</span><strong>${escapeText(trainer?.name||'À staffer')}</strong></div><div><span>Participants</span><strong>${dates[0]?.people||'—'}</strong></div><div><span>Jalon J-14</span><strong>${days===null?'À préciser':days<=14&&r.status==='todo'?'À traiter':'Suivi actif'}</strong></div></div><div class="scope-actionrow"><button class="secondary tiny" onclick="openFormation('${escapeText(f.id)}')">Voir la formation</button><button class="secondary tiny" onclick="openClient('${escapeText(f.clientId)}')">Voir le client</button>${trainer?`<button class="secondary tiny" onclick="openTrainer(${trainer.id})">Fiche formateur</button>`:''}</div>`;
 }
-function scheduleMarkup(r){return `<div class="scope-sectionhead"><h3>Organisation et confirmation</h3><small>Une proposition ne vaut pas confirmation</small></div><div class="scope-grid">${input('Date retenue','scope-date',r.date,'date')}${input('Début','scope-start',r.start,'time')}${input('Fin','scope-end',r.end,'time')}${input('Lien Google Meet (facultatif)','scope-meet',r.meet,'url','https://meet.google.com/…')}</div><div class="scope-actionrow"><button class="primary" onclick="scopingConfirm()">Confirmer le call</button><button class="secondary" onclick="scopingMarkDone()">Marquer comme réalisé</button><button class="secondary" onclick="scopingCancel()">Annuler</button></div><p class="scope-help">La confirmation est locale : aucune invitation Google Calendar ou notification réelle n'est envoyée.</p>`;}
-function notesMarkup(r){return `<div class="scope-sectionhead"><h3>Compte rendu et actions</h3><small>À compléter pendant et après le call</small></div><label class="scope-field"><span>Points abordés · décisions · attentes client</span><textarea id="scope-notes" rows="6" placeholder="Attentes, cas d'usage, contraintes, prérequis, décisions…">${escapeText(r.notes)}</textarea></label><div class="scope-actionrow"><button class="secondary tiny" onclick="scopingSaveNotes()">Enregistrer le compte rendu</button></div><div class="scope-sectionhead scope-actions-title"><h4>Actions à suivre</h4><small>${r.actions.length} action(s)</small></div><div class="scope-add-action"><input id="scope-action-text" aria-label="Nouvelle action" placeholder="Ex. Envoyer le programme adapté"><input id="scope-action-date" type="date" aria-label="Échéance"><button class="primary tiny" onclick="scopingAddAction()">Ajouter</button></div><div class="scope-actionitems">${r.actions.map((a,i)=>`<label class="scope-actionitem"><input type="checkbox" ${a.done?'checked':''} onchange="scopingToggleAction(${i},this.checked)"><span>${escapeText(a.text)}${a.date?` · ${fmt(a.date)}`:''}</span></label>`).join('')||'<p class="scope-empty">Aucune action enregistrée.</p>'}</div>`;}
-function detailMarkup(f,r){return `<section class="scope-detail card">${summaryMarkup(f,r)}<div class="scope-content"><section>${contactMarkup(r)}</section><section>${availabilityMarkup(f,r)}</section><section>${scheduleMarkup(r)}</section><section>${documentsMarkup(r)}</section><section>${notesMarkup(r)}</section>${historyMarkup(r)}</div></section>`;}
+function scheduleMarkup(r){
+ return `<div class="scope-sectionhead"><h3>Confirmation du créneau</h3><small>Choisissez parmi les créneaux proposés</small></div>
+ ${r.proposals.length?`<div class="scope-confirm-options">${r.proposals.map((slot,i)=>`<label class="scope-confirm-option"><input type="radio" name="scope-confirm-choice" value="${i}" ${r.confirmedProposalIndex===i||r.confirmedProposalIndex==null&&i===0?'checked':''}><span><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}${slot.trainerAccepted?' · ✓ Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':' · Réponse formateur à vérifier'}</small></span></label>`).join('')}</div><div class="scope-actionrow"><button class="primary" onclick="scopingConfirm()">✓ Valider ce créneau</button></div>`:'<p class="scope-empty">Ajoutez des créneaux proposés pour pouvoir en confirmer un.</p>'}
+ ${r.status==='confirmed'?`<p class="scope-success">✓ Confirmé le ${fmt(r.date)} de ${r.start} à ${r.end} · confirmation locale</p>`:''}
+ <p class="scope-help">Aucune invitation n'est envoyée automatiquement. Vérifiez l'accord du client et du formateur avant validation.</p>`;
+}
+
+function notesMarkup(f,r){
+ return `<div class="scope-sectionhead"><h3>Compte rendu</h3><small>À associer aux notes HubSpot du client</small></div><label class="scope-field"><span>Compte rendu du cadrage</span><textarea id="scope-notes" rows="8" placeholder="Attentes client, besoins IA, décisions, adaptations pédagogiques…">${escapeText(r.notes)}</textarea></label>
+ <div class="scope-actionrow"><button class="primary" onclick="scopingSaveNotes()">Enregistrer le brouillon</button><button class="secondary" onclick="scopingCopyHubspotNote()">Copier pour HubSpot</button><button class="secondary" disabled title="Connexion HubSpot sécurisée nécessaire">↗ Synchronisation HubSpot à connecter</button></div>
+ <p class="scope-help">Le brouillon reste dans le Hub de démonstration. L'enregistrement automatique dans la fiche HubSpot nécessitera l'intégration serveur et les identifiants du client ; aucun envoi n'est simulé.</p>`;
+}
+
+function detailMarkup(f,r){return `<section class="scope-detail card">${summaryMarkup(f,r)}<div class="scope-content"><section>${contactMarkup(f)}</section><section>${availabilityMarkup(f,r)}</section><section>${scheduleMarkup(r)}</section><section>${documentsMarkup(f)}</section><section>${notesMarkup(f,r)}</section>${historyMarkup(r)}</div></section>`;}
 function scopingPage(){const rows=allCalls();if(!state.scopingSelected||!formations.some(f=>f.id===state.scopingSelected))state.scopingSelected=rows[0]?.f.id;const f=formations.find(x=>x.id===state.scopingSelected);const r=f&&callFor(f);
  return `<div class="scope-root"><header class="scope-hero"><div><span class="scope-eyebrow">PILOTAGE AMO · J-14</span><h1>Calls de cadrage<span>.</span></h1><p>Planifiez, contactez, préparez et suivez vos échanges clients avant les formations.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>${statsMarkup(rows)}<div class="scope-layout">${listMarkup(rows)}${f?detailMarkup(f,r):'<p class="scope-empty">Aucune formation disponible.</p>'}</div><p class="scope-footnote">Toutes les modifications et propositions sont enregistrées uniquement dans cette démo. Google Agenda, HubSpot, Google Meet et les envois de messages ne sont pas connectés.</p></div>`;
 }
@@ -115,12 +163,28 @@ window.scopingSelect=id=>{if(!formations.some(f=>f.id===id))return;state.scoping
 window.scopingSearch=v=>{state.scopingSearch=v;const el=document.activeElement;const pos=el?.selectionStart;render();const input=document.querySelector('.scope-search input');if(input){input.focus();try{input.setSelectionRange(pos,pos)}catch(e){}}};
 window.scopingFilter=v=>{state.scopingFilter=v;render()};
 window.scopingDuration=n=>{const d=getSelected();if(!d||![15,30,45,60].includes(Number(n)))return;d.r.duration=Number(n);save();render()};
-window.scopingSaveContact=()=>{const d=getSelected();if(!d)return;const get=k=>document.getElementById(k)?.value.trim()||'';const phone=get('scope-contact-phone'),email=get('scope-contact-email');if(phone&&!safeNumber(phone))return notify('Numéro invalide : indiquez un numéro complet.');if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return notify('Adresse e-mail invalide.');d.r.contact={...d.r.contact,name:get('scope-contact-name'),role:get('scope-contact-role'),phone,email};persist('Coordonnées du contact mises à jour')};
+window.scopingSaveContact=()=>notify('Modifiez les coordonnées depuis la fiche Client : elles apparaîtront ici automatiquement.');
+
 window.scopingChooseSlot=(date,start,end)=>{const d=getSelected();if(!d)return;const slot=slotsFor(d.f,d.r,14).find(x=>x.date===date&&x.start===start&&x.end===end);if(!slot)return notify('Créneau occupé ou devenu indisponible.');if(d.r.proposals.some(x=>x.date===date&&x.start===start))return notify('Créneau déjà sélectionné.');d.r.proposals.push(slot);if(!d.r.date){d.r.date=date;d.r.start=start;d.r.end=end;}d.r.status='pending';persist('Proposition de créneau préparée : '+fmt(date)+' '+start+'–'+end)};
 window.scopingRemoveSlot=i=>{const d=getSelected();if(!d||!d.r.proposals[i])return;d.r.proposals.splice(i,1);if(!d.r.proposals.length&&d.r.status==='pending')d.r.status='todo';persist('Créneau proposé retiré')};
-window.scopingCopyMessage=()=>{const d=getSelected();if(!d||!d.r.proposals.length)return;const text=`Bonjour,\n\nDans le cadre de la formation « ${d.f.title} » pour ${clientRecord(d.f).name}, voici plusieurs créneaux à valider pour un call de cadrage de ${d.r.duration} minutes :\n${d.r.proposals.map(s=>'• '+fmt(s.date)+' de '+s.start+' à '+s.end).join('\n')}\n\nCes horaires restent à confirmer avec les participants.\n\nBien cordialement,\nL’équipe Certif-IA`;if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(()=>notify('Message copié · aucun e-mail envoyé')).catch(()=>notify('Copie impossible dans ce navigateur.'))}else{const box=document.createElement('textarea');box.value=text;document.body.append(box);box.select();try{document.execCommand('copy');notify('Message copié')}catch(e){notify('Copie indisponible')}box.remove()}};
-window.scopingConfirm=()=>{const d=getSelected();if(!d)return;const get=k=>document.getElementById(k)?.value||'';const date=get('scope-date'),start=get('scope-start'),end=get('scope-end'),meet=get('scope-meet').trim();if(!date||!start||!end||start>=end)return notify('Choisissez une date et une plage horaire valide.');if(meet&&!/^https:\/\//i.test(meet))return notify('Le lien visio doit commencer par https://.');const trainer=formTrainer(d.f);if(!trainer)return notify('Aucun formateur affecté : utilisez le Staffing.');if(trainerBusy(trainer,date,start,end,d.f.id))return notify('Conflit avec un autre événement ou une mission.');if(calendarMode(trainer).kind==='unknown'&&!window.confirm('Agenda formateur non vérifié. Confirmer manuellement après accord des participants ?'))return;
- d.r.date=date;d.r.start=start;d.r.end=end;d.r.meet=meet;d.r.status='confirmed';d.r.checklist.date=true;persist('Call confirmé manuellement pour le '+fmt(date)+' à '+start+' (sans invitation réelle)')};
+window.scopingCopyMessage=()=>{const d=getSelected();if(!d||!d.r.proposals.length)return;
+ const msg=scopingMessageText(d.f,d.r);
+ if(navigator.clipboard?.writeText)navigator.clipboard.writeText(msg).then(()=>notify('Message prêt à coller · aucun envoi effectué')).catch(()=>notify('Copie indisponible'));
+ else{const box=document.createElement('textarea');box.value=msg;document.body.append(box);box.select();try{document.execCommand('copy');notify('Message copié')}catch(e){notify('Copie indisponible')}box.remove()}
+};
+
+window.scopingConfirm=()=>{const d=getSelected();if(!d)return;
+ const selected=document.querySelector('input[name="scope-confirm-choice"]:checked');
+ const index=Number(selected?.value);const slot=selected&&d.r.proposals[index];
+ if(!slot)return notify('Sélectionnez un créneau parmi les propositions.');
+ if(slot.trainerDeclined)return notify('Ce créneau a été refusé par le formateur.');
+ if(!slot.trainerAccepted)return notify('Le formateur doit d’abord accepter ce créneau dans son espace.');
+ if(slot.date<localDate())return notify('Le créneau choisi est passé.');
+ const trainer=formTrainer(d.f);if(!trainer||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Le créneau est désormais occupé.');
+ d.r.date=slot.date;d.r.start=slot.start;d.r.end=slot.end;d.r.confirmedProposalIndex=index;d.r.status='confirmed';
+ persist('Créneau validé : '+fmt(slot.date)+' · '+slot.start+'–'+slot.end+' (aucune invitation envoyée)');
+};
+
 window.scopingMarkDone=()=>{const d=getSelected();if(!d)return;if(d.r.status!=='confirmed')return notify('Confirmez d’abord la date du call.');d.r.status='done';persist('Call marqué comme réalisé')};
 window.scopingCancel=()=>{const d=getSelected();if(!d)return;if(!window.confirm('Annuler ce call dans la démo ?'))return;d.r.status='cancelled';persist('Call annulé')};
 window.scopingSaveDocument=key=>{
@@ -133,23 +197,98 @@ window.scopingSaveDocument=key=>{
  persist((key==='audit'?'Audit':'Support de cadrage')+(value?' : lien enregistré':' : lien retiré'));
 };
 window.scopingCheck=(id,checked)=>{const d=getSelected();if(!d||!PREP.some(([k])=>k===id))return;d.r.checklist[id]=checked;save();render()};
-window.scopingSaveNotes=()=>{const d=getSelected();if(!d)return;d.r.notes=document.getElementById('scope-notes')?.value||'';persist('Compte rendu enregistré')};
+window.scopingSaveNotes=()=>{const d=getSelected();if(!d)return;
+ d.r.notes=document.getElementById('scope-notes')?.value||'';
+ d.r.hubspotSync='not-configured';persist('Brouillon du compte rendu enregistré · synchronisation HubSpot non configurée');
+};
+window.scopingCopyHubspotNote=()=>{const d=getSelected();if(!d)return;
+ const value=document.getElementById('scope-notes')?.value||'';
+ if(!value.trim())return notify('Renseignez le compte rendu avant de le copier.');
+ const note=`Compte rendu de cadrage · ${clientRecord(d.f).name} · ${d.f.title}\n\n${value}`;
+ if(navigator.clipboard?.writeText)navigator.clipboard.writeText(note).then(()=>notify('Compte rendu copié pour HubSpot · pas encore synchronisé')).catch(()=>notify('Copie impossible'));
+ else{const box=document.createElement('textarea');box.value=note;document.body.append(box);box.select();try{document.execCommand('copy');notify('Compte rendu copié')}catch(e){notify('Copie impossible')}box.remove()}
+};
+window.scopingSetStartDate=value=>{if(!/^\d{4}-\d\d-\d\d$/.test(value)||value<localDate())return notify('Choisissez une date valide à partir d’aujourd’hui.');state.scopingStartDate=value;render()};
+window.scopingOpenDeliverable=(id,category)=>{if(state.role!=='amo'||!['AUDIT','CADRAGE'].includes(category))return;
+ const f=formations.find(x=>x.id===id);if(!f)return;
+ const match=docsForFormation(f).find(x=>x.category===category);
+ if(match?.doc)openModal('document-preview',match.doc.id);else openFormation(f.id);
+};
+window.scopingAddTrainerSuggestion=i=>{const d=getSelected();if(!d)return;const slot=d.r.trainerSuggested?.[i];if(!slot)return;
+ if(!d.r.proposals.some(s=>s.date===slot.date&&s.start===slot.start))d.r.proposals.push({...slot,trainerAccepted:true,mode:'unknown',label:'Proposé par le formateur'});
+ d.r.trainerSuggested.splice(i,1);d.r.status='pending';persist('Créneau alternatif du formateur ajouté');
+};
+
 window.scopingAddAction=()=>{const d=getSelected();if(!d)return;const v=document.getElementById('scope-action-text')?.value.trim()||'',due=document.getElementById('scope-action-date')?.value||'';if(!v)return notify('Renseignez une action.');d.r.actions.push({id:Date.now(),text:v,date:due,done:false});persist('Nouvelle action : '+v)};
 window.scopingToggleAction=(i,checked)=>{const d=getSelected();if(!d||!d.r.actions[i])return;d.r.actions[i].done=checked;save();render()};
-function sidebarLink(){if(state.role!=='amo')return;
+
+function getTrainerCall(){
+ if(state.role!=='formateur')return null;
+ const all=allCalls().filter(x=>x.trainer?.id===state.trainerId);
+ const chosen=all.find(x=>x.f.id===state.scopingTrainerSelected)||all[0];
+ return chosen||null;
+}
+function trainerCallPage(){
+ const assigned=allCalls().filter(x=>x.trainer?.id===state.trainerId);
+ const pending=assigned.filter(x=>x.record.status==='pending').length;
+ const confirmed=assigned.filter(x=>x.record.status==='confirmed').length;
+ const selected=getTrainerCall();
+ return `<div class="scope-root scope-trainer-root"><header class="scope-hero"><div><span class="scope-eyebrow">ESPACE FORMATEUR</span><h1>Mes calls de cadrage<span>.</span></h1><p>Consultez les propositions de créneaux, acceptez une disponibilité ou suggérez une autre date.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
+ <div class="scope-statgrid"><div class="scope-stat"><span>À répondre</span><strong>${pending}</strong><small>Propositions de call</small></div><div class="scope-stat"><span>Confirmés</span><strong>${confirmed}</strong><small>Calls planifiés</small></div></div>
+ <div class="scope-layout"><section class="scope-list card"><div class="scope-listhead"><h2>Mes formations</h2><span>${assigned.length} dossier(s)</span></div><div class="scope-items">${assigned.map(({f,record,client,date})=>`<button class="scope-item ${f.id===selected?.f.id?'active':''}" onclick="scopingTrainerSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${markupPill(record.status)}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta">📅 Formation : ${fmt(date)}</div><span class="scope-itemgo">Voir les créneaux ›</span></button>`).join('')||'<p class="scope-empty">Aucun call de cadrage associé à vos missions.</p>'}</div></section>
+ ${selected?`<section class="scope-detail card"><div class="scope-detailtitle"><div><span class="scope-eyebrow">PROPOSITIONS DE CALL</span><h2>${escapeText(selected.client.name)}</h2><p>${escapeText(selected.f.title)}</p></div>${markupPill(selected.record.status)}</div><div class="scope-content"><section><div class="scope-sectionhead"><h3>Créneaux proposés par l'AMO</h3><small>${selected.record.proposals.length} proposition(s)</small></div>
+ <p class="scope-help">Indiquez le créneau qui vous convient. L'AMO devra ensuite confirmer avec le client.</p>
+ <div class="scope-trainer-options">${selected.record.proposals.map((slot,i)=>`<div class="scope-trainer-option"><div><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small><span>${slot.trainerAccepted?'✓ Accepté':slot.trainerDeclined?'Refusé':'En attente de réponse'}</span></div><div class="scope-actionrow"><button class="primary tiny" ${selected.record.status==='confirmed'?'disabled':''} onclick="scopingTrainerRespond(${i},true)">✓ Accepter</button><button class="secondary tiny" ${selected.record.status==='confirmed'?'disabled':''} onclick="scopingTrainerRespond(${i},false)">Refuser</button></div></div>`).join('')||'<p class="scope-empty">Aucun créneau proposé pour le moment.</p>'}</div></section>
+ <section><div class="scope-sectionhead"><h3>Proposer une autre disponibilité</h3><small>Si aucune proposition ne convient</small></div><div class="scope-trainer-alternative"><label class="scope-field"><span>Date</span><input type="date" id="scope-alt-date" min="${localDate()}"></label><label class="scope-field"><span>Début</span><input type="time" id="scope-alt-start" value="10:00"></label><label class="scope-field"><span>Fin</span><input type="time" id="scope-alt-end" value="10:30"></label><button class="secondary" onclick="scopingTrainerSuggest()">+ Soumettre à l'AMO</button></div></section>
+ ${selected.record.status==='confirmed'?`<section class="scope-success">✓ Call confirmé le ${fmt(selected.record.date)} à ${selected.record.start}</section>`:''}
+ </div></section>`:'<section class="scope-detail card"><p class="scope-empty">Vos prochaines propositions de calls apparaîtront ici.</p></section>'}</div>
+ <p class="scope-footnote">Réponses enregistrées dans cette démonstration locale. Une synchronisation backend sera nécessaire pour partager les réponses entre plusieurs comptes et appareils.</p></div>`;
+}
+window.scopingTrainerSelect=id=>{if(state.role!=='formateur')return;state.scopingTrainerSelected=id;render()};
+window.scopingTrainerRespond=(index,yes)=>{const current=getTrainerCall();if(!current)return;const r=current.record,slot=r.proposals[index];if(!slot||r.status==='confirmed'||r.status==='done')return;
+ if(yes&&trainerBusy(current.trainer,slot.date,slot.start,slot.end,current.f.id))return notify('Créneau désormais occupé.');
+ slot.trainerAccepted=!!yes;slot.trainerDeclined=!yes;r.trainerResponse=yes?'accepted':'declined';
+ r.history.push({at:new Date().toISOString(),text:yes?'Formateur a accepté '+fmt(slot.date)+' '+slot.start:'Formateur a refusé '+fmt(slot.date)+' '+slot.start});save();render();notify(yes?'Disponibilité acceptée · en attente de validation AMO':'Créneau refusé');
+};
+window.scopingTrainerSuggest=()=>{const current=getTrainerCall();if(!current)return;
+ const date=document.getElementById('scope-alt-date')?.value,start=document.getElementById('scope-alt-start')?.value,end=document.getElementById('scope-alt-end')?.value;
+ if(!date||date<localDate()||!start||!end||start>=end)return notify('Choisissez un jour et des horaires valides.');
+ if(trainerBusy(current.trainer,date,start,end,current.f.id))return notify('Conflit avec un événement connu.');
+ current.record.trainerSuggested||=[];
+ if(current.record.trainerSuggested.some(s=>s.date===date&&s.start===start))return notify('Déjà proposé.');
+ current.record.trainerSuggested.push({date,start,end});current.record.history.push({at:new Date().toISOString(),text:'Autre créneau suggéré par le formateur'});
+ save();render();notify('Créneau alternatif proposé à l’AMO dans la démonstration');
+};
+
+function sidebarLink(){
  const nav=document.querySelector('#sidebar .nav');if(nav&&!nav.querySelector('[data-scoping-nav]')){
-  const button=document.createElement('button');button.setAttribute('data-scoping-nav','');button.className=state.page===PAGE?'active':'';button.setAttribute('onclick',"go('scoping-calls')");button.innerHTML='<span class="ic" aria-hidden="true">☎</span>Calls de cadrage';nav.append(button);
+  const button=document.createElement('button');button.setAttribute('data-scoping-nav','');
+  const trainer=state.role==='formateur';const page=trainer?'trainer-scoping':PAGE;
+  button.className=state.page===page?'active':'';
+  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span class="ic" aria-hidden="true">☎</span>'+(trainer?'Mes calls de cadrage':'Calls de cadrage');
+  const after=trainer?nav.querySelector('button[onclick="go(\'trainer-calendar\')"]'):nav.querySelector('button[onclick="go(\'staffing\')"]');
+  if(after)after.after(button);else nav.append(button);
  }
  const mobileList=document.querySelector('.mobile-more-list');if(mobileList&&!mobileList.querySelector('[data-scoping-more]')){
-  const button=document.createElement('button');button.setAttribute('data-scoping-more','');button.setAttribute('onclick',"go('scoping-calls')");button.innerHTML='<span><strong>Calls de cadrage</strong><small>Planification et suivi client</small></span>›';mobileList.append(button);
+  const button=document.createElement('button');button.setAttribute('data-scoping-more','');
+  const trainer=state.role==='formateur',page=trainer?'trainer-scoping':PAGE;
+  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span><strong>'+(trainer?'Mes calls de cadrage':'Calls de cadrage')+'</strong><small>Créneaux et suivi de cadrage</small></span>›';mobileList.append(button);
  }
 }
-const normalValidPages=validPages;validPages=function(role){const pages=normalValidPages(role);return role==='amo'?[...pages,PAGE]:pages;};
+
+
+const normalValidPages=validPages;
+validPages=function(role){const pages=normalValidPages(role);return role==='amo'?[...pages,PAGE]:[...pages,'trainer-scoping'];};
 const previousRender=render;
-render=function(){const special=state.role==='amo'&&state.page===PAGE;
- if(special){state.page='home';previousRender();state.page=PAGE;const main=document.getElementById('main-content');if(main)main.innerHTML=scopingPage();document.title='Certif-IA Hub — Calls de cadrage';const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / AMO / Calls de cadrage';}
- else previousRender();sidebarLink();};
-// La restauration initiale du hash a précédé le chargement de ce module.
-if(typeof location!=='undefined'&&location.hash==='#/interne/scoping-calls'){state.role='amo';state.page=PAGE;}
+render=function(){const amo=state.role==='amo'&&state.page===PAGE,trainer=state.role==='formateur'&&state.page==='trainer-scoping';
+ if(amo||trainer){state.page=trainer?'trainer-home':'home';previousRender();state.page=trainer?'trainer-scoping':PAGE;
+  const main=document.getElementById('main-content');if(main)main.innerHTML=trainer?trainerCallPage():scopingPage();
+  document.title='Certif-IA Hub — '+(trainer?'Mes calls de cadrage':'Calls de cadrage');
+  const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / '+(trainer?'Formateur':'AMO')+' / Calls de cadrage';
+ }else previousRender();sidebarLink();};
+if(typeof location!=='undefined'){
+ if(location.hash==='#/interne/scoping-calls'){state.role='amo';state.page=PAGE;}
+ if(location.hash==='#/formateur/trainer-scoping'){state.role='formateur';state.page='trainer-scoping';}
+}
 render();
 })();
