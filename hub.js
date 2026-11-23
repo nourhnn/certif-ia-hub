@@ -1385,7 +1385,7 @@ async function exportMonthlyChart(){
   const r=monthlyReport();
   if(!/^\d{4}-\d{2}$/.test(r.month))return flash('Choisissez un mois.');
   const period=fmtDate(r.month+'-01',{month:'long',year:'numeric'});
-  const stats=[['Sessions',r.sessions.length],['Participants prévus',r.participants],['Affectations',r.assignments.length],['Formateurs mobilisés',r.trainersByMission.length],['Livrables déposés',r.deposited+'/'+r.docs.length],['Bonus du mois',r.bonuses.length],['Points de bonus attribués',r.bonusPoints],['NPS moyen',r.nps===null?'—':reportNumber(r.nps)+' / 10']];
+  const stats=[['Sessions',r.sessions.length],['Participants prévus',r.participants],['Affectations',r.assignments.length],['Formateurs mobilisés',r.trainersByMission.length],['Livrables déposés',r.deposited+'/'+r.docs.length],['Bonus du mois',r.bonuses.length],['Points de bonus attribués',r.bonusPoints],['NPS moyen',r.nps===null?'—':reportNumber(r.nps)+' / 10'],['Note formation /5',r.formationNote5===null?'Non renseigné':reportNumber(r.formationNote5)+' / 5']];
   const palette=['#a48aff','#52d7b2','#ffc475','#f196b3','#87baff'];
   const statusRows=(items,key)=>Object.entries(items.reduce((acc,item)=>{const label=key(item);acc[label]=(acc[label]||0)+1;return acc},Object.create(null)));
   const bars=(title,rows)=>{const max=Math.max(1,...rows.map(x=>x[1]));return `<section><h2>${title}</h2>${rows.map(([label,n],i)=>`<div class="bar-label"><span>${esc(label)}</span><b>${n}</b></div><div class="rail"><div class="bar" style="--width:${n/max*100}%;--i:${i};--color:${palette[i%palette.length]}"></div></div>`).join('')||'<p>Aucune donnée sur la période.</p>'}</section>`};
