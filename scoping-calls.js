@@ -295,11 +295,7 @@ function sidebarLink(){
   const after=trainer?nav.querySelector('button[onclick="go(\'trainer-calendar\')"]'):nav.querySelector('button[onclick="go(\'staffing\')"]');
   if(after)after.after(button);else nav.append(button);
  }
- const mobileList=document.querySelector('.mobile-more-list');if(mobileList&&!mobileList.querySelector('[data-scoping-more]')){
-  const button=document.createElement('button');button.setAttribute('data-scoping-more','');
-  const trainer=state.role==='formateur',page=trainer?'trainer-scoping':PAGE;
-  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span><strong>'+(trainer?'Mes calls de cadrage':'Calls de cadrage')+'</strong><small>Créneaux et suivi de cadrage</small></span>'+scopeIcon('chevron',14);mobileList.append(button);
- }
+
 }
 
 
@@ -309,6 +305,8 @@ const previousRender=render;
 render=function(){const amo=state.role==='amo'&&state.page===PAGE,trainer=state.role==='formateur'&&state.page==='trainer-scoping';
  if(amo||trainer){state.page=trainer?'trainer-home':'home';previousRender();state.page=trainer?'trainer-scoping':PAGE;
   const main=document.getElementById('main-content');if(main)main.innerHTML=trainer?trainerCallPage():scopingPage();
+  // Le rendu de base utilise temporairement l'accueil : réactualiser l'onglet actif sur la route Cadrage.
+  const dock=document.querySelector('.mobile-dock');if(dock)dock.outerHTML=mobileDock(trainer);
   document.title='Certif-IA Hub — '+(trainer?'Mes calls de cadrage':'Calls de cadrage');
   const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / '+(trainer?'Formateur':'AMO')+' / Calls de cadrage';
  }else previousRender();sidebarLink();};
