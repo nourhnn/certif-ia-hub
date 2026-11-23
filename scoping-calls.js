@@ -286,14 +286,14 @@ function sidebarLink(){
   const button=document.createElement('button');button.setAttribute('data-scoping-nav','');
   const trainer=state.role==='formateur';const page=trainer?'trainer-scoping':PAGE;
   button.className=state.page===page?'active':'';
-  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span class="ic" aria-hidden="true">${scopeIcon("phone",18)}</span>'+(trainer?'Mes calls de cadrage':'Calls de cadrage');
+  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span class="ic" aria-hidden="true">'+scopeIcon('phone',18)+'</span>'+(trainer?'Mes calls de cadrage':'Calls de cadrage');
   const after=trainer?nav.querySelector('button[onclick="go(\'trainer-calendar\')"]'):nav.querySelector('button[onclick="go(\'staffing\')"]');
   if(after)after.after(button);else nav.append(button);
  }
  const mobileList=document.querySelector('.mobile-more-list');if(mobileList&&!mobileList.querySelector('[data-scoping-more]')){
   const button=document.createElement('button');button.setAttribute('data-scoping-more','');
   const trainer=state.role==='formateur',page=trainer?'trainer-scoping':PAGE;
-  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span><strong>'+(trainer?'Mes calls de cadrage':'Calls de cadrage')+'</strong><small>Créneaux et suivi de cadrage</small></span>${scopeIcon("chevron",14)}';mobileList.append(button);
+  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span><strong>'+(trainer?'Mes calls de cadrage':'Calls de cadrage')+'</strong><small>Créneaux et suivi de cadrage</small></span>'+scopeIcon('chevron',14);mobileList.append(button);
  }
 }
 
