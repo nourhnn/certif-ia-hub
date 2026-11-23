@@ -238,3 +238,5 @@
 :root[data-hub-tone="dark"] .scope-item.active{background:#352842}
 :root[data-hub-tone="dark"] .scope-see-more{background:#30263e;color:#f0e6ff;border-color:#6b5381}
 :root[data-hub-tone="dark"] .scope-see-more:hover{background:#453258}
+
+@media(max-width:740px){.scope-items{max-height:350px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}.scope-detail{scroll-margin-top:12px}}
