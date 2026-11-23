@@ -427,9 +427,13 @@ button.agenda-event:hover{filter:brightness(.95)}
 .profile-photo-upload input::file-selector-button{border:0;border-radius:8px;padding:9px;background:#e9ddff;color:#502b85;font-weight:700;cursor:pointer}
 .profile-photo-upload small{color:#595066}
 
-.bonus-review{background:#edf8f1!important;border:1px solid #bfe2cc;border-radius:11px;padding:12px}
-.bonus-review strong:first-child{color:#195a36}
+.bonus-review,.carton-review,:root[data-hub-tone] .review-history .info:is(.bonus-review,.carton-review){background:var(--review-bg)!important;border:1px solid var(--review-border);border-radius:11px;padding:12px}
+.bonus-review{--review-bg:#edf8f1;--review-border:#bfe2cc;--review-heading:#195a36}
+.carton-review.rouge{--review-bg:#fff0f1;--review-border:#ea8998;--review-heading:#791a2b}
+.carton-review.jaune{--review-bg:#fff8df;--review-border:#e9bf59;--review-heading:#694800}
+.bonus-review strong:first-child,.carton-review>strong:first-child{color:var(--review-heading)}
 .bonus-review svg{vertical-align:middle;margin-right:3px;fill:#b5edc8}
+.carton-review .trainer-warning{vertical-align:middle;margin:0 3px 0 0}
 .bonus-reveal{animation:bonus-reveal .75s ease-out both}
 @keyframes bonus-reveal{0%{opacity:.5;transform:scale(.98);box-shadow:0 0 0 0 #56bd82a0}60%{opacity:1;transform:scale(1.01);box-shadow:0 0 0 9px #56bd8220}100%{transform:none;box-shadow:none}}
 .mobile-more-list button .more-section-icon{display:grid;place-items:center;width:39px;height:39px;flex:none;background:#f0e6ff;color:#6535b0;border-radius:10px}
@@ -498,8 +502,9 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
 :root[data-hub-tone="dark"] .appearance-option:has(:checked){box-shadow:inset 0 0 0 1px #b99cff}
 :root[data-hub-tone="dark"] :is(.trainer-card.warning-jaune,.profile-fiche.warning-jaune){background:#39311f;border-color:#8f732f}
 :root[data-hub-tone="dark"] :is(.trainer-card.warning-rouge,.profile-fiche.warning-rouge){background:#402334;border-color:#9b5065}
-:root[data-hub-tone="dark"] .bonus-review{background:#203a30!important;border-color:#407051}
-:root[data-hub-tone="dark"] .bonus-review strong:first-child{color:#b4ebc3}
+:root[data-hub-tone="dark"] .bonus-review{--review-bg:#203a30;--review-border:#407051;--review-heading:#b4ebc3}
+:root[data-hub-tone="dark"] .carton-review.rouge{--review-bg:#402334;--review-border:#d38398;--review-heading:#ffdce1}
+:root[data-hub-tone="dark"] .carton-review.jaune{--review-bg:#39311f;--review-border:#d4ac58;--review-heading:#ffeaba}
 
 
 .theme-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;border:1px solid #e6ddef;border-radius:14px;background:#f5f1fa}
@@ -679,8 +684,17 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
 .trainer-review-button.secondary.tiny.bonus{display:flex;gap:4px;background:#fff2cf;color:#835a00}
 :root[data-hub-tone="dark"] .trainer-review-button.secondary.tiny.bonus{background:#4b391f;color:#ffe2a2}
 
-.carton-reason{margin:8px 0;padding:10px 12px;border:1px solid;border-radius:8px;overflow-wrap:anywhere;white-space:pre-wrap}
-.carton-reason.rouge{background:#fff0f1;border-color:#c04a5e;color:#791a2b}
-.carton-reason.jaune{background:#fff8df;border-color:#a8791f;color:#694800}
-:root[data-hub-tone="dark"] .carton-reason.rouge{background:#402334;border-color:#d38398;color:#ffdce1}
-:root[data-hub-tone="dark"] .carton-reason.jaune{background:#39311f;border-color:#d4ac58;color:#ffeaba}
+.internal-reviews{margin-top:16px}
+.internal-reviews .review-response{margin:12px 0}
+.internal-review-form,.review-reason-field{display:grid;gap:8px;min-width:0}
+.internal-review-form{gap:16px}
+.internal-review-form .form-grid{margin:0}
+.internal-review-form [hidden]{display:none}
+:root[data-hub-tone="dark"] .review-history :is(.bonus-review,.carton-review)>strong:first-child{color:var(--review-heading)}
+.internal-review-form .form-label{margin:0}
+.internal-review-form textarea.field{display:block;width:100%;min-height:108px;padding:12px;line-height:1.5;resize:vertical}
+.review-reason-field small{color:var(--muted)}
+.review-form-actions{display:flex;justify-content:flex-end}
+.review-history{margin-top:16px}
+.review-history .review-reason{margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:540px){.review-form-actions button{width:100%}}

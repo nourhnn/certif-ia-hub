@@ -1,4 +1,4 @@
-const CACHE='certifia-hub-demo-v53-carton-justifications';
+const CACHE='certifia-hub-demo-v54-internal-review-design';
 const URLS=[
   './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',

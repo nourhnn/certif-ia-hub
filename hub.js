@@ -100,7 +100,50 @@ function money(n){return Number(n||0).toLocaleString('fr-FR',{style:'currency',c
 function safeContact(value,type){if(!value)return '<span class="item-sub">Non renseigné</span>';let href=type==='phone'?'tel:'+String(value).replace(/[^+0-9]/g,''):'mailto:'+value;return `<a class="text-link" href="${esc(href)}">${esc(value)}</a>`;}
 function responseRate(t){let p=db.proposals.filter(x=>x.trainerId===t.id&&(x.sent||['Envoyée','Acceptée','Refusée','Expirée'].includes(x.status)));let a=p.filter(x=>['Acceptée','Refusée'].includes(x.status));return p.length?`${Math.round(100*a.length/p.length)} % (${a.length}/${p.length} propositions démo)`:'Aucune sollicitation mesurable';}
 function submitInternalReview(id){if(state.role!=='amo')return flash('Action interne uniquement');let kind=$('review-kind')?.value,level=$('review-level')?.value,memo=$('review-reason')?.value.trim();if(!['observation','carton','bonus'].includes(kind))return flash('Choisissez une nature.');if(kind==='carton'&&!['jaune','rouge'].includes(level))return flash('Sélectionnez un type de carton.');if(!memo||memo.length<10)return flash('Un justificatif de 10 caractères minimum est obligatoire');db.internalReviews.push({id:'IR'+Date.now(),trainerId:id,kind,level:kind==='carton'?level:null,reason:memo,verified:false,public:false,createdAt:new Date().toISOString(),author:'AMO (démonstration)'});if(kind==='carton')state.freshCard=id;if(kind==='bonus')state.freshBonus=db.internalReviews.at(-1).id;log(kind==='bonus'?'Bonus enregistré':'Observation interne simulée',`${id} · ${kind}`);render();flash(kind==='bonus'?'Bonus enregistré dans la fiche interne.':'Observation enregistrée en démo');}
-function internalReviewsCard(t){let items=db.internalReviews.filter(r=>r.trainerId===t.id);return `<div class="card" style="margin-top:16px"><h3 class="section-title">Gestion interne · accès AMO uniquement</h3><p class="section-caption">Observations, bonus, cartons motivés et taux de réponse. Aucune de ces notes n'est communiquée au portail Formateur.</p><div class="info" style="margin:12px 0"><small>Taux de réponse (propositions démo)</small><strong>${esc(responseRate(t))}</strong></div><div class="form-grid"><label>Nature<select class="field" id="review-kind" onchange="document.getElementById('review-level-field').hidden=this.value!=='carton'"><option value="observation">Observation AMO</option><option value="carton">Carton avec justificatif</option><option value="bonus">Bonus</option></select></label><label id="review-level-field" hidden>Type de carton<select class="field" id="review-level"><option value="jaune">Jaune</option><option value="rouge">Rouge</option></select></label></div><label class="form-label" for="review-reason">Justificatif / contexte</label><textarea class="field" id="review-reason" placeholder="Faits précis, mission, date, actions correctives…"></textarea><button class="primary" style="margin-top:10px" onclick="submitInternalReview(${t.id})">Enregistrer</button><div class="stack" style="margin-top:16px">${items.slice().reverse().map(r=>`<div class="info ${r.kind==='bonus'?'bonus-review':''} ${state.freshBonus===r.id?'bonus-reveal':''}"><strong>${r.kind==='bonus'?mobileIcon('bonus',16):''} ${r.kind==='carton'?'Carton '+esc(r.level):r.kind==='bonus'?'Bonus':'Observation'} · ${esc(r.createdAt.slice(0,10))}</strong><p id="review-reason-${esc(r.id)}" tabindex="-1"${r.kind==='carton'&&['rouge','jaune'].includes(r.level)?` class="carton-reason ${r.level}"`:''}>${esc(r.reason)}</p><small>${esc(r.author)} · ${r.kind==='bonus'?'Reconnaissance interne':r.verified?'Vérifié':'Non vérifié — aucune pénalité'}</small>${incidentFollowUp(r)}</div>`).join('')||'<p class="item-sub">Aucune observation enregistrée dans cette démo.</p>'}</div><p class="footnote">La validation métier, les recours et l’accès serveur sécurisé restent à définir. Les faits non vérifiés ne modifient pas la fiabilité.</p></div>`;}
+function internalReviewsCard(t){
+ const items=db.internalReviews.filter(r=>r.trainerId===t.id).reverse();
+ return `<div class="card internal-reviews">
+   <h3 class="section-title">Gestion interne · accès AMO uniquement</h3>
+   <p class="section-caption">Observations, bonus, cartons motivés et taux de réponse. Aucune de ces notes n'est communiquée au portail Formateur.</p>
+   <div class="info review-response"><small>Taux de réponse (propositions démo)</small><strong>${esc(responseRate(t))}</strong></div>
+   <form class="internal-review-form" onsubmit="event.preventDefault();submitInternalReview(${t.id})">
+     <div class="form-grid">
+       <label>Nature
+         <select class="field" id="review-kind" onchange="$('review-level-field').hidden=this.value!=='carton'">
+           <option value="observation">Observation AMO</option><option value="carton">Carton avec justificatif</option><option value="bonus">Bonus</option>
+         </select>
+       </label>
+       <label id="review-level-field" hidden>Type de carton
+         <select class="field" id="review-level"><option value="jaune">Jaune</option><option value="rouge">Rouge</option></select>
+       </label>
+     </div>
+     <div class="review-reason-field">
+       <label class="form-label" for="review-reason">Justificatif / contexte</label>
+       <textarea class="field" id="review-reason" rows="4" aria-describedby="review-reason-hint" placeholder="Décrivez les faits et le contexte de la mission."></textarea>
+       <small id="review-reason-hint">10 caractères minimum</small>
+     </div>
+     <div class="review-form-actions"><button class="primary" type="submit">Enregistrer</button></div>
+   </form>
+   <div class="stack review-history">${items.map(internalReviewEntry).join('')||'<p class="item-sub">Aucune observation enregistrée dans cette démo.</p>'}</div>
+   <p class="footnote">La validation métier, les recours et l’accès serveur sécurisé restent à définir. Les faits non vérifiés ne modifient pas la fiabilité.</p>
+ </div>`;
+}
+
+function internalReviewEntry(record){
+ const bonus=record.kind==='bonus';
+ const carton=record.kind==='carton';
+ const level=carton&&['jaune','rouge'].includes(record.level)?record.level:'';
+ const style=bonus?'bonus-review':level?'carton-review '+level:'';
+ const title=bonus?'Bonus':carton?'Carton '+esc(record.level):'Observation';
+ const icon=bonus?mobileIcon('bonus',16):level?`<span class="trainer-warning ${level}" aria-hidden="true"></span>`:'';
+ const status=bonus?'Reconnaissance interne':record.verified?'Vérifié':'Non vérifié — aucune pénalité';
+ return `<div class="info ${style} ${state.freshBonus===record.id?'bonus-reveal':''}">
+   <strong>${icon} ${title} · ${esc(record.createdAt.slice(0,10))}</strong>
+   <p class="review-reason" id="review-reason-${esc(record.id)}" tabindex="-1">${esc(record.reason)}</p>
+   <small>${esc(record.author)} · ${status}</small>
+   ${incidentFollowUp(record)}
+ </div>`;
+}
 
 function repairDemoEncoding(value){
   if(typeof value==='string'){
