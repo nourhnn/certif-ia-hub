@@ -173,13 +173,18 @@ function notesMarkup(f,r){
 }
 
 function detailMarkup(f,r){return `<section class="scope-detail card">${summaryMarkup(f,r)}<div class="scope-content"><section>${contactMarkup(f)}</section><section>${availabilityMarkup(f,r)}</section><section>${scheduleMarkup(r)}</section><section>${documentsMarkup(f)}</section><section>${notesMarkup(f,r)}</section>${historyMarkup(r)}</div></section>`;}
+function scopeFocusDetailOnMobile(){
+ if(typeof window==='undefined'||!window.matchMedia?.('(max-width:740px)').matches)return;
+ const panel=document.querySelector('.scope-detail');
+ if(panel)panel.scrollIntoView({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+}
 function scopingPage(){const rows=allCalls();if(!state.scopingSelected||!formations.some(f=>f.id===state.scopingSelected))state.scopingSelected=rows[0]?.f.id;const f=formations.find(x=>x.id===state.scopingSelected);const r=f&&callFor(f);
  return `<div class="scope-root"><header class="scope-hero"><div><span class="scope-eyebrow">PILOTAGE AMO · J-14</span><h1>Calls de cadrage<span>.</span></h1><p>Planifiez, contactez, préparez et suivez vos échanges clients avant les formations.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>${statsMarkup(rows)}<div class="scope-layout">${listMarkup(rows)}${f?detailMarkup(f,r):'<p class="scope-empty">Aucune formation disponible.</p>'}</div><p class="scope-footnote">Toutes les modifications et propositions sont enregistrées uniquement dans cette démo. Google Agenda, HubSpot, Google Meet et les envois de messages ne sont pas connectés.</p></div>`;
 }
 function getSelected(){if(state.role!=='amo')return null;const f=formations.find(x=>x.id===state.scopingSelected);return f?{f,r:callFor(f)}:null;}
 function persist(text){const d=getSelected();if(!d)return;d.r.history.push({at:new Date().toISOString(),text});save();render();}
 function notify(text){if(typeof flash==='function')flash(text);}
-window.scopingSelect=id=>{if(!formations.some(f=>f.id===id))return;state.scopingSelected=id;state.scopingSlotsExpanded=false;render();};
+window.scopingSelect=id=>{if(!formations.some(f=>f.id===id))return;state.scopingSelected=id;state.scopingSlotsExpanded=false;render();scopeFocusDetailOnMobile();};
 window.scopingSearch=v=>{state.scopingSearch=v;const el=document.activeElement;const pos=el?.selectionStart;render();const input=document.querySelector('.scope-search input');if(input){input.focus();try{input.setSelectionRange(pos,pos)}catch(e){}}};
 window.scopingFilter=v=>{state.scopingFilter=v;render()};
 window.scopingToggleMoreSlots=()=>{state.scopingSlotsExpanded=!state.scopingSlotsExpanded;render()};
@@ -265,7 +270,7 @@ function trainerCallPage(){
  </div></section>`:'<section class="scope-detail card"><p class="scope-empty">Vos prochaines propositions de calls apparaîtront ici.</p></section>'}</div>
  <p class="scope-footnote">Réponses enregistrées dans cette démonstration locale. Une synchronisation backend sera nécessaire pour partager les réponses entre plusieurs comptes et appareils.</p></div>`;
 }
-window.scopingTrainerSelect=id=>{if(state.role!=='formateur')return;state.scopingTrainerSelected=id;render()};
+window.scopingTrainerSelect=id=>{if(state.role!=='formateur')return;state.scopingTrainerSelected=id;render();scopeFocusDetailOnMobile()};
 window.scopingTrainerRespond=(index,yes)=>{const current=getTrainerCall();if(!current)return;const r=current.record,slot=r.proposals[index];if(!slot||r.status==='confirmed'||r.status==='done')return;
  if(yes&&trainerBusy(current.trainer,slot.date,slot.start,slot.end,current.f.id))return notify('Créneau désormais occupé.');
  slot.trainerAccepted=!!yes;slot.trainerDeclined=!yes;r.trainerResponse=yes?'accepted':'declined';
