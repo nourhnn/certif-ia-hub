@@ -259,7 +259,7 @@ function trainerCallPage(){
  const pending=assigned.filter(x=>x.record.status==='pending').length;
  const confirmed=assigned.filter(x=>x.record.status==='confirmed').length;
  const selected=getTrainerCall();
- return `<div class="scope-root scope-trainer-root"><header class="scope-hero"><div><span class="scope-eyebrow">ESPACE FORMATEUR</span><h1>Mes calls de cadrage<span>.</span></h1><p>Consultez les propositions de créneaux, acceptez une disponibilité ou suggérez une autre date.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
+ return `<div class="scope-root scope-trainer-root"><header class="scope-hero"><div><span class="scope-eyebrow">ESPACE FORMATEUR</span><h1>Call de cadrage<span>.</span></h1><p>Consultez les propositions de créneaux, acceptez une disponibilité ou suggérez une autre date.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
  <div class="scope-statgrid"><div class="scope-stat"><span>À répondre</span><strong>${pending}</strong><small>Propositions de call</small></div><div class="scope-stat"><span>Confirmés</span><strong>${confirmed}</strong><small>Calls planifiés</small></div></div>
  <div class="scope-layout"><section class="scope-list card"><div class="scope-listhead"><h2>Mes formations</h2><span>${assigned.length} dossier(s)</span></div><div class="scope-items">${assigned.map(({f,record,client,date})=>`<button class="scope-item ${f.id===selected?.f.id?'active':''}" onclick="scopingTrainerSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${markupPill(record.status)}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta">${scopeIcon("calendar",15)} Formation : ${fmt(date)}</div><span class="scope-itemgo">Voir les créneaux ${scopeIcon("chevron",14)}</span></button>`).join('')||'<p class="scope-empty">Aucun call de cadrage associé à vos missions.</p>'}</div></section>
  ${selected?`<section class="scope-detail card"><div class="scope-detailtitle"><div><span class="scope-eyebrow">PROPOSITIONS DE CALL</span><h2>${escapeText(selected.client.name)}</h2><p>${escapeText(selected.f.title)}</p></div>${markupPill(selected.record.status)}</div><div class="scope-content"><section><div class="scope-sectionhead"><h3>Créneaux proposés par l'AMO</h3><small>${selected.record.proposals.length} proposition(s)</small></div>
@@ -291,7 +291,7 @@ function sidebarLink(){
   const button=document.createElement('button');button.setAttribute('data-scoping-nav','');
   const trainer=state.role==='formateur';const page=trainer?'trainer-scoping':PAGE;
   button.className=state.page===page?'active':'';
-  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span class="ic" aria-hidden="true">'+scopeIcon('phone',18)+'</span>'+(trainer?'Mes calls de cadrage':'Calls de cadrage');
+  button.setAttribute('onclick',"go('"+page+"')");button.innerHTML='<span class="ic" aria-hidden="true">'+scopeIcon('phone',18)+'</span>'+(trainer?'Call de cadrage':'Calls de cadrage');
   const after=trainer?nav.querySelector('button[onclick="go(\'trainer-calendar\')"]'):nav.querySelector('button[onclick="go(\'staffing\')"]');
   if(after)after.after(button);else nav.append(button);
  }
@@ -307,8 +307,8 @@ render=function(){const amo=state.role==='amo'&&state.page===PAGE,trainer=state.
   const main=document.getElementById('main-content');if(main)main.innerHTML=trainer?trainerCallPage():scopingPage();
   // Le rendu de base utilise temporairement l'accueil : réactualiser l'onglet actif sur la route Cadrage.
   const dock=document.querySelector('.mobile-dock');if(dock)dock.outerHTML=mobileDock(trainer);
-  document.title='Certif-IA Hub — '+(trainer?'Mes calls de cadrage':'Calls de cadrage');
-  const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / '+(trainer?'Formateur':'AMO')+' / Calls de cadrage';
+  document.title='Certif-IA Hub — '+(trainer?'Call de cadrage':'Calls de cadrage');
+  const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / '+(trainer?'Formateur':'AMO')+' / '+(trainer?'Call de cadrage':'Calls de cadrage');
  }else previousRender();sidebarLink();};
 if(typeof location!=='undefined'){
  if(location.hash==='#/interne/scoping-calls'){state.role='amo';state.page=PAGE;}
