@@ -240,3 +240,10 @@
 :root[data-hub-tone="dark"] .scope-see-more:hover{background:#453258}
 
 @media(max-width:740px){.scope-items{max-height:350px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}.scope-detail{scroll-margin-top:12px}}
+
+.scope-note-form{display:grid;gap:10px;margin:12px 0}
+.scope-note-form .scope-field,.scope-note-form input{min-width:0;max-width:100%}
+.scope-note-form button{justify-self:start}
+.scope-note-file{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:8px 0}
+.scope-note-file>div{display:grid;gap:4px;flex:1 1 150px;min-width:0;overflow-wrap:anywhere}
+.scope-note-file small{color:inherit;opacity:.78}

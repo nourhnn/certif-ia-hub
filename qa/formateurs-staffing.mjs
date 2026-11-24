@@ -126,6 +126,21 @@ try{
   await page.evaluate(id=>{setRole('trainer-'+id);go('trainer-scoping');},data.trainerId);
   await page.getByText(/Call confirmé le/).waitFor();
   assert.equal(await page.locator('#scope-alt-date').count(),0);
+  const note=page.locator('.scope-note');
+  for(const filename of ['cadrage.pdf','cadrage-final.pdf']){
+    await note.locator('input[type="file"]').setInputFiles({name:filename,mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nNote de cadrage')});
+    await button(note,'Déposer la note').click();
+    await note.getByText(filename,{exact:true}).waitFor();
+  }
+  assert.equal(await note.getByText('cadrage.pdf',{exact:true}).count(),0);
+  await page.evaluate(id=>{setRole('amo');openAmoScoping(id);},data.formationId);
+  await note.getByText('cadrage-final.pdf',{exact:true}).waitFor();
+  const downloaded=page.waitForEvent('download');
+  await button(note,'Télécharger la note').click();
+  assert.equal((await downloaded).suggestedFilename(),'cadrage-final.pdf');
+  await page.evaluate(()=>{setRole('trainer-2');go('trainer-scoping');});
+  assert.equal(await page.getByText('cadrage-final.pdf',{exact:true}).count(),0);
+
   assert.doesNotMatch(await page.locator('#main-content').innerText(),/HubSpot|Actions à suivre|Carton/);
   assert.deepEqual(errors,[]);
   await page.close();

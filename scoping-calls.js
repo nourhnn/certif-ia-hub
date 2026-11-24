@@ -197,7 +197,73 @@ function notesMarkup(f,r){
  <p class="scope-help">Le brouillon reste dans le Hub de démonstration. L'enregistrement automatique dans la fiche HubSpot nécessitera l'intégration serveur et les identifiants du client ; aucun envoi n'est simulé.</p>`;
 }
 
-function detailMarkup(f,r){return `<section class="scope-detail card">${summaryMarkup(f,r)}<div class="scope-content"><section>${contactMarkup(f)}</section><section>${availabilityMarkup(f,r)}</section><section>${scheduleMarkup(r)}</section><section>${documentsMarkup(f)}</section><section>${notesMarkup(f,r)}</section>${historyMarkup(r)}</div></section>`;}
+const scopingNoteKey=(formationId,trainerId)=>'scoping-note:'+formationId+':'+trainerId;
+const scopingNoteLimit=10*1024*1024;
+
+function scopingNotePanel(formationId,trainer=false){
+ return `<section class="scope-note"><div class="scope-sectionhead"><h3>Note de cadrage du formateur</h3></div>
+ <div id="scope-note-files" data-formation="${escapeText(formationId)}" aria-live="polite">Chargement du dépôt…</div>
+ ${trainer?`<form class="scope-note-form" onsubmit="event.preventDefault();submitScopingNote(this)">
+   <label class="scope-field"><span>Fichier PDF ou Word (.docx) · 10 Mo maximum</span><input name="note" type="file" accept=".pdf,.docx" required></label>
+   <button class="primary tiny" type="submit">Déposer la note</button>
+ </form><p class="scope-help">Un nouveau dépôt remplace votre note pour cette formation. L’AMO peut la consulter dans ce navigateur.</p>`:''}
+ </section>`;
+}
+
+function canReadScopingNote(formationId,trainerId){
+ return state.role==='amo' ? state.page===PAGE&&state.scopingSelected===formationId :
+   state.role==='formateur'&&state.page==='trainer-scoping'&&state.trainerId===trainerId&&getTrainerCall()?.f.id===formationId;
+}
+
+async function loadScopingNotes(){
+ const panel=document.getElementById('scope-note-files');
+ if(!panel)return;
+ const formationId=panel.dataset.formation;
+ const trainerIds=state.role==='amo'?trainers.map(t=>t.id):[state.trainerId];
+ try{
+   const notes=await Promise.all(trainerIds.map(async id=>({id,record:await documentStorage('readonly',
+     files=>files.get(scopingNoteKey(formationId,id)))})));
+   if(!panel.isConnected)return;
+   panel.innerHTML=notes.filter(({id,record})=>record&&canReadScopingNote(formationId,id)).map(({id,record})=>
+     `<div class="scope-note-file"><div><strong>${escapeText(record.name)}</strong><small>${state.role==='amo'?escapeText(trainerById(id)?.name)+' · ':''}Déposée le ${DATE_FORMAT.format(new Date(record.at))}</small></div>
+     <button class="secondary tiny" onclick="downloadScopingNote('${escapeText(formationId)}',${id})">${mobileIcon('download',16)} Télécharger la note</button></div>`
+   ).join('')||'<p class="scope-empty">Aucune note déposée.</p>';
+ }catch{
+   if(panel.isConnected)panel.textContent='Impossible de consulter les dépôts dans ce navigateur.';
+ }
+}
+
+window.submitScopingNote=async form=>{
+ const call=getTrainerCall(), id=state.trainerId;
+ if(!call||!canReadScopingNote(call.f.id,id))return;
+ const file=form.elements.note.files[0];
+ if(!file||!/\.(pdf|docx)$/i.test(file.name)||file.size===0||file.size>scopingNoteLimit)
+   return notify('Choisissez un fichier PDF ou Word (.docx) de 10 Mo maximum.');
+ const submit=form.querySelector('button[type="submit"]');
+ if(submit.disabled)return;
+ submit.disabled=true;
+ try{
+   const bytes=await file.arrayBuffer();
+   if(!form.isConnected||!canReadScopingNote(call.f.id,id))return;
+   const record={name:file.name,type:file.type,bytes,at:new Date().toISOString()};
+   await documentStorage('readwrite',files=>files.put(record,scopingNoteKey(call.f.id,id)));
+   if(form.isConnected){form.reset();await loadScopingNotes();notify('Note de cadrage déposée.');}
+ }catch{
+   if(form.isConnected)notify('Impossible d’enregistrer le fichier dans ce navigateur.');
+ }finally{submit.disabled=false;}
+};
+
+window.downloadScopingNote=async (formationId,trainerId)=>{
+ if(!canReadScopingNote(formationId,trainerId))return;
+ try{
+   const record=await documentStorage('readonly',files=>files.get(scopingNoteKey(formationId,trainerId)));
+   if(!canReadScopingNote(formationId,trainerId))return;
+   if(record)downloadBlob(new Blob([record.bytes],{type:record.type}),record.name);
+   else notify('Fichier indisponible dans ce navigateur.');
+ }catch{notify('Impossible de lire le fichier.');}
+};
+
+function detailMarkup(f,r){return `<section class="scope-detail card">${summaryMarkup(f,r)}<div class="scope-content"><section>${contactMarkup(f)}</section><section>${availabilityMarkup(f,r)}</section><section>${scheduleMarkup(r)}</section><section>${documentsMarkup(f)}</section>${scopingNotePanel(f.id)}<section>${notesMarkup(f,r)}</section>${historyMarkup(r)}</div></section>`;}
 function scopeFocusDetailOnMobile(){
  if(typeof window==='undefined'||!window.matchMedia?.('(max-width:740px)').matches)return;
  const panel=document.querySelector('.scope-detail');
@@ -301,7 +367,7 @@ function trainerCallPage(){
  <div class="scope-trainer-options">${selected.record.proposals.map((slot,i)=>`<div class="scope-trainer-option"><div><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small><span>${slot.trainerAccepted?'Accepté':slot.trainerDeclined?'Refusé':'En attente de réponse'}</span></div><div class="scope-actionrow"><button class="primary tiny" ${selected.record.status!=='pending'||slot.date<localDate()?'disabled':''} onclick="scopingTrainerRespond(${i},true)">Accepter</button><button class="secondary tiny" ${selected.record.status!=='pending'||slot.date<localDate()?'disabled':''} onclick="scopingTrainerRespond(${i},false)">Refuser</button></div></div>`).join('')||'<p class="scope-empty">Aucun créneau proposé pour le moment.</p>'}</div></section>
  ${['todo','pending'].includes(selected.record.status)?`<section><div class="scope-sectionhead"><h3>Proposer une autre disponibilité</h3><small>Si aucune proposition ne convient</small></div><div class="scope-trainer-alternative"><label class="scope-field"><span>Date</span><input type="date" id="scope-alt-date" min="${localDate()}"></label><label class="scope-field"><span>Début</span><input type="time" id="scope-alt-start" value="10:00"></label><label class="scope-field"><span>Fin</span><input type="time" id="scope-alt-end" value="10:30"></label><button class="secondary" onclick="scopingTrainerSuggest()">Soumettre à l'AMO</button></div></section>`:''}
  ${selected.record.status==='confirmed'?`<section class="scope-success">Call confirmé le ${fmt(selected.record.date)} à ${selected.record.start}</section>`:''}
- </div></section>`:'<section class="scope-detail card"><p class="scope-empty">Vos prochaines propositions de calls apparaîtront ici.</p></section>'}</div>
+ ${scopingNotePanel(selected.f.id,true)}</div></section>`:'<section class="scope-detail card"><p class="scope-empty">Vos prochaines propositions de calls apparaîtront ici.</p></section>'}</div>
  <p class="scope-footnote">Réponses enregistrées dans cette démonstration locale. Une synchronisation backend sera nécessaire pour partager les réponses entre plusieurs comptes et appareils.</p></div>`;
 }
 window.scopingTrainerSelect=id=>{if(state.role!=='formateur')return;state.scopingTrainerSelected=id;render();scopeFocusDetailOnMobile()};
@@ -339,7 +405,7 @@ validPages=function(role){const pages=normalValidPages(role);return role==='amo'
 const previousRender=render;
 render=function(){const amo=state.role==='amo'&&state.page===PAGE,trainer=state.role==='formateur'&&state.page==='trainer-scoping';
  if(amo||trainer){state.page=trainer?'trainer-home':'home';previousRender();state.page=trainer?'trainer-scoping':PAGE;
-  const main=document.getElementById('main-content');if(main)main.innerHTML=trainer?trainerCallPage():scopingPage();
+  const main=document.getElementById('main-content');if(main){main.innerHTML=trainer?trainerCallPage():scopingPage();loadScopingNotes();}
   // Le rendu de base utilise temporairement l'accueil : réactualiser l'onglet actif sur la route Cadrage.
   const dock=document.querySelector('.mobile-dock');if(dock)dock.outerHTML=mobileDock(trainer);
   const mobileTitle=document.querySelector('.mobile-head-center strong');if(mobileTitle)mobileTitle.textContent=trainer?'Mes calls de cadrage':'Calls de cadrage';
