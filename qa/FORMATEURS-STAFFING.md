@@ -57,3 +57,7 @@ La configuration Vercel suspend le déploiement automatique de cette branche de 
 - Six parcours Formateur vérifiés dans les deux moteurs à 1440, 1024, 768, 390, 375 et 320 px, en clair et en sombre. Les contrôles n’ont relevé aucun débordement horizontal de page ni erreur JavaScript.
 - Les 13 contrôles de la suite opérations passent sous Chrome. La suite AMO de la phase 1 passe sous WebKit.
 - L’installation native et les mises à jour sur appareils physiques restent à vérifier.
+
+### Disponibilités par semaine
+
+Le planning affiche les dates du lundi au dimanche. Le mode « Chaque semaine » modifie la base récurrente. Le mode « Cette semaine seulement » enregistre une exception par date, que le formateur peut retirer pour retrouver son horaire habituel. Le test WebKit vérifie que le lundi activé se répète, qu’une exception reste limitée à la semaine choisie et que la restauration fonctionne. Les six largeurs passent dans les deux thèmes.

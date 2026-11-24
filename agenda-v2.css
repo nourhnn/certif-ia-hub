@@ -119,3 +119,14 @@
   .av2-times{min-width:0}
   .scope-trainer-root .scope-actionrow{flex-wrap:wrap}
 }
+
+.av2-weeknav{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin-bottom:12px}
+.av2-weeknav strong{text-align:center;font-size:14px}
+.av2-scope{margin:0 0 12px}
+.av2-weekday{display:grid;gap:4px}
+.av2-daytoggle strong span{font-weight:500;color:var(--muted)}
+@media(max-width:700px){
+  .av2-weeknav button{min-width:44px}
+  .av2-weekday{width:100%}
+  .av2-weekday .av2-daytoggle{min-height:32px}
+}
