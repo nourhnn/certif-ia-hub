@@ -39,6 +39,16 @@ node qa/operations.mjs
 
 `HUB_URL` désigne l’URL locale et `CHROME_PATH` permet de choisir Chrome installé. Les captures après modification sont enregistrées dans `/tmp/certif-amo-phase1-qa` par défaut. Les scénarios fonctionnels injectent leurs cas métier dans le navigateur de test.
 
+## Résultats locaux
+
+| Contrôle | Résultat |
+| --- | --- |
+| Scénarios de la phase 1 sous Chrome et WebKit | Réussis. Alertes et liens directs, cas J-7, bilan manquant, statut en attente, clôture, format et refus, NPS absent, biographie incomplète, enregistrement, export et gains côté Formateur. Copie testée sous Chrome. |
+| Navigation et rendu | 1440, 1024, 768, 390, 375 et 320 px dans les deux moteurs. Cinq écrans vérifiés en clair et en sombre, sans débordement horizontal de la page ni erreur JavaScript. |
+| Suite existante | 13 contrôles réussis sous Chrome et 1 contrôle de rendu sous WebKit. |
+| Service worker | Précache activé sous Chrome. Ouverture de l’accueil et navigation vers l’annuaire après simulation de la coupure réseau. |
+| Captures | Avant et après à 1440 et 390 px. |
+
 ## Validation avant lancement
 
 Les présentations sont locales au navigateur de démonstration. La synchronisation et les autorisations d’accès serveur restent à confirmer avant usage de données réelles. La publication de chaque photo ou référence reste une décision éditoriale. L’installation sur appareil et le comportement de la mise à jour PWA en conditions réelles restent à vérifier.
