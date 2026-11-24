@@ -387,8 +387,10 @@
 :root[data-proposal][data-hub-tone] .match-method{font-size:10px;line-height:1.65;margin:17px 0 0;color:var(--pd-muted)}
 @media(max-width:640px){.match-overview{gap:16px}.match-overview>div:first-child>strong{font-size:36px}}
 
-.pd-amo-dashboard { grid-template-areas: "work rail"; }
-.pd-amo-dashboard > .pd-work { grid-area: work; }
+.pd-amo-dashboard { grid-template-areas: "alerts rail" "sessions rail" "milestones rail"; }
+.pd-amo-dashboard > .amo-alerts { grid-area: alerts; }
+.pd-amo-dashboard > .amo-sessions { grid-area: sessions; }
+.pd-amo-dashboard > .pd-milestones { grid-area: milestones; }
 .pd-amo-dashboard > .pd-rail { grid-area: rail; }
 .pd-week button[aria-pressed="true"] {
   background: var(--pd-accent-soft);

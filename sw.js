@@ -1,6 +1,6 @@
-const CACHE='certifia-hub-demo-v56-carton-lifecycle';
+const CACHE='certifia-hub-demo-v57-amo-phase1';
 const URLS=[
-  './', './index.html', './hub.js', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
+  './', './index.html', './amo-phase1.js', './hub.js', './agenda-v2.js', './agenda-v2.css', './kpi-v2.js', './kpi-v2.css', './scoping-calls.js', './scoping-calls.css', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
   './assets/icons/apple-touch-icon.png',
   './assets/icons/favicon-16.png',
@@ -33,5 +33,11 @@ const URLS=[
   './assets/icons/white/pwa-maskable-512.png'
 ];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(URLS))));
-self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key))))));
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
 self.addEventListener('fetch',event=>{const url=new URL(event.request.url);if(event.request.method!=='GET'||url.origin!==self.location.origin)return;event.respondWith(fetch(event.request).catch(()=>caches.match(event.request)));});

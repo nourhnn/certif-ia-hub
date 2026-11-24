@@ -8,11 +8,10 @@
   const text5=v=>v===null?'Non renseigné':reportNumber(v)+' /5';
   const sourceRating=id=>missionRatings[id]||null;
   const formation5=id=>valid5(sourceRating(id)?.formation5??sourceRating(id)?.formationNote5);
-  const satisfaction5=id=>valid5(sourceRating(id)?.satisfaction5??sourceRating(id)?.trainerSatisfaction5);
-  function trainerMetric(id,type){
+  function trainerFormationMetric(id){
     const values=db.assignments.filter(a=>a.trainerId===id&&a.status==='Réalisée')
       .filter(a=>sourceRating(a.id)?.public===true)
-      .map(a=>type==='formation'?formation5(a.id):satisfaction5(a.id)).filter(Number.isFinite);
+      .map(a=>formation5(a.id)).filter(Number.isFinite);
     return {value:average(values),count:values.length};
   }
   function monthlyClientStats(r){
@@ -45,65 +44,6 @@
     });
     return rows;
   };
-  function metrics(id){
-    const el=document.createElement('div');
-    el.className='hub-v2-kpis';
-    const s=trainerMetric(id,'satisfaction');
-    const nps=trainerNps(id);
-    const vals=[['NPS',nps],['Satisfaction',text5(s.value)]];
-    vals.forEach(([label,value])=>{
-      const cell=document.createElement('span');
-      cell.className='hub-v2-kpi';
-      const small=document.createElement('small'),strong=document.createElement('strong');
-      small.textContent=label;strong.textContent=value;
-      cell.append(small,strong);el.appendChild(cell);
-    });
-    return el;
-  }
-  function decorateTrainers(){
-    document.querySelectorAll('.trainer-directory-card').forEach(card=>{
-      const id=Number(card.querySelector('button[onclick^="openTrainer("]')?.getAttribute('onclick')?.match(/\d+/)?.[0]);
-      const t=trainerById(id);
-      if(!t)return;
-      card.querySelectorAll('.badge').forEach(b=>{if(b.textContent.includes('Fiabilité')){const parent=b.parentElement;if(parent?.getAttribute('style')?.includes('margin:9px'))parent.remove();else b.remove();}});
-      card.querySelector('.trainer-stats')?.before(metrics(id));
-      card.querySelectorAll('.item-sub').forEach(el=>{if(el.textContent.includes('Satisfaction ')&&el.textContent.includes('/10'))el.textContent=trainerProfileField(id).domain||'Spécialité à renseigner';});
-    });
-    document.querySelectorAll('.tbl').forEach(table=>{
-      const th=[...table.querySelectorAll('thead th')];
-      const reliability=th.findIndex(x=>x.textContent.trim()==='Fiabilité');
-      if(reliability<0)return;
-      const npsColumn=th.findIndex(x=>x.textContent.includes('NPS'));
-      th[reliability].textContent='Satisfaction /5';
-      if(npsColumn>=0)th[npsColumn].textContent='NPS /10';
-      table.querySelectorAll('tbody tr').forEach(row=>{
-        const tds=[...row.querySelectorAll('td')];
-        const id=Number(row.querySelector('[onclick^="openTrainer("]')?.getAttribute('onclick')?.match(/\d+/)?.[0]);
-        if(!trainerById(id))return;
-        if(npsColumn>=0&&tds[npsColumn])tds[npsColumn].textContent=trainerNps(id);
-        if(tds[reliability])tds[reliability].textContent=text5(trainerMetric(id,'satisfaction').value);
-      });
-    });
-  }
-  function decorateTrainerDetail(){
-    const fiche=document.querySelector('.profile-fiche');
-    if(!fiche)return;
-    const t=trainerById(state.selectedTrainer);
-    if(!t)return;
-    fiche.querySelectorAll('.badge').forEach(b=>{if(b.textContent.includes('Fiabilité'))b.remove()});
-    const top=fiche.querySelector('.fiche-hero .trainer-meta');
-    if(top)top.after(metrics(t.id));
-    if(state.trainerDetailTab==='performance'){
-      const card=fiche.querySelector('.cards');
-      card?.insertAdjacentHTML('beforeend',metric('Satisfaction /5',text5(trainerMetric(t.id,'satisfaction').value),'Données communicables'));
-      fiche.querySelectorAll('.card').forEach(panel=>{
-        if(panel.querySelector('.section-title')?.textContent.includes('Fiabilité')){
-          panel.innerHTML='<h3 class="section-title">Évaluations</h3><p class="item-sub">NPS sur 10 et satisfaction sur 5 sont des indicateurs distincts.</p>';
-          panel.appendChild(metrics(t.id));
-        }
-      });
-    }
-  }
   function periodOf(s,today){
     if(s.status==='Annulée')return 'cancelled';
     return s.status==='Réalisée'||s.date<today?'past':'upcoming';
@@ -182,7 +122,7 @@
       const span=btn.querySelector('span');
       if(span?.textContent.includes('NPS moyen'))span.firstChild.textContent='NPS /10';
     });
-    const note=trainerMetric(state.trainerId,'formation');
+    const note=trainerFormationMetric(state.trainerId);
     const btn=document.createElement('button');
     btn.className='pd-stat';
     btn.onclick=()=>go('trainer-profile');
@@ -196,8 +136,6 @@
   }
   render=function(){
     baseRender();
-    if(state.page==='trainers'&&state.role==='amo')decorateTrainers();
-    if(state.page==='trainer-detail'&&state.role==='amo')decorateTrainerDetail();
     if(state.page==='client-detail'&&state.role==='amo')decorateClient();
     if(state.page==='reporting'&&state.role==='amo')decorateMonthly();
     if(state.page==='trainer-home'&&state.role==='formateur')decorateTrainerHome();

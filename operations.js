@@ -60,8 +60,7 @@ function syncOperationalNotices() {
         'Proposition ' + proposal.status.toLowerCase(), amoDetail, target, id + ':' + proposal.status);
     }
     if (proposal.status === 'Acceptée') allow(proposal.trainerId, session.id);
-    if (['Envoyée', 'Acceptée'].includes(proposal.status) &&
-        calendarConflict(session, proposal.trainerId, { sessionId: session.id, allowAvailable: true })) {
+    if (proposalAgendaConflict(proposal, session)) {
       add('amo', id + ':conflict:' + session.date, 'alert', 'Conflit d’agenda à arbitrer', amoDetail, target);
     }
   }
@@ -467,6 +466,11 @@ function openStaffProposal(id) {
 }
 
 const pendingProposalStates = ['Brouillon', 'Autorisée à l’envoi', 'Envoyée', 'Acceptée'];
+
+function proposalAgendaConflict(proposal, session) {
+  return ['Envoyée', 'Acceptée'].includes(proposal.status) &&
+    calendarConflict(session, proposal.trainerId, {sessionId:session.id, allowAvailable:true});
+}
 
 function proposalPastDue(proposal) {
   return Boolean(proposal.expires && proposal.expires < parisToday());

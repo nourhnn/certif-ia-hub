@@ -737,3 +737,73 @@ html[data-hub-appearance] :is(.primary,.mobile-dock-item.is-active .mobile-dock-
   from{background-position:0 0,5% 0}
   to{background-position:0 0,95% 0}
 }
+
+/* Accueil, annuaire et aperçu client AMO */
+
+.pd-page-heading:has(+ .pd-stats + .pd-amo-dashboard) + .pd-stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+.amo-alerts .amo-alert-row{padding-inline:19px;border-color:var(--pd-line,var(--border))}
+
+.amo-alert-row{
+  display:grid;
+  grid-template-columns:32px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  padding:12px 0;
+  border-bottom:1px solid var(--border);
+}
+.amo-alert-row:last-child{border-bottom:0}
+.amo-alert-icon{
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  border-radius:10px;
+  color:var(--purple);
+  background:color-mix(in srgb,currentColor 10%,transparent);
+}
+.amo-alert-copy{display:grid;gap:3px;overflow-wrap:anywhere}
+.amo-alert-copy small{color:var(--purple);font-weight:700}
+.amo-alert-row[data-priority="0"] :is(.amo-alert-icon,.amo-alert-copy small){color:#a72545}
+.amo-alert-row[data-priority="1"] :is(.amo-alert-icon,.amo-alert-copy small){color:#8c510e}
+:root[data-hub-tone="dark"] .amo-alert-row[data-priority="0"] :is(.amo-alert-icon,.amo-alert-copy small){color:#ff9bb1}
+:root[data-hub-tone="dark"] .amo-alert-row[data-priority="1"] :is(.amo-alert-icon,.amo-alert-copy small){color:#ffc480}
+.amo-alert-empty{display:grid;justify-items:center;gap:10px}
+.amo-alert-empty svg{color:var(--green)}
+.amo-alert-row button{white-space:normal}
+.amo-trainer-card .trainer-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+.amo-trainer-card :is(.trainer-top,.group){margin-bottom:8px}
+.amo-trainer-card .trainer-name{margin:0}
+.amo-presentation,.amo-presentation form,.amo-client-preview{display:grid;gap:14px;min-width:0}
+.amo-presentation form label,.amo-message-field{display:grid;gap:5px;min-width:0}
+.amo-presentation .amo-photo-choice{display:flex;align-items:center;gap:8px;min-height:44px}
+.amo-presentation :is(textarea,dd),.amo-message-field textarea{width:100%;overflow-wrap:anywhere}
+.amo-presentation :is(dd,h3,h4,p){margin:0}
+.amo-presentation dt{font-weight:700;margin-top:8px}
+.amo-client-preview p{white-space:pre-wrap;overflow-wrap:anywhere}
+.amo-preview-heading{display:flex;align-items:center;gap:12px}
+.amo-preview-heading .trainer-photo{flex-shrink:0}
+
+@media(max-width:560px){
+  .amo-alert-row{grid-template-columns:32px minmax(0,1fr);gap:7px 10px}
+  .amo-alerts .amo-alert-row{padding-inline:14px}
+  .amo-alert-row button{grid-column:2;justify-self:start}
+  .amo-alert-row button,.amo-presentation button,
+  .amo-trainer-card .split-btns button,.v19-doc-mobile button,.ops-profile-tabs button{min-height:44px}
+  .amo-presentation .action-wrap > button{flex:1 1 auto}
+}
+.v19-marker.na{background:var(--bg);color:var(--muted)}
+.amo-more-alerts{border-top:1px solid var(--pd-line,var(--border))}
+.amo-more-alerts summary{cursor:pointer;padding:12px 19px;min-height:44px;font-weight:650}
+.pd-amo-dashboard > .pd-panel,.pd-amo-dashboard > .pd-milestones{min-width:0}
+@media(max-width:640px){
+  .pd-amo-dashboard > .pd-panel,.pd-amo-dashboard > .pd-milestones{width:100%}
+  .amo-more-alerts summary{padding-inline:14px}
+}
+@media(max-width:640px){
+  :root[data-proposal][data-hub-tone] :is(.amo-alert-row,.amo-presentation,.amo-trainer-card .split-btns,.v19-doc-mobile) button{
+    min-height:44px;
+  }
+  :root[data-proposal][data-hub-tone] .pd-page-heading:has(+ .pd-stats + .pd-amo-dashboard) .pd-calendar-button{
+    width:44px;height:44px;min-height:44px;flex-basis:44px;
+  }
+}
