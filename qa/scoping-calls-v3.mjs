@@ -216,7 +216,7 @@ try{
     const offline=await makePage(390,'allow');
     await offline.goto(locationOf());
     await offline.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
-    assert.ok(await offline.evaluate(async()=> (await caches.keys()).includes('certifia-hub-demo-v66-trainer-scoping-v3')));
+    assert.ok(await offline.evaluate(async()=> (await caches.keys()).includes('certifia-hub-demo-v67-trainer-scoping-heading')));
     await offline.context().setOffline(true);
     await offline.reload();
     await offline.locator('.scope-dossier-card').first().click();

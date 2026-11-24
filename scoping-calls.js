@@ -688,7 +688,7 @@ function trainerCockpit(assigned,trainer){
    .sort((a,b)=>Number(b.status[0]==='waiting')-Number(a.status[0]==='waiting')||
      (a.call.record.status==='confirmed'?a.call.record.date:a.call.date).localeCompare(b.call.record.status==='confirmed'?b.call.record.date:b.call.date));
  const shown=rows.filter(row=>filter==='all'||row.status[0]===filter);
- return `<header class="scope-hero"><div><h1>Mes calls de cadrage</h1><p>Répondez aux propositions et retrouvez vos rendez-vous confirmés.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
+ return `<header>${intro('Mes <em>calls de cadrage.</em>','Répondez aux propositions et retrouvez vos rendez-vous confirmés.','ESPACE FORMATEUR')}</header>
    <nav class="scope-trainer-filters" aria-label="Filtrer mes calls">${[['all','Tous'],['waiting','À répondre'],['confirmed','Confirmés']].map(([key,label])=>
      `<button class="secondary" data-scope-filter="${key}" aria-pressed="${filter===key}" onclick="scopingTrainerFilter('${key}')">${label} <strong>${key==='all'?rows.length:rows.filter(row=>row.status[0]===key).length}</strong></button>`).join('')}</nav>
    <div class="scope-dossier-grid">${shown.map(({call:{f,client,record:r,date},status})=>

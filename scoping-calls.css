@@ -332,7 +332,6 @@
 @media(prefers-reduced-motion:reduce){.scope-kpis .scope-stat{transition:none}}
 
 .scope-trainer-v3{max-width:980px;gap:16px}
-.scope-trainer-v3 .scope-hero h1{margin:0 0 6px}
 .scope-trainer-filters{display:flex;gap:8px;flex-wrap:wrap}
 .scope-trainer-filters button{display:flex;align-items:center;gap:7px}
 .scope-trainer-filters button[aria-pressed=true]{border-color:var(--scope-purple);background:color-mix(in srgb,var(--scope-purple) 14%,transparent)}
