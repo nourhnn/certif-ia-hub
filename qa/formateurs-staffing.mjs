@@ -109,18 +109,21 @@ try{
   assert.ok(await slots.count()>6);
   await slots.nth(0).click();
   await slots.nth(1).click();
+  await button(page,'Proposer ces créneaux').click();
+  await button(page,'J’ai envoyé les propositions').click();
+  await page.getByText('Dernier envoi déclaré',{exact:true}).waitFor();
   await page.evaluate(id=>{setRole('trainer-'+id);go('trainer-scoping');},data.trainerId);
   await button(page,'Refuser').first().click();
   await button(page,'Accepter').last().click();
-  await page.getByText('Refusé',{exact:true}).waitFor();
-  await page.getByText('Accepté',{exact:true}).waitFor();
+  await page.getByText('Refusé par le formateur',{exact:true}).waitFor();
+  await page.getByText('Accepté par le formateur',{exact:true}).waitFor();
   const alternate=await page.evaluate(()=>shiftDate(parisToday(),17));
   await page.locator('#scope-alt-date').fill(alternate);
   await button(page,/Soumettre à l.AMO/).click();
   await page.getByText('Créneau alternatif proposé à l’AMO dans la démonstration',{exact:true}).waitFor();
   await page.evaluate(id=>{setRole('amo');openAmoScoping(id);},data.formationId);
   await button(page,'Ajouter aux propositions').click();
-  await page.locator('input[name="scope-confirm-choice"]').nth(1).check();
+  await button(page,'Confirmer ce créneau').first().click();
   await button(page,'Valider ce créneau').click();
   assert.equal(await page.evaluate(id=>amoScopingStatus(id),data.formationId),'confirmed');
   await page.evaluate(id=>{setRole('trainer-'+id);go('trainer-scoping');},data.trainerId);
@@ -134,6 +137,7 @@ try{
   }
   assert.equal(await note.getByText('cadrage.pdf',{exact:true}).count(),0);
   await page.evaluate(id=>{setRole('amo');openAmoScoping(id);},data.formationId);
+  await button(page,'Préparation').click();
   await note.getByText('cadrage-final.pdf',{exact:true}).waitFor();
   const downloaded=page.waitForEvent('download');
   await button(note,'Télécharger la note').click();

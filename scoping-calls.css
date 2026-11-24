@@ -247,3 +247,86 @@
 .scope-note-file{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin:8px 0}
 .scope-note-file>div{display:grid;gap:4px;flex:1 1 150px;min-width:0;overflow-wrap:anywhere}
 .scope-note-file small{color:inherit;opacity:.78}
+
+/* Cockpit et dossier AMO. Les composants Formateur conservent leur disposition. */
+.scope-amo-v3{max-width:1250px;gap:16px}
+.scope-amo-v3 .scope-hero{padding:clamp(18px,3vw,30px)}
+.scope-amo-v3 .scope-hero h1{margin:0 0 6px}
+.scope-amo-v3 .scope-listhead,.scope-cockpit-controls{padding-inline:0}
+.scope-kpis .scope-stat{text-align:left;color:inherit;min-width:0;cursor:pointer;transition:border-color .16s ease,transform .16s ease}
+.scope-kpis .scope-stat>svg{color:var(--scope-purple)}
+:root[data-hub-tone=dark] .scope-kpis .scope-stat>span{color:var(--scope-muted)}
+.scope-kpis .scope-stat:is(:hover,[aria-pressed=true]){border-color:var(--scope-purple);background:color-mix(in srgb,var(--scope-purple) 9%,transparent)}
+.scope-kpis .scope-stat:active{transform:scale(.98)}
+.scope-cockpit-controls{grid-template-columns:minmax(0,2fr) minmax(0,1fr);border:0}
+.scope-dossier-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.scope-dossier-card{display:grid;gap:9px;text-align:left;color:inherit;min-width:0;padding:16px;cursor:pointer}
+.scope-dossier-card:hover{border-color:var(--scope-purple)}
+.scope-dossier-card .scope-itemtop,.scope-file-status{flex-wrap:wrap}
+.scope-dossier-card .scope-itemtop strong{font-size:16px;min-width:0;overflow-wrap:anywhere}
+.scope-dossier-title{line-height:1.35;font-weight:600}
+.scope-dossier-meta{display:flex;gap:6px 14px;flex-wrap:wrap;color:var(--scope-muted);font-size:12px;margin-top:6px}
+.scope-dossier-meta span,.scope-itemgo{display:inline-flex;gap:5px;align-items:center;min-width:0;overflow-wrap:anywhere}
+.scope-dossier-meta svg{flex:none}
+.scope-dossier-activity,.scope-itemsub{color:var(--scope-muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.scope-dossier-card .scope-urgent{display:inline-flex;align-items:center;gap:5px}
+.scope-dossier-activity{border-top:1px solid var(--scope-border);padding-top:8px}
+.scope-back{justify-self:start;display:inline-flex;align-items:center;gap:7px}
+.scope-filehead h1{font-size:clamp(22px,4vw,30px);line-height:1.2;margin:0 0 6px;overflow-wrap:anywhere}
+.scope-filehead p{font-size:14px}
+.scope-file-status{display:flex;gap:8px;align-items:center}
+.scope-tabs{display:flex;gap:6px;overflow-x:auto;overscroll-behavior-inline:contain;padding:10px 16px;scrollbar-width:thin}
+.scope-tabs button{white-space:nowrap;flex:none}
+.scope-tabs [aria-current=page]{background:color-mix(in srgb,var(--scope-purple) 16%,transparent);border-color:var(--scope-purple);font-weight:750}
+.scope-file-status .scope-pill,.scope-dossier-card .scope-pill,.scope-follow-slot .scope-pill{white-space:normal;line-height:1.15}
+.scope-waiting,.scope-draft{background:#fff0d7;color:#845009}
+.scope-ready,.scope-received{background:#eae0ff;color:#6331a5}
+:root[data-hub-tone=dark] :is(.scope-waiting,.scope-draft){background:#503b25;color:#ffe0a8}
+.scope-amo-v3 .scope-availabilitytop{justify-content:flex-start;flex-wrap:wrap;gap:10px 16px}
+.scope-amo-v3 .scope-slotlist{grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr))}
+.scope-amo-v3 .scope-slot{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"date action" "status action";min-height:72px}
+.scope-amo-v3 .scope-slotdate{grid-area:date}.scope-amo-v3 .scope-slotdate strong{font-size:13px}
+.scope-amo-v3 .scope-slotdate small{font-size:12px}
+.scope-amo-v3 .scope-slotstatus{grid-area:status;justify-self:start;max-width:100%;white-space:normal;font-size:11px;overflow-wrap:anywhere}
+.scope-amo-v3 .scope-slotarrow{grid-area:action;display:grid;justify-items:center;gap:4px;font-size:11px}
+.scope-amo-v3 .scope-slot.is-selected{border-color:var(--scope-purple);background:color-mix(in srgb,var(--scope-purple) 12%,transparent)}
+.scope-selection,.scope-follow-summary{background:color-mix(in srgb,var(--scope-purple) 7%,transparent);border:1px solid var(--scope-border);padding:12px;border-radius:12px;margin:12px 0}
+.scope-selection .scope-sectionhead{margin-bottom:6px;align-items:center;flex-wrap:wrap}
+.scope-selection ul{padding:0;margin:0;list-style:none}
+.scope-selection li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;font-size:13px}
+.scope-follow-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.scope-follow-summary>div,.scope-follow-slot>div{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}
+.scope-follow-summary small,.scope-follow-slot small,.scope-follow-action small{font-size:12px;color:var(--scope-muted)}
+.scope-follow-action{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.scope-follow-action button{display:inline-flex;gap:6px;align-items:center}
+.scope-follow-slots{display:grid;gap:8px;margin-top:14px}
+.scope-follow-slot{display:flex;align-items:center;flex-wrap:wrap;gap:9px;border:1px solid var(--scope-border);border-radius:10px;padding:12px}
+.scope-follow-slot>div{flex:1 1 190px}
+.scope-follow-slot.can-confirm{background:color-mix(in srgb,#14986b 12%,transparent);border-color:#189471}
+.scope-timeline{padding:0 0 0 14px;margin:0;list-style:none}
+.scope-timeline li{border-left:2px solid var(--scope-border);padding:3px 0 14px 15px;position:relative;display:grid;gap:4px;overflow-wrap:anywhere}
+.scope-timeline li::before{position:absolute;left:-5px;top:7px;content:'';width:8px;height:8px;border-radius:50%;background:var(--scope-purple)}
+.scope-timeline time{color:var(--scope-muted);font-size:12px}
+.scope-workflow-dialog{box-sizing:border-box;width:min(calc(100% - 24px),560px);max-height:calc(100dvh - 24px);padding:20px;background:#fff;color:var(--ink);border:1px solid var(--border);border-radius:16px;overflow:auto}
+.scope-workflow-dialog::backdrop{background:#151022a8}
+.scope-workflow-dialog h2{margin:0 0 10px}
+.scope-workflow-dialog :is(p,textarea){overflow-wrap:anywhere}
+.scope-dialog-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.scope-dialog-status:empty{display:none}
+.scope-dialog-status{margin:10px 0 0}
+:root[data-hub-tone=dark] .scope-workflow-dialog{background:#251d32;color:#f0e9f8;border-color:#51435f}
+@media(max-width:740px){
+ .scope-dossier-grid{grid-template-columns:minmax(0,1fr)}
+ .scope-cockpit-controls{grid-template-columns:minmax(0,1fr)}
+ .scope-amo-v3 .scope-hero{gap:10px}
+ .scope-follow-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+ :root[data-proposal][data-hub-tone] .scope-amo-v3 :is(button,input,select),
+ :root[data-proposal][data-hub-tone] .scope-workflow-dialog button{min-height:44px}
+ .scope-tabs{padding-inline:10px}
+ :root[data-proposal][data-hub-tone] .scope-amo-v3 .scope-tabs button{padding-inline:9px;font-size:11px}
+ .scope-cockpit-controls :is(input,select){font-size:16px}
+ .scope-amo-v3 .scope-help,.scope-amo-v3 .scope-field>span{font-size:13px}
+ .scope-workflow-dialog{width:100%;max-width:none;margin:auto 0 0;border-radius:18px 18px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom));max-height:87dvh}
+ .scope-dialog-actions button{flex:1 1 auto}
+}
+@media(prefers-reduced-motion:reduce){.scope-kpis .scope-stat{transition:none}}
