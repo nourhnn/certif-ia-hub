@@ -508,11 +508,6 @@ function detailMarkup(f,r){
    <dialog class="scope-workflow-dialog" id="scope-workflow-dialog" aria-labelledby="scope-dialog-title"></dialog>`;
 }
 
-function scopeFocusDetailOnMobile(){
- if(!window.matchMedia?.('(max-width:740px)').matches)return;
- document.querySelector('.scope-detail')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
-}
-
 const scopeHash='#/interne/scoping-calls';
 function scopeFormationFromHash(){
  const id=location.hash.match(/^#\/interne\/scoping-calls\/([A-Za-z0-9-]+)$/)?.[1];
@@ -664,34 +659,134 @@ window.scopingAddTrainerSuggestion=i=>{const d=getSelected();if(!d||!['todo','pe
 function trainerCalls(id){
  return allCalls().filter(x=>(x.record.trainerId??x.trainer?.id)===id&&x.record.status!=='cancelled');
 }
+
+const trainerScopeHash='#/formateur/trainer-scoping';
+const trainerScopeId=()=>location.hash.match(/^#\/formateur\/trainer-scoping\/([A-Za-z0-9-]+)$/)?.[1];
+
 function getTrainerCall(){
  if(state.role!=='formateur'||state.page!=='trainer-scoping')return null;
- const all=trainerCalls(state.trainerId);
- const chosen=all.find(x=>x.f.id===state.scopingTrainerSelected)||all[0];
- return chosen||null;
+ return trainerCalls(state.trainerId).find(x=>x.f.id===trainerScopeId())||null;
 }
-function trainerStage(f,r,trainer){
- return callStage(f,{...r,proposals:r.proposals.filter(slot=>!isDraft(slot)&&inScope(slot,trainer))},trainer);
+
+function trainerStatus(call,trainer){
+ const r=call.record;
+ if(r.status==='confirmed')return ['confirmed','Confirmé','Voir le call'];
+ if(r.status==='done')return ['done','Réalisé','Consulter le call'];
+ if(pendingSlots(r,trainer).length)return ['waiting','À répondre','Répondre aux créneaux'];
+ if(r.proposals.some(slot=>currentAccepted(slot,trainer))||
+   r.trainerSuggested?.some(slot=>(slot.trainerId??trainer.id)===trainer.id&&!expired(slot)))
+   return ['ready','En attente de l’AMO','Voir mes réponses'];
+ if(r.proposals.some(slot=>!isDraft(slot)&&inScope(slot,trainer)))return ['received','À replanifier','Voir les créneaux'];
+ return ['todo','À planifier','Ouvrir le dossier'];
 }
+
+const trainerPill=([style,label])=>`<span class="scope-pill scope-${style}">${label}</span>`;
+
+function trainerCockpit(assigned,trainer){
+ const filter=state.scopingTrainerFilter||'all';
+ const rows=assigned.map(call=>({call,status:trainerStatus(call,trainer)}))
+   .sort((a,b)=>Number(b.status[0]==='waiting')-Number(a.status[0]==='waiting')||
+     (a.call.record.status==='confirmed'?a.call.record.date:a.call.date).localeCompare(b.call.record.status==='confirmed'?b.call.record.date:b.call.date));
+ const shown=rows.filter(row=>filter==='all'||row.status[0]===filter);
+ return `<header class="scope-hero"><div><h1>Mes calls de cadrage</h1><p>Répondez aux propositions et retrouvez vos rendez-vous confirmés.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
+   <nav class="scope-trainer-filters" aria-label="Filtrer mes calls">${[['all','Tous'],['waiting','À répondre'],['confirmed','Confirmés']].map(([key,label])=>
+     `<button class="secondary" data-scope-filter="${key}" aria-pressed="${filter===key}" onclick="scopingTrainerFilter('${key}')">${label} <strong>${key==='all'?rows.length:rows.filter(row=>row.status[0]===key).length}</strong></button>`).join('')}</nav>
+   <div class="scope-dossier-grid">${shown.map(({call:{f,client,record:r,date},status})=>
+     `<button class="card scope-dossier-card" onclick="scopingTrainerSelect('${escapeText(f.id)}')">
+       <span class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${trainerPill(status)}</span>
+       <span class="scope-dossier-title">${escapeText(f.title)}</span>
+       <span class="scope-dossier-meta"><span>${scopeIcon('calendar',16)} ${r.status==='confirmed'?'Call · '+scopeTime(r):'Formation · '+fmt(date)}</span></span>
+       <span class="scope-itemgo">${status[2]} ${scopeIcon('chevron',15)}</span>
+     </button>`).join('')||`<p class="card scope-empty">${assigned.length?'Aucun call dans ce filtre.':'Aucun call de cadrage associé à vos missions.'}</p>`}</div>`;
+}
+
+function trainerSlotRow(r,slot,index,trainer){
+ const answerable=r.status==='pending'&&!expired(slot), answered=hasReply(slot);
+ const label=slotStatus(r,slot,index,trainer);
+ return `<div class="scope-trainer-option ${slot.trainerAccepted?'is-accepted':''}"><div>
+   <strong>${fmtDate(slot.date,{weekday:'long',day:'numeric',month:'long'})}</strong><small>${slot.start} – ${slot.end}</small>
+   <span class="scope-pill ${slot.trainerAccepted?'scope-confirmed':''}">${label}</span></div>
+   ${answerable?`<div class="scope-actionrow"><button class="${answered?'secondary':'primary'} tiny" ${slot.trainerAccepted?'disabled':''} onclick="scopingTrainerRespond(${index},true)">Accepter</button>
+     <button class="secondary tiny" ${slot.trainerDeclined?'disabled':''} onclick="scopingTrainerRespond(${index},false)">Refuser</button></div>`:''}</div>`;
+}
+
+function trainerSlotPanel(call,trainer){
+ const r=call.record, confirmed=['confirmed','done'].includes(r.status);
+ const visible=r.proposals.map((slot,index)=>({slot,index})).filter(({slot,index})=>
+   (!isDraft(slot)||r.confirmedProposalIndex===index)&&inScope(slot,trainer));
+ const suggestions=(r.trainerSuggested||[]).filter(slot=>(slot.trainerId??trainer.id)===trainer.id);
+ const canSuggest=['todo','pending'].includes(r.status);
+ const options=`<div class="scope-trainer-options">${visible.map(({slot,index})=>trainerSlotRow(r,slot,index,trainer)).join('')||
+   '<p class="scope-empty">Aucun créneau transmis pour le moment.</p>'}</div>`;
+ return `<section class="scope-trainer-response">
+   ${confirmed?`<div class="scope-success"><strong>${r.status==='confirmed'?'Call confirmé le '+fmt(r.date):'Call réalisé le '+fmt(r.date)}</strong>
+     <p>${escapeText(r.start)}${r.end?' – '+escapeText(r.end):''}</p></div>
+     <details class="scope-trainer-history"><summary>Historique des créneaux</summary>${options}</details>`:
+     `<div class="scope-sectionhead"><h3>Créneaux proposés</h3><small>${visible.length} proposition(s)</small></div>
+     ${visible.length?'<p class="scope-help">Acceptez les créneaux qui vous conviennent. L’AMO vous confirmera le créneau retenu.</p>':''}${options}`}
+   ${canSuggest?`<details class="scope-trainer-history" ${state.scopingTrainerSuggestionOpen?'open':''} ontoggle="if(this.isConnected)rememberScopingTrainerSuggestion(this.open)">
+     <summary>Proposer un autre créneau</summary>
+     <form class="scope-trainer-alternative" onsubmit="event.preventDefault();scopingTrainerSuggest()">
+       <label class="scope-field"><span>Date</span><input type="date" id="scope-alt-date" min="${localDate()}" required></label>
+       <label class="scope-field"><span>Début</span><input type="time" id="scope-alt-start" value="10:00" required></label>
+       <label class="scope-field"><span>Fin</span><input type="time" id="scope-alt-end" value="10:30" required></label>
+       <button type="submit" class="primary">Soumettre à l’AMO</button>
+     </form></details>`:''}
+   ${suggestions.length?`<div class="scope-proposals"><strong>Mes créneaux proposés</strong>
+     ${suggestions.map(slot=>`<div><span>${scopeTime(slot)}</span><small>${expired(slot)?'Expiré':'En attente de l’AMO'}</small></div>`).join('')}</div>`:''}
+ </section>`;
+}
+
+function trainerDossier(call,trainer){
+ const {client,f,date}=call, tab=state.scopingTrainerTabKey||'slots';
+ return `<button class="secondary scope-back" onclick="scopingTrainerBack()">${mobileIcon('back',16)} Retour à mes calls</button>
+   <article class="card scope-detail"><header class="scope-detailtitle scope-filehead"><div>
+     <h1 tabindex="-1">${escapeText(client.name)}</h1><p>${escapeText(f.title)}</p>
+     <div class="scope-dossier-meta"><span>${scopeIcon('calendar',15)} Formation · ${fmt(date)}</span></div></div>
+     ${trainerPill(trainerStatus(call,trainer))}
+   </header>
+   <nav class="scope-tabs scope-trainer-tabs" aria-label="Sections du call">${[['slots','Créneaux'],['note','Note de cadrage']].map(([key,label])=>
+     `<button class="secondary" ${key===tab?'aria-current="page"':''} onclick="scopingTrainerTab('${key}')">${label}</button>`).join('')}</nav>
+   <div class="scope-content">${tab==='note'?scopingNotePanel(f.id,true):trainerSlotPanel(call,trainer)}</div>
+   </article>`;
+}
+
 function trainerCallPage(){
- const assigned=trainerCalls(state.trainerId);
- const pending=assigned.filter(x=>pendingSlots(x.record,trainerById(state.trainerId)).length).length;
- const confirmed=assigned.filter(x=>x.record.status==='confirmed').length;
- const selected=getTrainerCall(), trainer=trainerById(state.trainerId);
- const visibleSlots=selected?.record.proposals.map((slot,index)=>({slot,index})).filter(({slot,index})=>
-   (!isDraft(slot)||selected.record.confirmedProposalIndex===index)&&inScope(slot,trainer))||[];
- return `<div class="scope-root scope-trainer-root"><header class="scope-hero"><div><span class="scope-eyebrow">ESPACE FORMATEUR</span><h1>Mes calls de cadrage<span>.</span></h1><p>Consultez les propositions de créneaux, acceptez une disponibilité ou suggérez une autre date.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
- <div class="scope-statgrid"><div class="scope-stat"><span>À répondre</span><strong>${pending}</strong><small>Propositions de call</small></div><div class="scope-stat"><span>Confirmés</span><strong>${confirmed}</strong><small>Calls planifiés</small></div></div>
- <div class="scope-layout"><section class="scope-list card"><div class="scope-listhead"><h2>Mes formations</h2><span>${assigned.length} dossier(s)</span></div><div class="scope-items">${assigned.map(({f,record,client,date})=>`<button class="scope-item ${f.id===selected?.f.id?'active':''}" onclick="scopingTrainerSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${cockpitPill(trainerStage(f,record,trainer))}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta">${scopeIcon("calendar",15)} Formation : ${fmt(date)}</div><span class="scope-itemgo">Voir les créneaux ${scopeIcon("chevron",14)}</span></button>`).join('')||'<p class="scope-empty">Aucun call de cadrage associé à vos missions.</p>'}</div></section>
- ${selected?`<section class="scope-detail card"><div class="scope-detailtitle"><div><span class="scope-eyebrow">PROPOSITIONS DE CALL</span><h2>${escapeText(selected.client.name)}</h2><p>${escapeText(selected.f.title)}</p></div>${cockpitPill(trainerStage(selected.f,selected.record,trainer))}</div><div class="scope-content"><section><div class="scope-sectionhead"><h3>Créneaux proposés par l'AMO</h3><small>${visibleSlots.length} proposition(s)</small></div>
- <p class="scope-help">Indiquez le créneau qui vous convient. L'AMO devra ensuite confirmer avec le client.</p>
- <div class="scope-trainer-options">${visibleSlots.map(({slot,index:i})=>`<div class="scope-trainer-option"><div><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small><span>${slotStatus(selected.record,slot,i,trainer)}</span></div><div class="scope-actionrow"><button class="primary tiny" ${selected.record.status!=='pending'||expired(slot)?'disabled':''} onclick="scopingTrainerRespond(${i},true)">Accepter</button><button class="secondary tiny" ${selected.record.status!=='pending'||expired(slot)?'disabled':''} onclick="scopingTrainerRespond(${i},false)">Refuser</button></div></div>`).join('')||'<p class="scope-empty">Aucun créneau proposé pour le moment.</p>'}</div></section>
- ${['todo','pending'].includes(selected.record.status)?`<section><div class="scope-sectionhead"><h3>Proposer une autre disponibilité</h3><small>Si aucune proposition ne convient</small></div><div class="scope-trainer-alternative"><label class="scope-field"><span>Date</span><input type="date" id="scope-alt-date" min="${localDate()}"></label><label class="scope-field"><span>Début</span><input type="time" id="scope-alt-start" value="10:00"></label><label class="scope-field"><span>Fin</span><input type="time" id="scope-alt-end" value="10:30"></label><button class="secondary" onclick="scopingTrainerSuggest()">Soumettre à l'AMO</button></div></section>`:''}
- ${selected.record.status==='confirmed'?`<section class="scope-success">Call confirmé le ${fmt(selected.record.date)} à ${selected.record.start}</section>`:''}
- ${scopingNotePanel(selected.f.id,true)}</div></section>`:'<section class="scope-detail card"><p class="scope-empty">Vos prochaines propositions de calls apparaîtront ici.</p></section>'}</div>
- <p class="scope-footnote">Réponses enregistrées dans cette démonstration locale. Une synchronisation backend sera nécessaire pour partager les réponses entre plusieurs comptes et appareils.</p></div>`;
+ const trainer=trainerById(state.trainerId), assigned=trainerCalls(state.trainerId), selected=getTrainerCall();
+ if(state.scopingTrainerSelected!==selected?.f.id){
+   state.scopingTrainerSelected=selected?.f.id;
+   state.scopingTrainerTabKey='slots';
+   state.scopingTrainerSuggestionOpen=false;
+ }
+ return `<div class="scope-root scope-trainer-root scope-trainer-v3">${selected?trainerDossier(selected,trainer):
+   `${trainerScopeId()?'<p class="scope-warning">Ce dossier n’est pas accessible pour ce profil.</p>':''}${trainerCockpit(assigned,trainer)}`}
+   <p class="scope-footnote">Vos réponses et votre note sont enregistrées dans ce navigateur de démonstration.</p></div>`;
 }
-window.scopingTrainerSelect=id=>{if(state.role!=='formateur')return;state.scopingTrainerSelected=id;render();scopeFocusDetailOnMobile()};
+
+window.scopingTrainerSelect=id=>{
+ if(state.role!=='formateur'||state.page!=='trainer-scoping'||!trainerCalls(state.trainerId).some(call=>call.f.id===id))return;
+ const target=trainerScopeHash+'/'+encodeURIComponent(id);
+ if(location.hash!==target)history.pushState(null,'',target);
+ render();window.scrollTo(0,0);
+ document.querySelector('.scope-filehead h1')?.focus({preventScroll:true});
+};
+window.scopingTrainerBack=()=>{
+ if(state.role!=='formateur')return;
+ go('trainer-scoping');
+ document.querySelector('.scope-trainer-filters button[aria-pressed=true]')?.focus({preventScroll:true});
+};
+window.scopingTrainerFilter=key=>{
+ if(!['all','waiting','confirmed'].includes(key))return;
+ state.scopingTrainerFilter=key;render();
+ document.querySelector(`.scope-trainer-filters [data-scope-filter="${key}"]`)?.focus({preventScroll:true});
+};
+window.scopingTrainerTab=key=>{
+ if(!getTrainerCall()||!['slots','note'].includes(key))return;
+ state.scopingTrainerTabKey=key;render();
+ document.querySelector('.scope-trainer-tabs [aria-current]')?.focus({preventScroll:true});
+};
+window.rememberScopingTrainerSuggestion=open=>{state.scopingTrainerSuggestionOpen=open;};
+
 window.scopingTrainerRespond=(index,yes)=>{const current=getTrainerCall();if(!current)return;const r=current.record,slot=r.proposals[index];if(!slot||r.status!=='pending'||isDraft(slot)||expired(slot)||!inScope(slot,current.trainer)||typeof yes!=='boolean')return;
  if(yes?slot.trainerAccepted:slot.trainerDeclined)return;
  if(yes&&trainerBusy(current.trainer,slot.date,slot.start,slot.end,current.f.id))return notify('Créneau désormais occupé.');
@@ -706,7 +801,7 @@ window.scopingTrainerSuggest=()=>{const current=getTrainerCall();if(!current||![
  current.record.trainerSuggested||=[];
  if(current.record.trainerSuggested.some(s=>s.date===date&&s.start===start))return notify('Déjà proposé.');
  current.record.trainerSuggested.push({date,start,end,trainerId:state.trainerId,suggestedAt:new Date().toISOString()});current.record.history.push({at:new Date().toISOString(),text:'Autre créneau suggéré par le formateur'});
- if(!callStore.write(current.record))return;render();notify('Créneau alternatif proposé à l’AMO dans la démonstration');
+ if(!callStore.write(current.record))return;state.scopingTrainerSuggestionOpen=false;render();notify('Créneau alternatif proposé à l’AMO dans la démonstration');
 };
 
 function sidebarLink(){
@@ -737,7 +832,7 @@ render=function(){const amo=state.role==='amo'&&state.page===PAGE,trainer=state.
  }else previousRender();sidebarLink();};
 if(typeof location!=='undefined'){
  if(location.hash===scopeHash||scopeFormationFromHash()){state.role='amo';state.page=PAGE;}
- if(location.hash==='#/formateur/trainer-scoping'){state.role='formateur';state.page='trainer-scoping';}
+ if(location.hash===trainerScopeHash||trainerScopeId()){state.role='formateur';state.page='trainer-scoping';}
 }
 render();
 })();

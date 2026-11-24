@@ -62,6 +62,8 @@ try{
   assert.equal(await page.locator('.scope-slot.is-selected').count(),4);
 
   await page.evaluate(()=>{setRole('trainer-1');go('trainer-scoping');});
+  assert.equal(await page.locator('.scope-detail').count(),0);
+  await page.locator('.scope-dossier-card').filter({hasText:setup.client}).click();
   assert.equal(await button(page,'Accepter').count(),0);
   await page.evaluate(id=>{setRole('amo');openAmoScoping(id);},setup.id);
   await button(page,'Proposer ces créneaux').click();
@@ -101,10 +103,16 @@ try{
   },setup.id);
   await page.getByText('Relance bloquée pendant le délai de 24 h.').waitFor();
   await page.evaluate(id=>{delete db.scoping.calls['F'+id].reminders;setRole('trainer-1');go('trainer-scoping');},setup.id);
+  await page.getByRole('button',{name:/^À répondre/}).click();
+  await page.locator('.scope-dossier-card').filter({hasText:setup.client}).click();
+  assert.equal(await page.locator('.scope-dossier-card').count(),0);
+  await page.reload();
+  await page.waitForURL(url+'#/formateur/trainer-scoping/'+setup.id);
   await button(page,'Refuser').first().click();
   await button(page,'Accepter').nth(1).click();
   await button(page,'Accepter').nth(2).click();
   const alternate=await page.evaluate(()=>shiftDate(parisToday(),17));
+  await page.getByText('Proposer un autre créneau',{exact:true}).click();
   await page.locator('#scope-alt-date').fill(alternate);
   await page.getByRole('button',{name:/Soumettre à l.AMO/}).click();
   await page.getByText('Créneau alternatif proposé à l’AMO dans la démonstration').waitFor();
@@ -142,7 +150,13 @@ try{
   await button(page,'Compte rendu').click();
   assert.match(await page.getByLabel('Compte rendu du cadrage').inputValue(),/compte rendu testé/);
   await page.evaluate(()=>{setRole('trainer-1');go('trainer-scoping');});
+  await page.locator('.scope-dossier-card').filter({hasText:setup.client}).click();
   await page.getByText(/Call confirmé le/).waitFor();
+  await page.setViewportSize({width:390,height:900});
+  await page.screenshot({animations:'disabled',path:`${output}/formateur-confirme-390.png`});
+  await page.setViewportSize({width:1440,height:900});
+  await button(page,'Retour à mes calls').click();
+  await page.getByRole('heading',{name:'Mes calls de cadrage'}).waitFor();
 
   await page.evaluate(id=>{setRole('amo');openAmoScoping(id);},setup.other);
   await page.getByText('Affectez un formateur avant de préparer les créneaux.').waitFor();
@@ -185,6 +199,13 @@ try{
         await screen.screenshot({animations:'disabled',path:`${output}/dossier-${width}-${theme}.png`});
       }
       await button(screen,'Retour aux dossiers').click();
+      await screen.evaluate(()=>{setRole('trainer-1');go('trainer-scoping');});
+      await screen.locator('.scope-dossier-card').first().waitFor();
+      assert.equal(await screen.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Formateur liste ${width} ${theme}`);
+      await screen.locator('.scope-dossier-card').first().click();
+      await button(screen,'Note de cadrage').click();
+      assert.equal(await screen.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Formateur dossier ${width} ${theme}`);
+      await screen.goto(locationOf());
     }
     if(width<=430)assert.equal(await screen.locator('.mobile-dock button:visible').count(),5);
     await screen.close();
@@ -195,7 +216,7 @@ try{
     const offline=await makePage(390,'allow');
     await offline.goto(locationOf());
     await offline.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
-    assert.ok(await offline.evaluate(async()=> (await caches.keys()).includes('certifia-hub-demo-v65-reporting-scoping-v3')));
+    assert.ok(await offline.evaluate(async()=> (await caches.keys()).includes('certifia-hub-demo-v66-trainer-scoping-v3')));
     await offline.context().setOffline(true);
     await offline.reload();
     await offline.locator('.scope-dossier-card').first().click();

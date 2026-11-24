@@ -112,12 +112,13 @@ try{
   await button(page,'Proposer ces créneaux').click();
   await button(page,'J’ai envoyé les propositions').click();
   await page.getByText('Dernier envoi déclaré',{exact:true}).waitFor();
-  await page.evaluate(id=>{setRole('trainer-'+id);go('trainer-scoping');},data.trainerId);
+  await page.evaluate(({trainerId,formationId})=>{setRole('trainer-'+trainerId);go('trainer-scoping');scopingTrainerSelect(formationId);},data);
   await button(page,'Refuser').first().click();
   await button(page,'Accepter').last().click();
   await page.getByText('Refusé par le formateur',{exact:true}).waitFor();
   await page.getByText('Accepté par le formateur',{exact:true}).waitFor();
   const alternate=await page.evaluate(()=>shiftDate(parisToday(),17));
+  await page.getByText('Proposer un autre créneau',{exact:true}).click();
   await page.locator('#scope-alt-date').fill(alternate);
   await button(page,/Soumettre à l.AMO/).click();
   await page.getByText('Créneau alternatif proposé à l’AMO dans la démonstration',{exact:true}).waitFor();
@@ -126,9 +127,10 @@ try{
   await button(page,'Confirmer ce créneau').first().click();
   await button(page,'Valider ce créneau').click();
   assert.equal(await page.evaluate(id=>amoScopingStatus(id),data.formationId),'confirmed');
-  await page.evaluate(id=>{setRole('trainer-'+id);go('trainer-scoping');},data.trainerId);
+  await page.evaluate(({trainerId,formationId})=>{setRole('trainer-'+trainerId);go('trainer-scoping');scopingTrainerSelect(formationId);},data);
   await page.getByText(/Call confirmé le/).waitFor();
   assert.equal(await page.locator('#scope-alt-date').count(),0);
+  await button(page,'Note de cadrage').click();
   const note=page.locator('.scope-note');
   for(const filename of ['cadrage.pdf','cadrage-final.pdf']){
     await note.locator('input[type="file"]').setInputFiles({name:filename,mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4\nNote de cadrage')});

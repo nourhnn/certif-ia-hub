@@ -50,3 +50,7 @@ Le déploiement automatique de la branche est désactivé. Le commit de phase 3 
 - Les scénarios couvrent la recherche, les filtres, la sélection multiple, l’extension des résultats, l’envoi déclaré, ses échecs de copie et de persistance, les réponses et alternatives, l’expiration, la relance désactivée et le délai, la confirmation concurrente à un conflit, les onglets, le rechargement et la préparation.
 - Chrome valide le rechargement hors ligne de la PWA et l’ouverture du suivi. L’installation et la vérification sur un appareil physique restent à faire.
 - Les suites de non-régression AMO et Formateur passent sous WebKit, y compris le dépôt de note et la lecture AMO.
+
+## Parcours Formateur V3
+
+Le Formateur ouvre ses calls depuis un écran dédié. Les filtres « Tous », « À répondre » et « Confirmés » orientent vers les dossiers, dont l’adresse reste utilisable après actualisation. Un dossier affiche les créneaux et la note de cadrage dans deux onglets. Le créneau confirmé apparaît en premier et l’historique reste accessible. Le formulaire d’alternative se déplie à la demande. Les mêmes règles de visibilité et de stockage local s’appliquent.

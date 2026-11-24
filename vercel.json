@@ -4,7 +4,8 @@
       "feat/v2-formateurs-staffing": false,
       "feat/v2-reporting-performance": false,
       "feat/scoping-calls-v3-ux": false,
-      "release/reporting-scoping-v3": false
+      "release/reporting-scoping-v3": false,
+      "feat/trainer-scoping-v3-ux": false
     }
   },
   "headers": [
