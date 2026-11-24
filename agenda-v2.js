@@ -4,7 +4,7 @@
   // La synchronisation Google/Outlook réelle nécessite une API et OAuth sécurisés.
   const baselineCalendar=trainerCalendar;
   const baselineConflict=calendarConflict;
-  const weekdays=[['1','Lundi'],['2','Mardi'],['3','Mercredi'],['4','Jeudi'],['5','Vendredi'],['6','Samedi'],['0','Dimanche']];
+  const weekdays=[['1','Lundi'],['2','Mardi'],['3','Mercredi'],['4','Jeudi'],['5','Vendredi']];
   function agendaProfile(id){
     db.agendaV2 ||= {};
     db.agendaV2[id] ||= {
@@ -140,6 +140,7 @@
   }
   function weekdayPreference(profile,date,habitual=false){
     const weekday=new Date(date+'T12:00:00').getDay();
+    if(weekday===0||weekday===6)return null;
     return (!habitual&&profile?.weeklyOverrides?.[date]) ||
       profile?.weekly?.[weekday] || {on:false,start:'09:00',end:'18:00'};
   }
@@ -150,7 +151,7 @@
 
   function editsHabitualWeek(profile){
     if(state.availabilityScope)return state.availabilityScope==='habitual';
-    const week=availabilityWeek(), end=shiftDate(week,6);
+    const week=availabilityWeek(), end=shiftDate(week,4);
     return !Object.keys(profile.weeklyOverrides||{}).some(date=>date>=week&&date<=end);
   }
 
@@ -167,7 +168,7 @@
 
   function v2Weekday(date,field,value){
     if(state.role!=='formateur'||state.page!=='trainer-calendar'||date<availabilityWeek()||
-      date>shiftDate(availabilityWeek(),6))return;
+      date>shiftDate(availabilityWeek(),4))return;
     const p=agendaProfile(state.trainerId);
     const habitual=editsHabitualWeek(p);
     const updated={...weekdayPreference(p,date,habitual)};
@@ -183,7 +184,7 @@
 
   function resetAvailabilityDay(date){
     if(state.role!=='formateur'||state.page!=='trainer-calendar'||date<availabilityWeek()||
-      date>shiftDate(availabilityWeek(),6))return;
+      date>shiftDate(availabilityWeek(),4))return;
     const overrides=db.agendaV2?.[state.trainerId]?.weeklyOverrides;
     if(!overrides||!Object.hasOwn(overrides,date))return;
     delete overrides[date];
@@ -213,7 +214,7 @@
       <header class="av2-cardhead"><div><h2>Mes disponibilités par semaine</h2><p>Les horaires habituels se répètent. Passez sur « Cette semaine seulement » pour modifier des dates précises.</p></div></header>
       <div class="av2-weeknav" role="group" aria-label="Choisir la semaine">
         <button class="secondary tiny" aria-label="Semaine précédente" onclick="moveAvailabilityWeek(-1)">${mobileIcon('back',16)}</button>
-        <strong aria-live="polite">Du ${fmtDate(week)} au ${fmtDate(shiftDate(week,6))}</strong>
+        <strong aria-live="polite">Du ${fmtDate(week)} au ${fmtDate(shiftDate(week,4))}</strong>
         <button class="secondary tiny" aria-label="Semaine suivante" onclick="moveAvailabilityWeek(1)">${mobileIcon('chevron',16)}</button>
       </div>
       <div class="av2-tabs av2-scope" role="group" aria-label="Appliquer les modifications">
@@ -222,10 +223,10 @@
       </div>
       <div class="av2-weekdays">${weekdays.map(([,label],i)=>{
         const date=shiftDate(week,i), d=weekdayPreference(p,date,habitual), override=p.weeklyOverrides?.[date];
-        const shortDate=fmtDate(date,{day:'numeric',month:'short'});
+        const shortDate=fmtDate(date,{day:'numeric',month:'long'});
         return `<div class="av2-weekrow">
-          <div class="av2-weekday"><label class="av2-daytoggle"><input id="av2-week-${date}-on" type="checkbox" ${d.on?'checked':''} onchange="agendaV2SetWeekday('${date}','on',this.checked)"><strong>${label} <span>${shortDate}</span></strong></label>
-          ${override?`<span class="item-sub">Exception le ${shortDate}</span>`:''}</div>
+          <div class="av2-weekday"><label class="av2-daytoggle"><input id="av2-week-${date}-on" type="checkbox" ${d.on?'checked':''} onchange="agendaV2SetWeekday('${date}','on',this.checked)"><span class="av2-day-date"><strong>${label}</strong><time datetime="${date}">${shortDate}</time></span></label>
+          ${override?`<span class="item-sub">Horaire modifié pour cette date</span>`:''}</div>
           <div class="av2-times"><label><span>De</span><input id="av2-week-${date}-start" aria-label="Début ${label}" type="time" value="${esc(d.start)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${date}','start',this.value)"></label>
           <label><span>À</span><input id="av2-week-${date}-end" aria-label="Fin ${label}" type="time" value="${esc(d.end)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${date}','end',this.value)"></label></div>
           ${override&&!habitual?`<button class="ghost tiny" aria-label="Rétablir l’horaire habituel du ${label}" onclick="resetAvailabilityDay('${date}')">Rétablir l’horaire habituel</button>`:''}</div>`;

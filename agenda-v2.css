@@ -124,7 +124,8 @@
 .av2-weeknav strong{text-align:center;font-size:14px}
 .av2-scope{margin:0 0 12px}
 .av2-weekday{display:grid;gap:4px}
-.av2-daytoggle strong span{font-weight:500;color:var(--muted)}
+.av2-day-date{display:grid;gap:3px}
+.av2-day-date time{font-size:14px;font-weight:700}
 @media(max-width:700px){
   .av2-weeknav button{min-width:44px}
   .av2-weekday{width:100%}

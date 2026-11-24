@@ -24,6 +24,8 @@ try{
   await go(page,'formateur/trainer-home');
   await button(page,'Mes disponibilités').click();
   const monday=page.getByRole('checkbox',{name:/^Lundi /});
+  assert.equal(await page.locator('.av2-weekdays time[datetime]').count(),5);
+  assert.equal(await page.getByRole('checkbox',{name:/Samedi|Dimanche/}).count(),0);
   await monday.check();
   assert.match(await monday.getAttribute('id'),/^av2-week-\d{4}-\d{2}-\d{2}-on$/);
   await button(page,'Semaine suivante').click();

@@ -60,4 +60,4 @@ La configuration Vercel suspend le déploiement automatique de cette branche de 
 
 ### Disponibilités par semaine
 
-Le planning affiche les dates du lundi au dimanche. Le mode « Chaque semaine » modifie la base récurrente. Le mode « Cette semaine seulement » enregistre une exception par date, que le formateur peut retirer pour retrouver son horaire habituel. Le test WebKit vérifie que le lundi activé se répète, qu’une exception reste limitée à la semaine choisie et que la restauration fonctionne. Les six largeurs passent dans les deux thèmes.
+Le planning affiche les dates du lundi au vendredi. Le mode « Chaque semaine » modifie la base récurrente. Le mode « Cette semaine seulement » enregistre une exception par date, que le formateur peut retirer pour retrouver son horaire habituel. Le test WebKit vérifie que le lundi activé se répète, qu’une exception reste limitée à la semaine choisie et que la restauration fonctionne. Les six largeurs passent dans les deux thèmes.
