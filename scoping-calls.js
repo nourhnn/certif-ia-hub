@@ -36,43 +36,68 @@ const timeFromMinutes=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%6
 const escapeText=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const fmt=d=>d?DATE_FORMAT.format(new Date(d+'T12:00:00')):'Non renseigné';
 const key=f=>'F'+f.id;
-function dataset(){ db.scoping ||= {calls:{}};return db.scoping.calls; }
+const callStore={
+ read:id=>db.scoping?.calls?.[key({id})],
+ write(record){
+   db.scoping ||= {};
+   db.scoping.calls ||= {};
+   db.scoping.calls[key({id:record.formationId})]=record;
+   save();
+ }
+};
 function sessionsOf(f){return (db.sessions||[]).filter(s=>s.formationId===f.id&&s.status!=='Annulée').sort((a,b)=>a.date.localeCompare(b.date));}
-function formTrainer(f){ const ss=sessionsOf(f);const assigned=(db.assignments||[]).find(a=>ss.some(s=>s.id===a.sessionId)&&['Confirmée','Réalisée','À revalider'].includes(a.status));return assigned?trainerById(assigned.trainerId):null; }
+function formTrainer(f){
+ const sessions=sessionsOf(f), upcoming=sessions.filter(s=>s.date>=localDate());
+ const ordered=upcoming.length?upcoming:sessions.slice().reverse();
+ for(const session of ordered){
+   const assigned=db.assignments.find(a=>a.sessionId===session.id&&['Confirmée','Réalisée'].includes(a.status));
+   if(assigned)return trainerById(assigned.trainerId);
+ }
+ return null;
+}
 function clientRecord(f){return clients.find(c=>c.id===f.clientId)||{name:'Client inconnu'};}
-function callFor(f){const records=dataset();if(!records[key(f)]){
- const c=clientDetails?.[f.clientId]||{};
- records[key(f)]={id:key(f),formationId:f.id,status:'todo',duration:30,proposals:[],date:'',start:'',end:'',meet:'',notes:'',actions:[],history:[],checklist:{},contact:{name:c.contact&&!/non renseigné/i.test(c.contact)?c.contact:'',role:'',phone:c.phone||c.telephone||'',email:c.email||'',hubspot:c.contactUrl||''},trainerResponse:'unknown',clientResponse:'unknown'};
- }return records[key(f)];}
+function callFor(f){
+ const saved=callStore.read(f.id);
+ if(saved)return saved;
+ return {id:key(f),formationId:f.id,status:'todo',duration:30,proposals:[],date:'',start:'',end:'',meet:'',notes:'',
+   history:[],checklist:{},trainerResponse:'unknown',clientResponse:'unknown'};
+}
 function callSessionDate(f){return sessionsOf(f).find(s=>s.date>=localDate())?.date||sessionsOf(f)[0]?.date||'';}
 function daysBefore(date){return date?Math.round((Date.parse(date+'T12:00:00')-Date.parse(localDate()+'T12:00:00'))/86400000):null;}
 function statusOf(f,r){const days=daysBefore(callSessionDate(f));return ['todo','pending'].includes(r.status)&&days!==null&&days<=14?'due':r.status;}
 function allCalls(){return formations.map(f=>({f,record:callFor(f),client:clientRecord(f),trainer:formTrainer(f),date:callSessionDate(f)}));}
 function safeNumber(value){return typeof value==='string'&&/^\+?[0-9][0-9 .()\-]{5,24}$/.test(value.trim())?value.replace(/[^+\d]/g,''):'';}
 function telLink(v){const n=safeNumber(v);return n?'tel:'+n:null;}
-function overlaps(a,b){return a.date===b.date&&((a.start||'00:00')<(b.end||'24:00'))&&((b.start||'00:00')<(a.end||'24:00'));}
+window.confirmedScopingConflict=(entry,trainerId,ignoreCall)=>
+ formations.some(f=>{
+   if(f.id===ignoreCall)return false;
+   const r=callStore.read(f.id);
+   return r?.status==='confirmed'&&(r.trainerId??formTrainer(f)?.id)===trainerId&&agendaEntriesOverlap(entry,r);
+ });
 function trainerBusy(trainer,date,start,end,ignoreCall){
- if(!trainer)return true;
- const target={date,start,end};
- if((db.calendarEvents||[]).some(e=>e.trainerId===trainer.id&&overlaps(target,e)))return true;
- if((db.availability||[]).some(e=>e.trainerId===trainer.id&&e.status==='Occupé'&&overlaps(target,e)))return true;
- if((db.assignments||[]).some(a=>a.trainerId===trainer.id&&['Confirmée','À revalider','Réalisée'].includes(a.status)&&(()=>{const s=sessionById(a.sessionId);return s&&overlaps(target,s)})()))return true;
- if(allCalls().some(c=>c.f.id!==ignoreCall&&c.record.status==='confirmed'&&c.trainer?.id===trainer.id&&overlaps(target,{date:c.record.date,start:c.record.start,end:c.record.end})))return true;
- return false;
+ return !trainer||Boolean(calendarConflict({date,start,end},trainer.id,{allowAvailable:true,ignoreCall}));
 }
-function calendarMode(trainer){if(!trainer)return {kind:'none',label:'Formateur à affecter'};const demo=!!db.agendaV2?.[trainer.id]?.demoCalendar;return demo?{kind:'simulation',label:'Calendrier libre (simulation)'}:{kind:'unknown',label:'Agenda formateur non vérifié'};}
+function calendarMode(trainer){
+ if(!trainer)return {kind:'none',label:'Formateur à affecter'};
+ const label=window.agendaConnectionLabel?.(trainer.id)||'Agenda non vérifié';
+ return {kind:label==='Agenda connecté'?'verified':label==='Agenda simulé'?'simulation':'unknown',label};
+}
 function slotsFor(f,record,days=10){
  const trainer=formTrainer(f),today=localDate(),startDate=state.scopingStartDate&&state.scopingStartDate>today?state.scopingStartDate:today,out=[];
  const duration=Number(record.duration||30);
- for(let d=0;d<days&&out.length<12;d++){
+ for(let d=0;d<days;d++){
   const date=addDays(startDate,d),weekday=new Date(date+'T12:00:00').getDay();if(weekday===0||weekday===6)continue;
   for(const hour of ['09:00','10:00','11:00','14:00','15:00','16:00']){
    const end=timeFromMinutes(durationToMinutes(hour)+duration);if(durationToMinutes(end)>1080||trainerBusy(trainer,date,hour,end,f.id))continue;
-   const mode=calendarMode(trainer);out.push({date,start:hour,end,mode:mode.kind,label:mode.label,amo:'À vérifier',client:'À confirmer'});
-   if(out.length>=12)break;
+   const check=window.agendaV2Check?.({date,start:hour,end},trainer.id,{ignoreCall:f.id});
+   out.push({date,start:hour,end,mode:check?.state||'unknown',label:check?.label||'Disponibilité non vérifiée'});
+
   }
  }
- return out;
+ const priority={verified:0,preference:1,simulation:2,unknown:3,unavailable:3};
+ const preferred=window.trainerAvailabilityPreferences?.(trainer?.id)?.days||[];
+ const favored=slot=>preferred.includes(String(new Date(slot.date+'T12:00:00').getDay()));
+ return out.sort((a,b)=>(priority[a.mode]??3)-(priority[b.mode]??3)||Number(favored(b))-Number(favored(a))).slice(0,18);
 }
 
 function markupPill(status){let text=LABELS[status]||status;return `<span class="scope-pill scope-${escapeText(status)}">${escapeText(text)}</span>`;}
@@ -116,9 +141,9 @@ function availabilityMarkup(f,r){
  <label class="scope-inline">À partir du <input class="scope-date-picker" type="date" value="${escapeText(from)}" min="${localDate()}" onchange="scopingSetStartDate(this.value)"></label>
  <label class="scope-inline">Durée <select id="scope-duration" onchange="scopingDuration(this.value)">${[15,30,45,60].map(n=>`<option ${r.duration===n?'selected':''} value="${n}">${n} min</option>`).join('')}</select></label></div>
  ${!trainer?'<p class="scope-warning">Aucun formateur confirmé. Affectez d’abord le formateur depuis Staffing assisté.</p><button class="secondary tiny" onclick="go(\'staffing\')">Ouvrir Staffing</button>':`<p class="scope-help">Les horaires déclarés sont indicatifs. Seuls les conflits connus sont bloquants, les calendriers non connectés restent non vérifiés.</p>
- <div class="scope-slotlist">${(state.scopingSlotsExpanded?list:list.slice(0,6)).map(slot=>`<button class="scope-slot" onclick="scopingChooseSlot('${slot.date}','${slot.start}','${slot.end}')"><span class="scope-slotdate"><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small></span><span class="scope-slotstatus ${slot.mode}">${slot.mode==='simulation'?'Libre · simulation':'Non vérifié'}</span><span class="scope-slotarrow">${scopeIcon("plus",16)}</span></button>`).join('')||'<p class="scope-empty">Aucun créneau sans conflit sur la période choisie.</p>'}</div>${list.length>6?`<button type="button" class="secondary tiny scope-see-more" aria-expanded="${Boolean(state.scopingSlotsExpanded)}" onclick="scopingToggleMoreSlots()">${state.scopingSlotsExpanded?"Voir moins":"Voir plus"} ${scopeIcon("chevron",15)} ${state.scopingSlotsExpanded?"":`(${list.length-6} autres)`}</button>`:""}`}
+ <div class="scope-slotlist">${(state.scopingSlotsExpanded?list:list.slice(0,6)).map(slot=>`<button class="scope-slot" onclick="scopingChooseSlot('${slot.date}','${slot.start}','${slot.end}')"><span class="scope-slotdate"><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small></span><span class="scope-slotstatus ${slot.mode}">${escapeText(slot.label)}</span><span class="scope-slotarrow">${scopeIcon("plus",16)}</span></button>`).join('')||'<p class="scope-empty">Aucun créneau sans conflit sur la période choisie.</p>'}</div>${list.length>6?`<button type="button" class="secondary tiny scope-see-more" aria-expanded="${Boolean(state.scopingSlotsExpanded)}" onclick="scopingToggleMoreSlots()">${state.scopingSlotsExpanded?"Voir moins":"Voir plus"} ${scopeIcon("chevron",15)} ${state.scopingSlotsExpanded?"":`(${list.length-6} autres)`}</button>`:""}`}
  ${r.proposals.length?`<div class="scope-proposals"><strong>Créneaux proposés (${r.proposals.length})</strong>
- ${r.proposals.map((slot,i)=>`<div><span>${fmt(slot.date)} · ${slot.start}–${slot.end}${slot.trainerAccepted?' · ✓ Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':''}</span><button class="scope-icon-button" onclick="scopingRemoveSlot(${i})" aria-label="Retirer ce créneau">×</button></div>`).join('')}</div>
+ ${r.proposals.map((slot,i)=>`<div><span>${fmt(slot.date)} · ${slot.start}–${slot.end}${slot.trainerAccepted?' · Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':''}</span><button class="scope-icon-button" onclick="scopingRemoveSlot(${i})" aria-label="Retirer ce créneau">×</button></div>`).join('')}</div>
  <div class="scope-smart-message"><div><strong>${scopeIcon("message",17)} Message prêt à envoyer</strong><p>Une proposition sympa, prête à copier comme pour le staffing WhatsApp.</p></div><div class="scope-message-preview">${escapeText(scopingMessageText(f,r))}</div><button class="primary tiny" onclick="scopingCopyMessage()">${scopeIcon("copy",15)} Copier le message</button></div>`:''}
  ${r.trainerSuggested?.length?`<div class="scope-proposals"><strong>Autres propositions du formateur</strong>${r.trainerSuggested.map((slot,i)=>`<div><span>${fmt(slot.date)} · ${slot.start}–${slot.end}</span><button class="secondary tiny" onclick="scopingAddTrainerSuggestion(${i})">Ajouter aux propositions</button></div>`).join('')}</div>`:''}`;
 }
@@ -161,8 +186,8 @@ function summaryMarkup(f,r){const trainer=formTrainer(f),client=clientRecord(f),
 }
 function scheduleMarkup(r){
  return `<div class="scope-sectionhead"><h3>Confirmation du créneau</h3><small>Choisissez parmi les créneaux proposés</small></div>
- ${r.proposals.length?`<div class="scope-confirm-options">${r.proposals.map((slot,i)=>`<label class="scope-confirm-option"><input type="radio" name="scope-confirm-choice" value="${i}" ${r.confirmedProposalIndex===i||r.confirmedProposalIndex==null&&i===0?'checked':''}><span><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}${slot.trainerAccepted?' · ✓ Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':' · Réponse formateur à vérifier'}</small></span></label>`).join('')}</div><div class="scope-actionrow"><button class="primary" onclick="scopingConfirm()">✓ Valider ce créneau</button></div>`:'<p class="scope-empty">Ajoutez des créneaux proposés pour pouvoir en confirmer un.</p>'}
- ${r.status==='confirmed'?`<p class="scope-success">✓ Confirmé le ${fmt(r.date)} de ${r.start} à ${r.end} · confirmation locale</p>`:''}
+ ${r.proposals.length?`<div class="scope-confirm-options">${r.proposals.map((slot,i)=>`<label class="scope-confirm-option"><input type="radio" name="scope-confirm-choice" value="${i}" ${r.confirmedProposalIndex===i||r.confirmedProposalIndex==null&&i===0?'checked':''}><span><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}${slot.trainerAccepted?' · Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':' · Réponse formateur à vérifier'}</small></span></label>`).join('')}</div><div class="scope-actionrow"><button class="primary" onclick="scopingConfirm()">Valider ce créneau</button></div>`:'<p class="scope-empty">Ajoutez des créneaux proposés pour pouvoir en confirmer un.</p>'}
+ ${r.status==='confirmed'?`<p class="scope-success">Confirmé le ${fmt(r.date)} de ${r.start} à ${r.end} · confirmation locale</p>`:''}
  <p class="scope-help">Aucune invitation n'est envoyée automatiquement. Vérifiez l'accord du client et du formateur avant validation.</p>`;
 }
 
@@ -182,9 +207,9 @@ function scopingPage(){const rows=allCalls();if(!state.scopingSelected||!formati
  return `<div class="scope-root"><header class="scope-hero"><div><span class="scope-eyebrow">PILOTAGE AMO · J-14</span><h1>Calls de cadrage<span>.</span></h1><p>Planifiez, contactez, préparez et suivez vos échanges clients avant les formations.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>${statsMarkup(rows)}<div class="scope-layout">${listMarkup(rows)}${f?detailMarkup(f,r):'<p class="scope-empty">Aucune formation disponible.</p>'}</div><p class="scope-footnote">Toutes les modifications et propositions sont enregistrées uniquement dans cette démo. Google Agenda, HubSpot, Google Meet et les envois de messages ne sont pas connectés.</p></div>`;
 }
 function getSelected(){if(state.role!=='amo')return null;const f=formations.find(x=>x.id===state.scopingSelected);return f?{f,r:callFor(f)}:null;}
-function persist(text){const d=getSelected();if(!d)return;d.r.history.push({at:new Date().toISOString(),text});save();render();}
+function persist(d,text){d.r.history.push({at:new Date().toISOString(),text});callStore.write(d.r);render();}
 function notify(text){if(typeof flash==='function')flash(text);}
-window.amoScopingStatus=id=>db.scoping?.calls?.[key({id})]?.status||'todo';
+window.amoScopingStatus=id=>callStore.read(id)?.status||'todo';
 window.openAmoScoping=id=>{
  if(state.role!=='amo'||!formations.some(f=>f.id===id))return;
  state.scopingSearch='';state.scopingFilter='all';state.scopingSelected=id;state.scopingSlotsExpanded=false;
@@ -194,31 +219,31 @@ window.scopingSelect=id=>{if(!formations.some(f=>f.id===id))return;state.scoping
 window.scopingSearch=v=>{state.scopingSearch=v;const el=document.activeElement;const pos=el?.selectionStart;render();const input=document.querySelector('.scope-search input');if(input){input.focus();try{input.setSelectionRange(pos,pos)}catch(e){}}};
 window.scopingFilter=v=>{state.scopingFilter=v;render()};
 window.scopingToggleMoreSlots=()=>{state.scopingSlotsExpanded=!state.scopingSlotsExpanded;render()};
-window.scopingDuration=n=>{const d=getSelected();if(!d||![15,30,45,60].includes(Number(n)))return;d.r.duration=Number(n);state.scopingSlotsExpanded=false;save();render()};
+window.scopingDuration=n=>{const d=getSelected();if(!d||![15,30,45,60].includes(Number(n)))return;d.r.duration=Number(n);state.scopingSlotsExpanded=false;callStore.write(d.r);render()};
 window.scopingSaveContact=()=>notify('Modifiez les coordonnées depuis la fiche Client : elles apparaîtront ici automatiquement.');
 
-window.scopingChooseSlot=(date,start,end)=>{const d=getSelected();if(!d)return;const slot=slotsFor(d.f,d.r,14).find(x=>x.date===date&&x.start===start&&x.end===end);if(!slot)return notify('Créneau occupé ou devenu indisponible.');if(d.r.proposals.some(x=>x.date===date&&x.start===start))return notify('Créneau déjà sélectionné.');d.r.proposals.push(slot);if(!d.r.date){d.r.date=date;d.r.start=start;d.r.end=end;}d.r.status='pending';persist('Proposition de créneau préparée : '+fmt(date)+' '+start+'–'+end)};
-window.scopingRemoveSlot=i=>{const d=getSelected();if(!d||!d.r.proposals[i])return;d.r.proposals.splice(i,1);if(!d.r.proposals.length&&d.r.status==='pending')d.r.status='todo';persist('Créneau proposé retiré')};
+window.scopingChooseSlot=(date,start,end)=>{const d=getSelected();if(!d)return;if(['confirmed','done','cancelled'].includes(d.r.status))return notify('Ce call est clôturé ou confirmé.');const slot=slotsFor(d.f,d.r,14).find(x=>x.date===date&&x.start===start&&x.end===end);if(!slot)return notify('Créneau occupé ou devenu indisponible.');if(d.r.proposals.some(x=>x.date===date&&x.start===start))return notify('Créneau déjà sélectionné.');d.r.proposals.push(slot);if(!d.r.date){d.r.date=date;d.r.start=start;d.r.end=end;}d.r.status='pending';persist(d,'Proposition de créneau préparée : '+fmt(date)+' '+start+'–'+end)};
+window.scopingRemoveSlot=i=>{const d=getSelected();if(!d||!d.r.proposals[i]||['confirmed','done','cancelled'].includes(d.r.status))return;d.r.proposals.splice(i,1);if(!d.r.proposals.length&&d.r.status==='pending')d.r.status='todo';persist(d,'Créneau proposé retiré')};
 window.scopingCopyMessage=()=>{const d=getSelected();if(!d||!d.r.proposals.length)return;
  const msg=scopingMessageText(d.f,d.r);
  if(navigator.clipboard?.writeText)navigator.clipboard.writeText(msg).then(()=>notify('Message prêt à coller · aucun envoi effectué')).catch(()=>notify('Copie indisponible'));
  else{const box=document.createElement('textarea');box.value=msg;document.body.append(box);box.select();try{document.execCommand('copy');notify('Message copié')}catch(e){notify('Copie indisponible')}box.remove()}
 };
 
-window.scopingConfirm=()=>{const d=getSelected();if(!d)return;
+window.scopingConfirm=()=>{const d=getSelected();if(!d||d.r.status!=='pending')return;
  const selected=document.querySelector('input[name="scope-confirm-choice"]:checked');
  const index=Number(selected?.value);const slot=selected&&d.r.proposals[index];
  if(!slot)return notify('Sélectionnez un créneau parmi les propositions.');
  if(slot.trainerDeclined)return notify('Ce créneau a été refusé par le formateur.');
  if(!slot.trainerAccepted)return notify('Le formateur doit d’abord accepter ce créneau dans son espace.');
  if(slot.date<localDate())return notify('Le créneau choisi est passé.');
- const trainer=formTrainer(d.f);if(!trainer||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Le créneau est désormais occupé.');
- d.r.date=slot.date;d.r.start=slot.start;d.r.end=slot.end;d.r.confirmedProposalIndex=index;d.r.status='confirmed';
- persist('Créneau validé : '+fmt(slot.date)+' · '+slot.start+'–'+slot.end+' (aucune invitation envoyée)');
+ const trainer=formTrainer(d.f);if(!trainer||(slot.respondedBy!=null&&slot.respondedBy!==trainer.id)||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Le créneau est désormais occupé.');
+ d.r.date=slot.date;d.r.start=slot.start;d.r.end=slot.end;d.r.confirmedProposalIndex=index;d.r.status='confirmed';d.r.trainerId=trainer.id;
+ persist(d,'Créneau validé : '+fmt(slot.date)+' · '+slot.start+'–'+slot.end+' (aucune invitation envoyée)');
 };
 
-window.scopingMarkDone=()=>{const d=getSelected();if(!d)return;if(d.r.status!=='confirmed')return notify('Confirmez d’abord la date du call.');d.r.status='done';persist('Call marqué comme réalisé')};
-window.scopingCancel=()=>{const d=getSelected();if(!d)return;if(!window.confirm('Annuler ce call dans la démo ?'))return;d.r.status='cancelled';persist('Call annulé')};
+window.scopingMarkDone=()=>{const d=getSelected();if(!d)return;if(d.r.status!=='confirmed')return notify('Confirmez d’abord la date du call.');d.r.status='done';persist(d,'Call marqué comme réalisé')};
+window.scopingCancel=()=>{const d=getSelected();if(!d)return;if(!window.confirm('Annuler ce call dans la démo ?'))return;d.r.status='cancelled';persist(d,'Call annulé')};
 window.scopingSaveDocument=key=>{
  if(!['audit','cadrage'].includes(key))return;
  const d=getSelected();if(!d)return;
@@ -226,12 +251,12 @@ window.scopingSaveDocument=key=>{
  if(value&&!scopeDocumentUrl(value))return notify('Lien invalide : utilisez une URL HTTPS Google Drive, Docs ou Slides.');
  d.r.documents ||= {};
  d.r.documents[key]={url:value};
- persist((key==='audit'?'Audit':'Support de cadrage')+(value?' : lien enregistré':' : lien retiré'));
+ persist(d,(key==='audit'?'Audit':'Support de cadrage')+(value?' : lien enregistré':' : lien retiré'));
 };
-window.scopingCheck=(id,checked)=>{const d=getSelected();if(!d||!PREP.some(([k])=>k===id))return;d.r.checklist[id]=checked;save();render()};
+window.scopingCheck=(id,checked)=>{const d=getSelected();if(!d||!PREP.some(([k])=>k===id))return;d.r.checklist[id]=checked;callStore.write(d.r);render()};
 window.scopingSaveNotes=()=>{const d=getSelected();if(!d)return;
  d.r.notes=document.getElementById('scope-notes')?.value||'';
- d.r.hubspotSync='not-configured';persist('Brouillon du compte rendu enregistré · synchronisation HubSpot non configurée');
+ d.r.hubspotSync='not-configured';persist(d,'Brouillon du compte rendu enregistré · synchronisation HubSpot non configurée');
 };
 window.scopingCopyHubspotNote=()=>{const d=getSelected();if(!d)return;
  const value=document.getElementById('scope-notes')?.value||'';
@@ -246,50 +271,54 @@ window.scopingOpenDeliverable=(id,category)=>{if(state.role!=='amo'||!['AUDIT','
  const match=docsForFormation(f).find(x=>x.category===category);
  if(match?.doc)openModal('document-preview',match.doc.id);else openFormation(f.id);
 };
-window.scopingAddTrainerSuggestion=i=>{const d=getSelected();if(!d)return;const slot=d.r.trainerSuggested?.[i];if(!slot)return;
- if(!d.r.proposals.some(s=>s.date===slot.date&&s.start===slot.start))d.r.proposals.push({...slot,trainerAccepted:true,mode:'unknown',label:'Proposé par le formateur'});
- d.r.trainerSuggested.splice(i,1);d.r.status='pending';persist('Créneau alternatif du formateur ajouté');
+window.scopingAddTrainerSuggestion=i=>{const d=getSelected();if(!d||!['todo','pending'].includes(d.r.status))return;const slot=d.r.trainerSuggested?.[i];if(!slot)return;
+  const trainer=formTrainer(d.f);
+ if(slot.date<localDate()||!trainer||(slot.trainerId!=null&&slot.trainerId!==trainer.id)||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Ce créneau alternatif n’est plus disponible.');
+ if(d.r.proposals.some(s=>s.date===slot.date&&s.start===slot.start))return notify('Créneau déjà proposé.');
+ d.r.proposals.push({...slot,trainerAccepted:true,respondedBy:trainer.id,mode:'unknown',label:'Proposé par le formateur'});
+ d.r.trainerSuggested.splice(i,1);d.r.status='pending';persist(d,'Créneau alternatif du formateur ajouté');
 };
 
-window.scopingAddAction=()=>{const d=getSelected();if(!d)return;const v=document.getElementById('scope-action-text')?.value.trim()||'',due=document.getElementById('scope-action-date')?.value||'';if(!v)return notify('Renseignez une action.');d.r.actions.push({id:Date.now(),text:v,date:due,done:false});persist('Nouvelle action : '+v)};
-window.scopingToggleAction=(i,checked)=>{const d=getSelected();if(!d||!d.r.actions[i])return;d.r.actions[i].done=checked;save();render()};
-
+function trainerCalls(id){
+ return allCalls().filter(x=>(x.record.trainerId??x.trainer?.id)===id&&x.record.status!=='cancelled');
+}
 function getTrainerCall(){
  if(state.role!=='formateur')return null;
- const all=allCalls().filter(x=>x.trainer?.id===state.trainerId);
+ const all=trainerCalls(state.trainerId);
  const chosen=all.find(x=>x.f.id===state.scopingTrainerSelected)||all[0];
  return chosen||null;
 }
 function trainerCallPage(){
- const assigned=allCalls().filter(x=>x.trainer?.id===state.trainerId);
+ const assigned=trainerCalls(state.trainerId);
  const pending=assigned.filter(x=>x.record.status==='pending').length;
  const confirmed=assigned.filter(x=>x.record.status==='confirmed').length;
  const selected=getTrainerCall();
- return `<div class="scope-root scope-trainer-root"><header class="scope-hero"><div><span class="scope-eyebrow">ESPACE FORMATEUR</span><h1>Call de cadrage<span>.</span></h1><p>Consultez les propositions de créneaux, acceptez une disponibilité ou suggérez une autre date.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
+ return `<div class="scope-root scope-trainer-root"><header class="scope-hero"><div><span class="scope-eyebrow">ESPACE FORMATEUR</span><h1>Mes calls de cadrage<span>.</span></h1><p>Consultez les propositions de créneaux, acceptez une disponibilité ou suggérez une autre date.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
  <div class="scope-statgrid"><div class="scope-stat"><span>À répondre</span><strong>${pending}</strong><small>Propositions de call</small></div><div class="scope-stat"><span>Confirmés</span><strong>${confirmed}</strong><small>Calls planifiés</small></div></div>
  <div class="scope-layout"><section class="scope-list card"><div class="scope-listhead"><h2>Mes formations</h2><span>${assigned.length} dossier(s)</span></div><div class="scope-items">${assigned.map(({f,record,client,date})=>`<button class="scope-item ${f.id===selected?.f.id?'active':''}" onclick="scopingTrainerSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${markupPill(record.status)}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta">${scopeIcon("calendar",15)} Formation : ${fmt(date)}</div><span class="scope-itemgo">Voir les créneaux ${scopeIcon("chevron",14)}</span></button>`).join('')||'<p class="scope-empty">Aucun call de cadrage associé à vos missions.</p>'}</div></section>
  ${selected?`<section class="scope-detail card"><div class="scope-detailtitle"><div><span class="scope-eyebrow">PROPOSITIONS DE CALL</span><h2>${escapeText(selected.client.name)}</h2><p>${escapeText(selected.f.title)}</p></div>${markupPill(selected.record.status)}</div><div class="scope-content"><section><div class="scope-sectionhead"><h3>Créneaux proposés par l'AMO</h3><small>${selected.record.proposals.length} proposition(s)</small></div>
  <p class="scope-help">Indiquez le créneau qui vous convient. L'AMO devra ensuite confirmer avec le client.</p>
- <div class="scope-trainer-options">${selected.record.proposals.map((slot,i)=>`<div class="scope-trainer-option"><div><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small><span>${slot.trainerAccepted?'✓ Accepté':slot.trainerDeclined?'Refusé':'En attente de réponse'}</span></div><div class="scope-actionrow"><button class="primary tiny" ${selected.record.status==='confirmed'?'disabled':''} onclick="scopingTrainerRespond(${i},true)">✓ Accepter</button><button class="secondary tiny" ${selected.record.status==='confirmed'?'disabled':''} onclick="scopingTrainerRespond(${i},false)">Refuser</button></div></div>`).join('')||'<p class="scope-empty">Aucun créneau proposé pour le moment.</p>'}</div></section>
- <section><div class="scope-sectionhead"><h3>Proposer une autre disponibilité</h3><small>Si aucune proposition ne convient</small></div><div class="scope-trainer-alternative"><label class="scope-field"><span>Date</span><input type="date" id="scope-alt-date" min="${localDate()}"></label><label class="scope-field"><span>Début</span><input type="time" id="scope-alt-start" value="10:00"></label><label class="scope-field"><span>Fin</span><input type="time" id="scope-alt-end" value="10:30"></label><button class="secondary" onclick="scopingTrainerSuggest()">+ Soumettre à l'AMO</button></div></section>
- ${selected.record.status==='confirmed'?`<section class="scope-success">✓ Call confirmé le ${fmt(selected.record.date)} à ${selected.record.start}</section>`:''}
+ <div class="scope-trainer-options">${selected.record.proposals.map((slot,i)=>`<div class="scope-trainer-option"><div><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small><span>${slot.trainerAccepted?'Accepté':slot.trainerDeclined?'Refusé':'En attente de réponse'}</span></div><div class="scope-actionrow"><button class="primary tiny" ${selected.record.status!=='pending'||slot.date<localDate()?'disabled':''} onclick="scopingTrainerRespond(${i},true)">Accepter</button><button class="secondary tiny" ${selected.record.status!=='pending'||slot.date<localDate()?'disabled':''} onclick="scopingTrainerRespond(${i},false)">Refuser</button></div></div>`).join('')||'<p class="scope-empty">Aucun créneau proposé pour le moment.</p>'}</div></section>
+ ${['todo','pending'].includes(selected.record.status)?`<section><div class="scope-sectionhead"><h3>Proposer une autre disponibilité</h3><small>Si aucune proposition ne convient</small></div><div class="scope-trainer-alternative"><label class="scope-field"><span>Date</span><input type="date" id="scope-alt-date" min="${localDate()}"></label><label class="scope-field"><span>Début</span><input type="time" id="scope-alt-start" value="10:00"></label><label class="scope-field"><span>Fin</span><input type="time" id="scope-alt-end" value="10:30"></label><button class="secondary" onclick="scopingTrainerSuggest()">Soumettre à l'AMO</button></div></section>`:''}
+ ${selected.record.status==='confirmed'?`<section class="scope-success">Call confirmé le ${fmt(selected.record.date)} à ${selected.record.start}</section>`:''}
  </div></section>`:'<section class="scope-detail card"><p class="scope-empty">Vos prochaines propositions de calls apparaîtront ici.</p></section>'}</div>
  <p class="scope-footnote">Réponses enregistrées dans cette démonstration locale. Une synchronisation backend sera nécessaire pour partager les réponses entre plusieurs comptes et appareils.</p></div>`;
 }
 window.scopingTrainerSelect=id=>{if(state.role!=='formateur')return;state.scopingTrainerSelected=id;render();scopeFocusDetailOnMobile()};
-window.scopingTrainerRespond=(index,yes)=>{const current=getTrainerCall();if(!current)return;const r=current.record,slot=r.proposals[index];if(!slot||r.status==='confirmed'||r.status==='done')return;
+window.scopingTrainerRespond=(index,yes)=>{const current=getTrainerCall();if(!current)return;const r=current.record,slot=r.proposals[index];if(!slot||r.status!=='pending'||slot.date<localDate()||typeof yes!=='boolean')return;
  if(yes&&trainerBusy(current.trainer,slot.date,slot.start,slot.end,current.f.id))return notify('Créneau désormais occupé.');
- slot.trainerAccepted=!!yes;slot.trainerDeclined=!yes;r.trainerResponse=yes?'accepted':'declined';
- r.history.push({at:new Date().toISOString(),text:yes?'Formateur a accepté '+fmt(slot.date)+' '+slot.start:'Formateur a refusé '+fmt(slot.date)+' '+slot.start});save();render();notify(yes?'Disponibilité acceptée · en attente de validation AMO':'Créneau refusé');
+ slot.trainerAccepted=yes;slot.trainerDeclined=!yes;slot.respondedBy=state.trainerId;
+ r.trainerResponse=r.proposals.some(item=>item.trainerAccepted)?'accepted':r.proposals.every(item=>item.trainerDeclined)?'declined':'unknown';
+ r.history.push({at:new Date().toISOString(),text:yes?'Formateur a accepté '+fmt(slot.date)+' '+slot.start:'Formateur a refusé '+fmt(slot.date)+' '+slot.start});callStore.write(r);render();notify(yes?'Disponibilité acceptée · en attente de validation AMO':'Créneau refusé');
 };
-window.scopingTrainerSuggest=()=>{const current=getTrainerCall();if(!current)return;
+window.scopingTrainerSuggest=()=>{const current=getTrainerCall();if(!current||!['todo','pending'].includes(current.record.status))return;
  const date=document.getElementById('scope-alt-date')?.value,start=document.getElementById('scope-alt-start')?.value,end=document.getElementById('scope-alt-end')?.value;
  if(!date||date<localDate()||!start||!end||start>=end)return notify('Choisissez un jour et des horaires valides.');
  if(trainerBusy(current.trainer,date,start,end,current.f.id))return notify('Conflit avec un événement connu.');
  current.record.trainerSuggested||=[];
  if(current.record.trainerSuggested.some(s=>s.date===date&&s.start===start))return notify('Déjà proposé.');
- current.record.trainerSuggested.push({date,start,end});current.record.history.push({at:new Date().toISOString(),text:'Autre créneau suggéré par le formateur'});
- save();render();notify('Créneau alternatif proposé à l’AMO dans la démonstration');
+ current.record.trainerSuggested.push({date,start,end,trainerId:state.trainerId});current.record.history.push({at:new Date().toISOString(),text:'Autre créneau suggéré par le formateur'});
+ callStore.write(current.record);render();notify('Créneau alternatif proposé à l’AMO dans la démonstration');
 };
 
 function sidebarLink(){
@@ -313,6 +342,7 @@ render=function(){const amo=state.role==='amo'&&state.page===PAGE,trainer=state.
   const main=document.getElementById('main-content');if(main)main.innerHTML=trainer?trainerCallPage():scopingPage();
   // Le rendu de base utilise temporairement l'accueil : réactualiser l'onglet actif sur la route Cadrage.
   const dock=document.querySelector('.mobile-dock');if(dock)dock.outerHTML=mobileDock(trainer);
+  const mobileTitle=document.querySelector('.mobile-head-center strong');if(mobileTitle)mobileTitle.textContent=trainer?'Mes calls de cadrage':'Calls de cadrage';
   document.title='Certif-IA Hub — '+(trainer?'Call de cadrage':'Calls de cadrage');
   const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / '+(trainer?'Formateur':'AMO')+' / '+(trainer?'Call de cadrage':'Calls de cadrage');
  }else previousRender();sidebarLink();};

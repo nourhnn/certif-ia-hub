@@ -101,3 +101,21 @@
 }
 :root[data-hub-tone="dark"] .av2-times input:disabled{opacity:.5}
 :root[data-hub-tone="dark"] .av2-provider>svg{color:#cfb1ff}
+
+.av2-preferences{display:grid;gap:12px;min-width:0}
+.av2-preferences > button{justify-self:start}
+.av2-preferences :is(input,select,textarea),.av2-summary-preferences .info{min-width:0;max-width:100%}
+.av2-summary-preferences{margin:12px 0;overflow-wrap:anywhere}
+.av2-preferred{display:flex;flex-wrap:wrap;gap:8px;min-width:0;border:1px solid var(--border);border-radius:12px;padding:8px}
+.av2-preferred label{display:flex;align-items:center;gap:6px;min-height:36px;padding:0 5px}
+.av2-month-field{display:grid;gap:6px;max-width:220px;margin:12px 0}
+.av2-exceptions .line-item > .grow{text-align:start;white-space:normal}
+.trainer-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+@media(max-width:640px){
+  :root[data-proposal] :is(.trainer-shortcuts,.av2-root,.scope-trainer-root) :is(button,.field),
+  .av2-preferred label{min-height:44px}
+  .av2-month-field{max-width:100%}
+  .av2-preferences .form-grid{grid-template-columns:minmax(0,1fr)}
+  .av2-times{min-width:0}
+  .scope-trainer-root .scope-actionrow{flex-wrap:wrap}
+}
