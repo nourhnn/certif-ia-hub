@@ -53,7 +53,9 @@ try {
     addSession(closed, 904, -15);
     addSession(pending, 905, -10);
     db.assignments.push({id:'QA-review',sessionId:902,trainerId:1,status:'À revalider'});
-    db.scoping.calls['F'+second.id] = {status:'pending',proposals:[],duration:30,contact:{},checklist:{},history:[],actions:[]};
+    db.assignments.push({id:'QA-call',sessionId:902,trainerId:2,status:'Confirmée'});
+    db.scoping.calls['F'+second.id] = {status:'pending',proposals:[{date:shiftDate(today,2),start:'12:00',end:'12:30',
+      recipientId:2,sentAt:new Date().toISOString()}],duration:30,checklist:{},history:[]};
     const make = (f, id, skip, pending = null) => documentColumns.filter(([key]) => key !== skip).map(([key,label]) => ({
       id:'QA-'+id+'-'+key,formationId:f.id,sessionId:id,title:label,type:key,owner:'interne',
       status:key === pending ? 'En vérification' : 'Validé',versions:[{number:1,filename:'document.pdf'}]
@@ -78,7 +80,7 @@ try {
   await page.getByRole('dialog').getByRole('button',{name:'Fermer',exact:true}).last().click();
   await page.locator('.amo-more-alerts summary').click();
   await text(page,'Call en attente de confirmation').locator('../..').getByRole('button').click();
-  await page.waitForURL('**/scoping-calls');
+  await page.waitForURL('**/scoping-calls/'+data.second);
   assert.equal(await page.evaluate(() => state.scopingSelected),data.second);
   await route(page,'interne/documents');
   const filter = main(page).getByRole('combobox',{name:'Filtrer'});

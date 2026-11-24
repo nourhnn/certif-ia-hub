@@ -1,4 +1,4 @@
-/* Certif-IA Hub — Calls de cadrage V1 (ajout local, aucune API réelle).
+/* Certif-IA Hub — Calls de cadrage V3 (suivi local, sans transport externe).
  * Chargé après hub.js, operations.js, proposition.js et agenda-v2.js.
  * N'altère pas les objets métier existants ; les informations restent en localStorage.
  */
@@ -25,7 +25,6 @@ function scopeIcon(name,size=16){
  return '<svg class="scope-svg-icon" width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(shapes[name]||shapes.help)+'</svg>';
 }
 
-const LABELS={todo:'À planifier',pending:'Créneaux proposés',confirmed:'Confirmé',done:'Réalisé',cancelled:'Annulé'};
 const PREP=[['audit','Audit client récupéré'],['shared','Audit transmis au formateur'],['objectives','Objectifs pédagogiques identifiés'],['program','Programme accessible'],['contact','Contact client identifié'],['attendees','Participants au call identifiés'],['date','Date du call confirmée'],['meet','Lien de visioconférence prêt'],['questions','Questions préparées']];
 const DATE_FORMAT=new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'short',year:'numeric'});
 const localDate=()=>typeof parisToday==='function'?parisToday():new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -41,8 +40,17 @@ const callStore={
  write(record){
    db.scoping ||= {};
    db.scoping.calls ||= {};
-   db.scoping.calls[key({id:record.formationId})]=record;
-   save();
+   const id=key({id:record.formationId}), previous=db.scoping.calls[id];
+   db.scoping.calls[id]=record;
+   try{
+     localStorage.setItem(DEMO_KEY,JSON.stringify({version:1,data:db}));
+     return true;
+   }catch{
+     if(previous)db.scoping.calls[id]=previous;
+     else delete db.scoping.calls[id];
+     notify('Enregistrement impossible. Réessayez dans ce navigateur.');
+     return false;
+   }
  }
 };
 function sessionsOf(f){return (db.sessions||[]).filter(s=>s.formationId===f.id&&s.status!=='Annulée').sort((a,b)=>a.date.localeCompare(b.date));}
@@ -58,13 +66,15 @@ function formTrainer(f){
 function clientRecord(f){return clients.find(c=>c.id===f.clientId)||{name:'Client inconnu'};}
 function callFor(f){
  const saved=callStore.read(f.id);
- if(saved)return saved;
+ if(saved){
+   const r=structuredClone(saved);
+   return {...r,formationId:f.id,history:r.history||[],proposals:r.proposals||[],checklist:r.checklist||{}};
+ }
  return {id:key(f),formationId:f.id,status:'todo',duration:30,proposals:[],date:'',start:'',end:'',meet:'',notes:'',
    history:[],checklist:{},trainerResponse:'unknown',clientResponse:'unknown'};
 }
 function callSessionDate(f){return sessionsOf(f).find(s=>s.date>=localDate())?.date||sessionsOf(f)[0]?.date||'';}
 function daysBefore(date){return date?Math.round((Date.parse(date+'T12:00:00')-Date.parse(localDate()+'T12:00:00'))/86400000):null;}
-function statusOf(f,r){const days=daysBefore(callSessionDate(f));return ['todo','pending'].includes(r.status)&&days!==null&&days<=14?'due':r.status;}
 function allCalls(){return formations.map(f=>({f,record:callFor(f),client:clientRecord(f),trainer:formTrainer(f),date:callSessionDate(f)}));}
 function safeNumber(value){return typeof value==='string'&&/^\+?[0-9][0-9 .()\-]{5,24}$/.test(value.trim())?value.replace(/[^+\d]/g,''):'';}
 function telLink(v){const n=safeNumber(v);return n?'tel:'+n:null;}
@@ -88,7 +98,7 @@ function slotsFor(f,record,days=10){
  for(let d=0;d<days;d++){
   const date=addDays(startDate,d),weekday=new Date(date+'T12:00:00').getDay();if(weekday===0||weekday===6)continue;
   for(const hour of ['09:00','10:00','11:00','14:00','15:00','16:00']){
-   const end=timeFromMinutes(durationToMinutes(hour)+duration);if(durationToMinutes(end)>1080||trainerBusy(trainer,date,hour,end,f.id))continue;
+   const end=timeFromMinutes(durationToMinutes(hour)+duration);if(expired({date,start:hour})||durationToMinutes(end)>1080||trainerBusy(trainer,date,hour,end,f.id))continue;
    const check=window.agendaV2Check?.({date,start:hour,end},trainer.id,{ignoreCall:f.id});
    out.push({date,start:hour,end,mode:check?.state||'unknown',label:check?.label||'Disponibilité non vérifiée'});
 
@@ -100,18 +110,90 @@ function slotsFor(f,record,days=10){
  return out.sort((a,b)=>(priority[a.mode]??3)-(priority[b.mode]??3)||Number(favored(b))-Number(favored(a))).slice(0,18);
 }
 
-function markupPill(status){let text=LABELS[status]||status;return `<span class="scope-pill scope-${escapeText(status)}">${escapeText(text)}</span>`;}
-function progress(record){const checks=PREP.filter(([k])=>record.checklist[k]).length;return {checks,total:PREP.length};}
-function input(label,id,value,type='text',placeholder=''){return `<label class="scope-field"><span>${escapeText(label)}</span><input id="${id}" type="${type}" value="${escapeText(value||'')}" placeholder="${escapeText(placeholder)}"></label>`;}
-function statsMarkup(rows){const counts={todo:0,pending:0,confirmed:0,done:0,due:0};rows.forEach(({record,f})=>{counts[record.status]??=0;counts[record.status]++;if(statusOf(f,record)==='due')counts.due++});return `<div class="scope-statgrid">${[['À planifier',counts.todo,'calendar-clock'],['Propositions',counts.pending,'send'],['Confirmés',counts.confirmed,'check-circle'],['À traiter · J-14',counts.due,'alert-circle']].map(([label,num,ico])=>`<div class="scope-stat"><span>${escapeText(label)}</span><strong>${num}</strong><small>Calls de cadrage</small></div>`).join('')}</div>`;}
-function listMarkup(rows){const search=(state.scopingSearch||'').trim().toLowerCase(),filter=state.scopingFilter||'all';
- const all=rows.filter(({client,f,trainer})=>`${client.name} ${f.title} ${trainer?.name||''}`.toLowerCase().includes(search));
- const filtered=all.filter(({record,f})=>filter==='all'||(filter==='due'?statusOf(f,record)==='due':record.status===filter));
- filtered.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999'));
- return `<section class="scope-list card"><div class="scope-listhead"><h2>Dossiers de cadrage</h2><span>${filtered.length} dossier(s)</span></div><div class="scope-controls"><label class="scope-search"><span class="sr-only">Rechercher</span><input type="search" placeholder="Client, formation ou formateur…" value="${escapeText(state.scopingSearch||'')}" oninput="scopingSearch(this.value)"></label><select aria-label="Filtrer les calls" onchange="scopingFilter(this.value)">${[['all','Tous les statuts'],['todo','À planifier'],['pending','Propositions préparées'],['confirmed','Confirmés'],['done','Réalisés'],['due','Urgents · J-14']].map(([v,label])=>`<option value="${v}" ${filter===v?'selected':''}>${label}</option>`).join('')}</select></div><div class="scope-items">${filtered.map(({f,record,client,trainer,date})=>{
- const days=daysBefore(date),isUrgent=statusOf(f,record)==='due';const active=state.scopingSelected===f.id;
- return `<button class="scope-item ${active?'active':''}" onclick="scopingSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${markupPill(record.status)}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta"><span>${scopeIcon("calendar",14)} ${fmt(date)}${days!==null&&days>=0?` · J-${days}`:''}</span><span>${scopeIcon("profile",14)} ${escapeText(trainer?.name||'Formateur à staffer')}</span></div>${isUrgent?`<span class="scope-urgent">${scopeIcon("alert",14)} Cadrage à prioriser</span>`:''}<span class="scope-itemgo">Voir le cadrage ${scopeIcon("chevron",14)}</span></button>`}).join('')||'<p class="scope-empty">Aucun dossier pour ce filtre.</p>'}</div></section>`;
+
+const finalCallStates=['confirmed','done','cancelled'];
+const cockpitStates={todo:'À planifier',draft:'Propositions préparées',waiting:'En attente du formateur',
+ received:'Réponse reçue',ready:'À confirmer',confirmed:'Confirmé',done:'Réalisé',cancelled:'Annulé'};
+const timeLabel=new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const localClock=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+const eventTime=at=>Number.isFinite(Date.parse(at))?timeLabel.format(new Date(at)):'Date non renseignée';
+const expired=slot=>slot.date<localDate()||(slot.date===localDate()&&slot.start<=localClock.format(new Date()));
+const hasReply=slot=>Boolean(slot.trainerAccepted||slot.trainerDeclined);
+const isDraft=slot=>!slot.sentAt&&!hasReply(slot);
+const scopeTime=slot=>fmt(slot.date)+' · '+slot.start+'–'+slot.end;
+const inScope=(slot,trainer)=>Boolean(trainer&&(slot.recipientId??slot.respondedBy??trainer.id)===trainer.id);
+const currentAccepted=(slot,trainer)=>slot.trainerAccepted&&!slot.trainerDeclined&&!expired(slot)&&inScope(slot,trainer);
+const pendingSlots=(r,trainer)=>r.proposals.filter(slot=>slot.sentAt&&!hasReply(slot)&&!expired(slot)&&inScope(slot,trainer));
+const draftSlots=r=>r.proposals.filter(isDraft);
+const lastStamp=dates=>dates.filter(Boolean).sort().at(-1);
+const reminderCooldownMs=24*60*60*1000;
+
+function callStage(f,r,trainer=formTrainer(f)){
+ if(finalCallStates.includes(r.status))return r.status;
+ if(r.proposals.some(slot=>currentAccepted(slot,trainer)))return 'ready';
+ if(r.trainerSuggested?.some(slot=>!expired(slot)&&(slot.trainerId??trainer?.id)===trainer?.id))return 'received';
+ if(pendingSlots(r,trainer).length)return 'waiting';
+ if(draftSlots(r).length)return 'draft';
+ return r.proposals.length?'received':'todo';
 }
+
+function callAction(f,r,trainer){
+ const stage=callStage(f,r,trainer);
+ return ({
+   todo:['plan','Organiser le call'],draft:['plan','Préparer l’envoi'],waiting:['follow','Voir le suivi'],
+   received:['follow','Voir les réponses'],ready:['follow','Confirmer un créneau'],
+   confirmed:['prepare','Préparer le call'],done:['notes','Ouvrir le compte rendu'],cancelled:['follow','Voir l’historique']
+ })[stage];
+}
+
+function isUrgent(f,r){
+ const days=daysBefore(callSessionDate(f));
+ return !finalCallStates.includes(r.status)&&days!==null&&days<=14;
+}
+
+function matchesScopeFilter(row,filter){
+ return filter==='all'||(filter==='due'?isUrgent(row.f,row.record):callStage(row.f,row.record,row.trainer)===filter);
+}
+
+function cockpitPill(stage){
+ return `<span class="scope-pill scope-${stage}">${cockpitStates[stage]}</span>`;
+}
+
+function statsMarkup(rows){
+ return `<div class="scope-statgrid scope-kpis" role="group" aria-label="Filtrer par indicateur">${[
+  ['todo','À planifier','calendar'],['waiting','En attente de réponse','mail'],
+  ['confirmed','Confirmés','check'],['due','Urgents','alert']
+ ].map(([key,label,icon])=>`<button class="scope-stat" type="button" data-filter="${key}" aria-pressed="${state.scopingFilter===key}" onclick="scopingToggleFilter('${key}')">
+   ${scopeIcon(icon,19)}<strong>${rows.filter(row=>matchesScopeFilter(row,key)).length}</strong><span>${label}</span></button>`).join('')}</div>`;
+}
+
+function listMarkup(rows){
+ const search=(state.scopingSearch||'').trim().toLocaleLowerCase('fr'), filter=state.scopingFilter||'all';
+ const shown=rows.filter(row=>matchesScopeFilter(row,filter)&&
+   [row.client.name,row.f.title,row.trainer?.name].join(' ').toLocaleLowerCase('fr').includes(search))
+   .sort((a,b)=>Number(isUrgent(b.f,b.record))-Number(isUrgent(a.f,a.record))||(a.date||'9999').localeCompare(b.date||'9999'));
+ return `<section aria-labelledby="scope-dossiers"><div class="scope-listhead"><h2 id="scope-dossiers">Dossiers de cadrage</h2>
+   <span>${shown.length} dossier(s)</span></div>
+   <div class="scope-controls scope-cockpit-controls">
+     <label class="scope-search"><span class="sr-only">Rechercher un dossier</span><input type="search"
+       placeholder="Client, formation ou formateur…" value="${escapeText(state.scopingSearch||'')}" oninput="scopingSearch(this.value)"></label>
+     <select class="field" aria-label="Filtrer par statut" onchange="scopingFilter(this.value)">${[['all','Tous les statuts'],...Object.entries(cockpitStates),['due','Urgents · J-14']].map(([key,label])=>
+       `<option value="${key}" ${filter===key?'selected':''}>${label}</option>`).join('')}</select>
+   </div><div class="scope-dossier-grid">${shown.map(({f,record:r,client,trainer,date})=>{
+     const stage=callStage(f,r,trainer), [,action]=callAction(f,r,trainer), latest=r.history?.at(-1);
+     const sent=r.proposals.filter(slot=>slot.sentAt);
+     return `<button type="button" class="card scope-dossier-card" onclick="scopingSelect('${escapeText(f.id)}')">
+       <span class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${cockpitPill(stage)}</span>
+       <span class="scope-dossier-title">${escapeText(f.title)}</span>
+       <span class="scope-dossier-meta"><span>${scopeIcon('calendar',15)} ${fmt(date)}</span>
+         <span>${scopeIcon('profile',15)} ${escapeText(trainer?.name||'Formateur à affecter')}</span></span>
+       ${isUrgent(f,r)?`<span class="scope-urgent">${scopeIcon('alert',14)} Urgent · J-14</span>`:''}
+       ${sent.length?`<span class="scope-itemsub">${sent.length} créneau(x) transmis · ${eventTime(lastStamp(sent.map(s=>s.sentAt)))}</span>`:''}
+       <span class="scope-dossier-activity">${latest?escapeText(eventTime(latest.at)+' · '+latest.text):'Aucune activité enregistrée'}</span>
+       <span class="scope-itemgo">${action} ${scopeIcon('chevron',15)}</span></button>`;
+   }).join('')||'<p class="card scope-empty">Aucun dossier pour cette recherche et ce filtre.</p>'}</div></section>`;
+}
+
 function clientContact(f){
  const d=clientDetails?.[f.clientId]||{};
  const clean=v=>String(v||'').trim();
@@ -130,37 +212,39 @@ function contactMarkup(f){
  <p class="scope-help">Les données viennent de la fiche Client du Hub. Aucune modification locale ne crée de contact distinct.</p></div>`;
 }
 
-function scopingMessageText(f,r){
- const c=clientRecord(f),contact=clientContact(f),hello=contact.name?' '+contact.name.split(/\s+/)[0]:'';
- return `Bonjour${hello}\n\nPour préparer au mieux votre formation « ${f.title} », nous vous proposons un petit call de cadrage de ${r.duration} min avec votre formateur.\n\nVoici quelques créneaux possibles :\n${r.proposals.map(s=>`• ${fmt(s.date)} · ${s.start}–${s.end}`).join('\n')}\n\nQuel créneau vous conviendrait le mieux ?\n\nMerci et belle journée !\nL’équipe Certif-IA`;
-}
-function availabilityMarkup(f,r){
- const trainer=formTrainer(f),mode=calendarMode(trainer),list=slotsFor(f,r,14),from=state.scopingStartDate||localDate();
- return `<div class="scope-sectionhead"><h3>Trouver un créneau</h3><small>Choisissez une date de départ</small></div>
- <div class="scope-availabilitytop"><span class="scope-availability ${mode.kind}">${escapeText(mode.label)}</span>
- <label class="scope-inline">À partir du <input class="scope-date-picker" type="date" value="${escapeText(from)}" min="${localDate()}" onchange="scopingSetStartDate(this.value)"></label>
- <label class="scope-inline">Durée <select id="scope-duration" onchange="scopingDuration(this.value)">${[15,30,45,60].map(n=>`<option ${r.duration===n?'selected':''} value="${n}">${n} min</option>`).join('')}</select></label></div>
- ${!trainer?'<p class="scope-warning">Aucun formateur confirmé. Affectez d’abord le formateur depuis Staffing assisté.</p><button class="secondary tiny" onclick="go(\'staffing\')">Ouvrir Staffing</button>':`<p class="scope-help">Les horaires déclarés sont indicatifs. Seuls les conflits connus sont bloquants, les calendriers non connectés restent non vérifiés.</p>
- <div class="scope-slotlist">${(state.scopingSlotsExpanded?list:list.slice(0,6)).map(slot=>`<button class="scope-slot" onclick="scopingChooseSlot('${slot.date}','${slot.start}','${slot.end}')"><span class="scope-slotdate"><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small></span><span class="scope-slotstatus ${slot.mode}">${escapeText(slot.label)}</span><span class="scope-slotarrow">${scopeIcon("plus",16)}</span></button>`).join('')||'<p class="scope-empty">Aucun créneau sans conflit sur la période choisie.</p>'}</div>${list.length>6?`<button type="button" class="secondary tiny scope-see-more" aria-expanded="${Boolean(state.scopingSlotsExpanded)}" onclick="scopingToggleMoreSlots()">${state.scopingSlotsExpanded?"Voir moins":"Voir plus"} ${scopeIcon("chevron",15)} ${state.scopingSlotsExpanded?"":`(${list.length-6} autres)`}</button>`:""}`}
- ${r.proposals.length?`<div class="scope-proposals"><strong>Créneaux proposés (${r.proposals.length})</strong>
- ${r.proposals.map((slot,i)=>`<div><span>${fmt(slot.date)} · ${slot.start}–${slot.end}${slot.trainerAccepted?' · Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':''}</span><button class="scope-icon-button" onclick="scopingRemoveSlot(${i})" aria-label="Retirer ce créneau">×</button></div>`).join('')}</div>
- <div class="scope-smart-message"><div><strong>${scopeIcon("message",17)} Message prêt à envoyer</strong><p>Une proposition sympa, prête à copier comme pour le staffing WhatsApp.</p></div><div class="scope-message-preview">${escapeText(scopingMessageText(f,r))}</div><button class="primary tiny" onclick="scopingCopyMessage()">${scopeIcon("copy",15)} Copier le message</button></div>`:''}
- ${r.trainerSuggested?.length?`<div class="scope-proposals"><strong>Autres propositions du formateur</strong>${r.trainerSuggested.map((slot,i)=>`<div><span>${fmt(slot.date)} · ${slot.start}–${slot.end}</span><button class="secondary tiny" onclick="scopingAddTrainerSuggestion(${i})">Ajouter aux propositions</button></div>`).join('')}</div>`:''}`;
+function scopingMessageText(f,slots){
+ const trainer=formTrainer(f), client=clientRecord(f);
+ return `Bonjour ${trainer?.name.split(' ')[0]||''},\n\nVoici les créneaux proposés pour le call de cadrage avec ${client.name}, pour la formation « ${f.title} ».\n\n${slots.map(s=>scopeTime(s)).join('\n')}\n\nMerci d’indiquer vos disponibilités dans votre espace Certif-IA.\nL’équipe Certif-IA`;
 }
 
-function scopeDocumentUrl(url){
- const value=String(url||'').trim();if(!value)return '';
- try{const u=new URL(value);return u.protocol==='https:'&&(/(^|\.)drive\.google\.com$/.test(u.hostname)||/(^|\.)docs\.google\.com$/.test(u.hostname))?u.href:''}catch(e){return ''}
+function availabilityMarkup(f,r){
+ const trainer=formTrainer(f),mode=calendarMode(trainer), drafts=draftSlots(r);
+ if(finalCallStates.includes(r.status))return '<p class="scope-help">Les créneaux sont disponibles dans le suivi du dossier.</p>';
+ if(!trainer)return `<div class="scope-sectionhead"><h3>Trouver un créneau</h3></div>
+    <p class="scope-warning">Affectez un formateur avant de préparer les créneaux.</p><button class="secondary" onclick="go('staffing')">Ouvrir Staffing</button>`;
+ const list=slotsFor(f,r,14), from=state.scopingStartDate||localDate();
+ const expanded=Boolean(state.scopingSlotsExpanded);
+ return `<div class="scope-sectionhead"><h3>Trouver un créneau</h3><span class="scope-availability ${mode.kind}">${escapeText(mode.label)}</span></div>
+   <div class="scope-availabilitytop">
+     <label class="scope-inline">À partir du <input class="scope-date-picker" type="date" value="${escapeText(from)}" min="${localDate()}" onchange="scopingSetStartDate(this.value)"></label>
+     <label class="scope-inline">Durée <select id="scope-duration" onchange="scopingDuration(this.value)">${[15,30,45,60].map(n=>
+       `<option ${r.duration===n?'selected':''} value="${n}">${n} min</option>`).join('')}</select></label>
+   </div>
+   ${drafts.length?`<div class="scope-selection"><div class="scope-sectionhead"><h3>${drafts.length} créneau(x) sélectionné(s)</h3>
+     <button class="primary" onclick="reviewScopingSend()">Proposer ces créneaux</button></div><ul>${r.proposals.map((s,i)=>isDraft(s)?
+       `<li><span>${scopeTime(s)}</span><button class="secondary tiny" aria-label="Retirer ${scopeTime(s)}" onclick="scopingRemoveSlot(${i})">Retirer</button></li>`:'').join('')}</ul></div>`:''}
+   <div class="scope-slotlist">${(expanded?list:list.slice(0,6)).map(slot=>{
+     const index=r.proposals.findIndex(s=>s.date===slot.date&&s.start===slot.start&&s.end===slot.end);
+     const selected=index>=0, draft=selected&&isDraft(r.proposals[index]);
+     const day=fmtDate(slot.date,{weekday:'long',day:'numeric',month:'long'});
+     return `<button type="button" class="scope-slot ${selected?'is-selected':''}" aria-label="${draft?'Retirer':selected?'Déjà suivi':'Ajouter'} ${day} ${slot.start}"
+       onclick="${draft?`scopingRemoveSlot(${index})`:`scopingChooseSlot('${slot.date}','${slot.start}','${slot.end}')`}" ${selected&&!draft?'disabled':''}>
+       <span class="scope-slotdate"><strong>${day}</strong><small>${slot.start} – ${slot.end}</small></span>
+       <span class="scope-slotstatus ${slot.mode}">${escapeText(slot.label)}</span><span class="scope-slotarrow">${selected?scopeIcon('check',16):scopeIcon('plus',16)} <span>${draft?'Sélectionné':selected?'Déjà suivi':'Ajouter'}</span></span></button>`;
+   }).join('')||'<p class="scope-empty">Aucun créneau trouvé sur cette période. Essayez une autre date ou durée.</p>'}</div>
+   ${list.length>6?`<button class="secondary tiny scope-see-more" aria-expanded="${expanded}" onclick="scopingToggleMoreSlots()">${expanded?'Voir moins':'Voir plus'} ${scopeIcon('chevron',15)}</button>`:''}`;
 }
-function scopeDocInfo(r,key){
- const docs=r.documents||{};return docs[key]||{};
-}
-function scopeDocCard(r,key,title,description,icon){
- const data=scopeDocInfo(r,key),url=scopeDocumentUrl(data.url),has=!!url;
- return `<article class="scope-doc-card ${has?'ready':'missing'}"><div class="scope-doc-top"><span class="scope-doc-icon" aria-hidden="true">${icon}</span><div class="scope-doc-name"><strong>${title}</strong><small>${description}</small></div><span class="scope-doc-state ${has?'ready':''}">${has?'Lien ajouté':'À renseigner'}</span></div>
- <label class="scope-field"><span>Lien Google Drive / Docs / Slides</span><input type="url" id="scope-doc-${key}" value="${escapeText(data.url||'')}" placeholder="https://drive.google.com/…" autocomplete="url"></label>
- <div class="scope-doc-actions"><button class="secondary tiny" onclick="scopingSaveDocument('${key}')">Enregistrer le lien</button>${has?`<a class="secondary tiny scope-doc-open" href="${escapeText(url)}" target="_blank" rel="noopener noreferrer">${scopeIcon("external",15)} Voir le document</a>`:`<button class="secondary tiny" disabled title="Ajoutez un lien Drive valide">${scopeIcon("external",15)} Voir le document</button>`}</div></article>`;
-}
+
 function docsForFormation(f){
  return ['AUDIT','CADRAGE'].map(category=>{
   const matches=(db.deliverables||[]).filter(d=>d.formationId===f.id&&docCategory(d)===category)
@@ -180,21 +264,157 @@ function documentsMarkup(f){
  <button class="primary scope-ai-generate" disabled>${scopeIcon("sparkles",16)} Générer la synthèse · API à connecter</button><p class="scope-ai-disclaimer">Aucune synthèse fictive. Les fichiers sont ceux de la formation concernée.</p></div>`;
 }
 
-function historyMarkup(r){return r.history.length?`<details class="scope-history"><summary>Historique des modifications (${r.history.length})</summary>${r.history.slice(-7).reverse().map(e=>`<div>${escapeText(e.at.slice(0,16).replace('T',' '))} · ${escapeText(e.text)}</div>`).join('')}</details>`:'';}
-function summaryMarkup(f,r){const trainer=formTrainer(f),client=clientRecord(f),dates=sessionsOf(f),date=callSessionDate(f),days=daysBefore(date);
- return `<div class="scope-detailtitle"><div><span class="scope-eyebrow">FICHE DE CADRAGE</span><h2>${escapeText(client.name)}</h2><p>${escapeText(f.title)}</p></div>${markupPill(r.status)}</div><div class="scope-facts"><div><span>Formation</span><strong>${fmt(date)}</strong></div><div><span>Formateur</span><strong>${escapeText(trainer?.name||'À staffer')}</strong></div><div><span>Participants</span><strong>${dates[0]?.people||'—'}</strong></div><div><span>Jalon J-14</span><strong>${days===null?'À préciser':days<=14&&r.status==='todo'?'À traiter':'Suivi actif'}</strong></div></div><div class="scope-actionrow"><button class="secondary tiny" onclick="openFormation('${escapeText(f.id)}')">Voir la formation</button><button class="secondary tiny" onclick="openClient('${escapeText(f.clientId)}')">Voir le client</button>${trainer?`<button class="secondary tiny" onclick="openTrainer(${trainer.id})">Fiche formateur</button>`:''}</div>`;
+function slotStatus(r,slot,index,trainer){
+ const confirmed=['confirmed','done'].includes(r.status);
+ if(confirmed&&r.confirmedProposalIndex===index)return 'Créneau confirmé';
+ if(slot.trainerDeclined)return 'Refusé par le formateur';
+ if(confirmed)return slot.trainerAccepted?'Accepté · non retenu':'Non retenu';
+ if(r.status==='cancelled')return 'Call annulé';
+ if(!inScope(slot,trainer))return 'Autre destinataire';
+ if(expired(slot))return 'Expiré';
+ if(slot.trainerAccepted)return 'Accepté par le formateur';
+ return 'En attente';
 }
-function scheduleMarkup(r){
- return `<div class="scope-sectionhead"><h3>Confirmation du créneau</h3><small>Choisissez parmi les créneaux proposés</small></div>
- ${r.proposals.length?`<div class="scope-confirm-options">${r.proposals.map((slot,i)=>`<label class="scope-confirm-option"><input type="radio" name="scope-confirm-choice" value="${i}" ${r.confirmedProposalIndex===i||r.confirmedProposalIndex==null&&i===0?'checked':''}><span><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}${slot.trainerAccepted?' · Accepté par le formateur':slot.trainerDeclined?' · Refusé par le formateur':' · Réponse formateur à vérifier'}</small></span></label>`).join('')}</div><div class="scope-actionrow"><button class="primary" onclick="scopingConfirm()">Valider ce créneau</button></div>`:'<p class="scope-empty">Ajoutez des créneaux proposés pour pouvoir en confirmer un.</p>'}
- ${r.status==='confirmed'?`<p class="scope-success">Confirmé le ${fmt(r.date)} de ${r.start} à ${r.end} · confirmation locale</p>`:''}
- <p class="scope-help">Aucune invitation n'est envoyée automatiquement. Vérifiez l'accord du client et du formateur avant validation.</p>`;
+
+function elapsedSince(at){
+ const minutes=Math.max(0,Math.floor((Date.now()-Date.parse(at))/60000));
+ if(minutes<1)return 'À l’instant';
+ if(minutes<60)return 'Il y a '+minutes+' min';
+ if(minutes<1440)return 'Il y a '+Math.floor(minutes/60)+' h';
+ return 'Il y a '+Math.floor(minutes/1440)+' j';
 }
+
+function reminderAvailability(r,trainer){
+ if(finalCallStates.includes(r.status)||!pendingSlots(r,trainer).length)return 'none';
+ const last=lastStamp((r.reminders||[]).filter(event=>event.trainerId===trainer.id&&
+   ['requested','processed','accepted'].includes(event.status)).map(event=>event.at));
+ return last&&Date.now()-Date.parse(last)<reminderCooldownMs?'cooldown':'preview';
+}
+
+function timelineMarkup(r){
+ const states={requested:'Relance demandée',processed:'Prise en charge par le serveur',
+   accepted:'Acceptée par le service push',failed:'Échec de la relance',received:'Réception confirmée',read:'Lecture confirmée'};
+ const reminders=(r.reminders||[]).filter(event=>Object.hasOwn(states,event.status)).map(event=>({
+   at:event.at,text:[states[event.status],trainerById(event.trainerId)?.name,event.channel,event.author,event.result].filter(Boolean).join(' · ')
+ }));
+ const events=[...(r.history||[]),...reminders].sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,30);
+ return `<section><div class="scope-sectionhead"><h3>Historique des échanges</h3></div>
+  ${events.length?`<ol class="scope-timeline">${events.map(event=>
+    `<li><time datetime="${escapeText(event.at)}">${eventTime(event.at)}</time><span>${escapeText(event.text)}</span></li>`).join('')}</ol>`:
+    '<p class="scope-empty">Aucune activité enregistrée.</p>'}</section>`;
+}
+
+function followMarkup(f,r){
+ const trainer=formTrainer(f), pinnedTrainer=['confirmed','done'].includes(r.status)?trainerById(r.trainerId)||trainer:trainer;
+ const stage=callStage(f,r,trainer), sent=r.proposals.filter(slot=>slot.sentAt);
+ const lastSend=lastStamp(sent.map(slot=>slot.sentAt));
+ const lastReply=lastStamp(r.proposals.map(slot=>slot.responseAt).concat((r.trainerSuggested||[]).map(slot=>slot.suggestedAt)));
+ const hasResponses=r.proposals.some(hasReply)||Boolean(r.trainerSuggested?.length);
+ const selected=r.proposals[r.confirmedProposalIndex];
+ const reminder=reminderAvailability(r,trainer);
+ const confirmed=['confirmed','done'].includes(r.status);
+ return `<section aria-labelledby="scope-tracking"><div class="scope-sectionhead"><h3 id="scope-tracking">Suivi des propositions</h3>${cockpitPill(stage)}</div>
+   <div class="scope-follow-summary">
+     <div><small>Formateur</small><strong>${escapeText(pinnedTrainer?.name||'À affecter')}</strong></div>
+     <div><small>Créneaux transmis</small><strong>${sent.length}</strong></div>
+     <div><small>Dernier envoi déclaré</small><strong>${lastSend?eventTime(lastSend):'Non enregistré'}</strong>${lastSend?`<small>${elapsedSince(lastSend)}</small>`:''}</div>
+     <div><small>Dernière réponse</small><strong>${lastReply?eventTime(lastReply):hasResponses?'Date non renseignée':'Aucune réponse'}</strong></div>
+   </div>
+   ${reminder==='preview'?`<div class="scope-follow-action"><button class="secondary" onclick="reviewScopingReminder()">${mobileIcon('bell',16)} Relancer le formateur</button><small>Notifications push à connecter</small></div>`:
+     reminder==='cooldown'?'<p class="scope-help">Relance bloquée pendant le délai de 24 h.</p>':''}
+   ${confirmed?`<div class="scope-success"><strong>${r.status==='done'?'Call réalisé':'Call confirmé'}</strong> · ${scopeTime(selected||r)}
+     <div class="scope-actionrow"><button class="primary" onclick="scopingTab('${r.status==='done'?'notes':'prepare'}')">${r.status==='done'?'Ouvrir le compte rendu':'Préparer le call'}</button>
+     ${r.status==='confirmed'?'<button class="secondary" onclick="scopingMarkDone()">Marquer réalisé</button>':''}</div></div>`:''}
+   <div class="scope-follow-slots">${r.proposals.map((slot,index)=>{
+     const draft=isDraft(slot);
+     if(draft&&!finalCallStates.includes(r.status))return '';
+     const accepted=!finalCallStates.includes(r.status)&&currentAccepted(slot,trainer);
+     return `<div class="scope-follow-slot ${accepted?'can-confirm':''}"><div><strong>${scopeTime(slot)}</strong>
+       <small>${slot.sentAt?'Envoi déclaré · '+eventTime(slot.sentAt):slot.source==='trainer'?'Proposé par le formateur':'Transmission non enregistrée'}</small></div>
+       <span class="scope-pill ${accepted?'scope-confirmed':''}">${slotStatus(r,slot,index,trainer)}</span>
+       ${accepted?`<button class="primary tiny" onclick="reviewScopingConfirm(${index})">Confirmer ce créneau</button>`:''}</div>`;
+     }).join('')||'<p class="scope-empty">Aucun créneau transmis ou ayant reçu une réponse.</p>'}</div>
+   ${r.trainerSuggested?.length?`<div class="scope-proposals"><strong>Autres créneaux proposés par le formateur</strong>${r.trainerSuggested.map((slot,i)=>
+     `<div><span>${scopeTime(slot)}</span>${!finalCallStates.includes(r.status)&&!expired(slot)&&inScope({...slot,recipientId:slot.trainerId},trainer)?
+       `<button class="secondary tiny" onclick="scopingAddTrainerSuggestion(${i})">Ajouter aux propositions</button>`:''}</div>`).join('')}</div>`:''}
+   ${!confirmed&&!pendingSlots(r,trainer).length&&!r.proposals.some(slot=>currentAccepted(slot,trainer))&&!finalCallStates.includes(r.status)?
+     '<div class="scope-actionrow"><button class="secondary" onclick="scopingTab(\'plan\')">Proposer des créneaux</button></div>':''}
+   ${!['done','cancelled'].includes(r.status)?'<div class="scope-actionrow"><button class="ghost" onclick="reviewScopingCancellation()">Annuler le call</button></div>':''}
+ </section>${timelineMarkup(r)}`;
+}
+
+function showScopeDialog(title,content){
+ const dialog=document.getElementById('scope-workflow-dialog');
+ if(!dialog||dialog.open)return;
+ dialog.innerHTML=`<h2 id="scope-dialog-title">${escapeText(title)}</h2>${content}<p class="scope-dialog-status" role="status"></p>`;
+ dialog.showModal();
+}
+
+const closeScopeDialog='<button class="secondary" type="button" onclick="this.closest(\'dialog\').close()">Annuler</button>';
+
+window.reviewScopingSend=()=>{
+ const d=getSelected(), trainer=d&&formTrainer(d.f);
+ if(!d||!trainer||finalCallStates.includes(d.r.status))return;
+ const drafts=draftSlots(d.r);
+ if(!drafts.length)return;
+ showScopeDialog('Proposer ces créneaux',`<p>${escapeText(trainer.name)} · ${escapeText(clientRecord(d.f).name)} · ${drafts.length} créneau(x)</p>
+   <label class="scope-field"><span>Message à transmettre au formateur</span><textarea id="scope-send-message" rows="8" readonly>${escapeText(scopingMessageText(d.f,drafts))}</textarea></label>
+   <p class="scope-help">Copiez le message et transmettez-le sur le canal de votre choix. Confirmez ensuite son envoi pour enregistrer le suivi dans ce navigateur.</p>
+   <div class="scope-dialog-actions">${closeScopeDialog}<button class="secondary" onclick="scopingCopyMessage()">Copier le message</button>
+     <button class="primary" onclick="declareScopingSent()">J’ai envoyé les propositions</button></div>`);
+};
+
+window.scopingCopyMessage=async()=>{
+ const field=document.getElementById('scope-send-message');
+ if(!field)return;
+ try{await navigator.clipboard.writeText(field.value);notify('Message copié. L’envoi reste à déclarer.');}
+ catch{field.focus();field.select();notify('Copie automatique indisponible. Le message est sélectionné.');}
+};
+
+window.declareScopingSent=()=>{
+ const d=getSelected(), trainer=d&&formTrainer(d.f);
+ if(!d||!trainer||finalCallStates.includes(d.r.status)||!document.getElementById('scope-send-message'))return;
+ const drafts=draftSlots(d.r);
+ if(!drafts.length)return;
+ if(drafts.some(slot=>expired(slot)||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id)))
+   return notify('Un créneau a expiré ou est occupé. Retirez-le avant de déclarer l’envoi.');
+ const sentAt=new Date().toISOString();
+ for(const slot of drafts)Object.assign(slot,{sentAt,recipientId:trainer.id,channel:'external-manual'});
+ d.r.status='pending';
+ if(persist(d,`Envoi déclaré par l’AMO · ${drafts.length} créneau(x) pour ${trainer.name}`,'follow')){
+   notify('Envoi déclaré pour '+drafts.length+' créneau(x).');
+ }
+};
+
+window.reviewScopingReminder=()=>{
+ const d=getSelected(),trainer=d&&formTrainer(d.f);
+ if(!d||reminderAvailability(d.r,trainer)!=='preview')return;
+ const count=pendingSlots(d.r,trainer).length, client=clientRecord(d.f).name;
+ const message=`Bonjour ${trainer.name.split(' ')[0]}, des propositions de créneaux pour votre call de cadrage avec ${client} attendent votre réponse. Consultez votre espace Certif-IA pour confirmer votre disponibilité.`;
+ showScopeDialog('Relancer le formateur',`<p>${escapeText(trainer.name)} · ${escapeText(client)}<br>${escapeText(d.f.title)} · ${count} proposition(s) en attente</p>
+   <p class="scope-message-preview">${escapeText(message)}</p><p class="scope-warning">Notifications push à connecter</p>
+   <div class="scope-dialog-actions">${closeScopeDialog}<button class="primary" disabled>Envoyer la relance</button></div>`);
+};
+
+window.reviewScopingConfirm=index=>{
+ const d=getSelected(),trainer=d&&formTrainer(d.f),slot=d?.r.proposals[index];
+ if(!slot||finalCallStates.includes(d.r.status)||!currentAccepted(slot,trainer))return;
+ showScopeDialog('Confirmer le créneau',`<p>${scopeTime(slot)} · ${escapeText(trainer.name)}</p>
+   <p class="scope-help">Vérifiez l’accord du client. La confirmation est enregistrée localement. L’invitation reste à transmettre manuellement.</p>
+   <div class="scope-dialog-actions">${closeScopeDialog}<button class="primary" onclick="scopingConfirm(${index})">Valider ce créneau</button></div>`);
+};
+
+window.reviewScopingCancellation=()=>{
+ const d=getSelected();
+ if(!d||['done','cancelled'].includes(d.r.status))return;
+ showScopeDialog('Annuler le call',`<p>L’historique des propositions et des réponses reste disponible.</p>
+   <div class="scope-dialog-actions">${closeScopeDialog}<button class="primary" onclick="scopingCancel()">Confirmer l’annulation</button></div>`);
+};
 
 function notesMarkup(f,r){
  return `<div class="scope-sectionhead"><h3>Compte rendu</h3><small>À associer aux notes HubSpot du client</small></div><label class="scope-field"><span>Compte rendu du cadrage</span><textarea id="scope-notes" rows="8" placeholder="Attentes client, besoins IA, décisions, adaptations pédagogiques…">${escapeText(r.notes)}</textarea></label>
  <div class="scope-actionrow"><button class="primary" onclick="scopingSaveNotes()">Enregistrer le brouillon</button><button class="secondary" onclick="scopingCopyHubspotNote()">Copier pour HubSpot</button><button class="secondary" disabled title="Connexion HubSpot sécurisée nécessaire">${scopeIcon("external",15)} Synchronisation HubSpot à connecter</button></div>
- <p class="scope-help">Le brouillon reste dans le Hub de démonstration. L'enregistrement automatique dans la fiche HubSpot nécessitera l'intégration serveur et les identifiants du client ; aucun envoi n'est simulé.</p>`;
+ ${r.notesSavedAt?`<p class="scope-help">Dernier enregistrement · ${eventTime(r.notesSavedAt)}</p>`:''}<p class="scope-help">HubSpot · synchronisation à connecter. Le brouillon reste dans le Hub de démonstration. L'enregistrement automatique dans la fiche HubSpot nécessitera l'intégration serveur et les identifiants du client ; aucun envoi n'est simulé.</p>`;
 }
 
 const scopingNoteKey=(formationId,trainerId)=>'scoping-note:'+formationId+':'+trainerId;
@@ -263,66 +483,161 @@ window.downloadScopingNote=async (formationId,trainerId)=>{
  }catch{notify('Impossible de lire le fichier.');}
 };
 
-function detailMarkup(f,r){return `<section class="scope-detail card">${summaryMarkup(f,r)}<div class="scope-content"><section>${contactMarkup(f)}</section><section>${availabilityMarkup(f,r)}</section><section>${scheduleMarkup(r)}</section><section>${documentsMarkup(f)}</section>${scopingNotePanel(f.id)}<section>${notesMarkup(f,r)}</section>${historyMarkup(r)}</div></section>`;}
+const scopeTabs=[['plan','Planification'],['follow','Suivi'],['prepare','Préparation'],['notes','Compte rendu']];
+
+function detailMarkup(f,r){
+ const trainer=['confirmed','done'].includes(r.status)?trainerById(r.trainerId)||formTrainer(f):formTrainer(f);
+ const [defaultTab,action]=callAction(f,r,trainer), tab=state.scopingTabKey||defaultTab;
+ const contents={
+   plan:()=>`<section>${availabilityMarkup(f,r)}</section><section>${contactMarkup(f)}</section>`,
+   follow:()=>followMarkup(f,r),
+   prepare:()=>`<section>${documentsMarkup(f)}</section>${scopingNotePanel(f.id)}<section>${contactMarkup(f)}</section>`,
+   notes:()=>`<section>${notesMarkup(f,r)}</section>`
+ };
+ return `<button class="secondary scope-back" onclick="scopingBack()">${mobileIcon('back',16)} Retour aux dossiers</button>
+   <article class="card scope-detail"><header class="scope-detailtitle scope-filehead">
+     <div><h1 tabindex="-1">${escapeText(clientRecord(f).name)}</h1><p>${escapeText(f.title)}</p>
+       <div class="scope-dossier-meta"><span>${scopeIcon('calendar',15)} Formation · ${fmt(callSessionDate(f))}</span>
+       <span>${scopeIcon('profile',15)} ${escapeText(trainer?.name||'Formateur à affecter')}</span></div></div>
+     <div class="scope-file-status">${cockpitPill(callStage(f,r,trainer))}
+       ${tab!==defaultTab&&!(tab==='follow'&&['confirmed','done'].includes(r.status))?`<button class="primary tiny" onclick="scopingTab('${defaultTab}')">${action}</button>`:''}</div>
+   </header>
+   <nav class="scope-tabs" aria-label="Étapes du cadrage">${scopeTabs.map(([key,label])=>
+     `<button class="secondary tiny" ${key===tab?'aria-current="page"':''} onclick="scopingTab('${key}')">${label}</button>`).join('')}</nav>
+   <div class="scope-content">${contents[tab]()}</div></article>
+   <dialog class="scope-workflow-dialog" id="scope-workflow-dialog" aria-labelledby="scope-dialog-title"></dialog>`;
+}
+
 function scopeFocusDetailOnMobile(){
- if(typeof window==='undefined'||!window.matchMedia?.('(max-width:740px)').matches)return;
- const panel=document.querySelector('.scope-detail');
- if(panel)panel.scrollIntoView({behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+ if(!window.matchMedia?.('(max-width:740px)').matches)return;
+ document.querySelector('.scope-detail')?.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
 }
-function scopingPage(){const rows=allCalls();if(!state.scopingSelected||!formations.some(f=>f.id===state.scopingSelected))state.scopingSelected=rows[0]?.f.id;const f=formations.find(x=>x.id===state.scopingSelected);const r=f&&callFor(f);
- return `<div class="scope-root"><header class="scope-hero"><div><span class="scope-eyebrow">PILOTAGE AMO · J-14</span><h1>Calls de cadrage<span>.</span></h1><p>Planifiez, contactez, préparez et suivez vos échanges clients avant les formations.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>${statsMarkup(rows)}<div class="scope-layout">${listMarkup(rows)}${f?detailMarkup(f,r):'<p class="scope-empty">Aucune formation disponible.</p>'}</div><p class="scope-footnote">Toutes les modifications et propositions sont enregistrées uniquement dans cette démo. Google Agenda, HubSpot, Google Meet et les envois de messages ne sont pas connectés.</p></div>`;
+
+const scopeHash='#/interne/scoping-calls';
+function scopeFormationFromHash(){
+ const id=location.hash.match(/^#\/interne\/scoping-calls\/([A-Za-z0-9-]+)$/)?.[1];
+ return formations.find(f=>f.id===id);
 }
-function getSelected(){if(state.role!=='amo')return null;const f=formations.find(x=>x.id===state.scopingSelected);return f?{f,r:callFor(f)}:null;}
-function persist(d,text){d.r.history.push({at:new Date().toISOString(),text});callStore.write(d.r);render();}
-function notify(text){if(typeof flash==='function')flash(text);}
-window.amoScopingStatus=id=>callStore.read(id)?.status||'todo';
+
+function scopingPage(){
+ const f=scopeFormationFromHash();
+ if(state.scopingSelected!==f?.id){
+   state.scopingSelected=f?.id;
+   state.scopingTabKey='';
+   state.scopingSlotsExpanded=false;
+ }
+ const rows=f?null:allCalls();
+ return `<div class="scope-root scope-amo-v3">${f?detailMarkup(f,callFor(f)):
+   `<header class="scope-hero"><div><h1>Calls de cadrage</h1><p>Organisez vos calls et suivez les réponses des formateurs.</p></div>
+     <span class="scope-demo-chip">Démonstration locale</span></header>${statsMarkup(rows)}${listMarkup(rows)}`}
+   <p class="scope-footnote">Suivi local dans ce navigateur. Les échanges et confirmations ne déclenchent pas d’envoi externe.</p></div>`;
+}
+
+function getSelected(){
+ if(state.role!=='amo'||state.page!==PAGE)return null;
+ const f=scopeFormationFromHash();
+ return f?{f,r:callFor(f)}:null;
+}
+
+function persist(d,text,tab){
+ d.r.history.push({at:new Date().toISOString(),text});
+ if(!callStore.write(d.r))return false;
+ if(tab)state.scopingTabKey=tab;
+ render();
+ return true;
+}
+
+function notify(text){
+ const status=document.querySelector('#scope-workflow-dialog[open] [role="status"]');
+ if(status)status.textContent=text;
+ else if(typeof flash==='function')flash(text);
+}
+window.amoScopingStatus=id=>{
+ const f=formations.find(formation=>formation.id===id);
+ if(!f)return 'todo';
+ const stage=callStage(f,callFor(f));
+ return finalCallStates.includes(stage)?stage:['todo','draft'].includes(stage)?'todo':'pending';
+};
 window.openAmoScoping=id=>{
  if(state.role!=='amo'||!formations.some(f=>f.id===id))return;
- state.scopingSearch='';state.scopingFilter='all';state.scopingSelected=id;state.scopingSlotsExpanded=false;
- go(PAGE);scopeFocusDetailOnMobile();
+ state.scopingSearch='';state.scopingFilter='all';
+ if(state.page!==PAGE)go(PAGE);
+ window.scopingSelect(id);
 };
-window.scopingSelect=id=>{if(!formations.some(f=>f.id===id))return;state.scopingSelected=id;state.scopingSlotsExpanded=false;render();scopeFocusDetailOnMobile();};
-window.scopingSearch=v=>{state.scopingSearch=v;const el=document.activeElement;const pos=el?.selectionStart;render();const input=document.querySelector('.scope-search input');if(input){input.focus();try{input.setSelectionRange(pos,pos)}catch(e){}}};
-window.scopingFilter=v=>{state.scopingFilter=v;render()};
-window.scopingToggleMoreSlots=()=>{state.scopingSlotsExpanded=!state.scopingSlotsExpanded;render()};
-window.scopingDuration=n=>{const d=getSelected();if(!d||![15,30,45,60].includes(Number(n)))return;d.r.duration=Number(n);state.scopingSlotsExpanded=false;callStore.write(d.r);render()};
-window.scopingSaveContact=()=>notify('Modifiez les coordonnées depuis la fiche Client : elles apparaîtront ici automatiquement.');
+window.scopingSelect=id=>{
+ if(state.role!=='amo'||!formations.some(f=>f.id===id))return;
+ const target=scopeHash+'/'+encodeURIComponent(id);
+ if(location.hash!==target)history.pushState(null,'',target);
+ state.scopingStartDate='';
+ render();window.scrollTo(0,0);
+ document.querySelector('.scope-filehead h1')?.focus({preventScroll:true});
+};
+window.scopingBack=()=>{
+ if(state.role!=='amo')return;
+ go(PAGE);
+ document.querySelector('.scope-search input')?.focus({preventScroll:true});
+};
+window.scopingTab=key=>{
+ if(!getSelected()||!scopeTabs.some(([tab])=>tab===key))return;
+ state.scopingTabKey=key;render();
+ document.querySelector('.scope-tabs [aria-current]')?.focus({preventScroll:true});
+};
+window.scopingSearch=v=>{state.scopingSearch=v;const pos=document.activeElement?.selectionStart;render();
+ const input=document.querySelector('.scope-search input');if(input){input.focus();input.setSelectionRange(pos,pos);}};
+window.scopingFilter=v=>{state.scopingFilter=v;render();document.querySelector('.scope-controls select')?.focus();};
+window.scopingToggleFilter=v=>{
+ state.scopingFilter=state.scopingFilter===v?'all':v;render();
+ document.querySelector('.scope-kpis button[data-filter="'+v+'"]')?.focus({preventScroll:true});
+};
 
-window.scopingChooseSlot=(date,start,end)=>{const d=getSelected();if(!d)return;if(['confirmed','done','cancelled'].includes(d.r.status))return notify('Ce call est clôturé ou confirmé.');const slot=slotsFor(d.f,d.r,14).find(x=>x.date===date&&x.start===start&&x.end===end);if(!slot)return notify('Créneau occupé ou devenu indisponible.');if(d.r.proposals.some(x=>x.date===date&&x.start===start))return notify('Créneau déjà sélectionné.');d.r.proposals.push(slot);if(!d.r.date){d.r.date=date;d.r.start=start;d.r.end=end;}d.r.status='pending';persist(d,'Proposition de créneau préparée : '+fmt(date)+' '+start+'–'+end)};
-window.scopingRemoveSlot=i=>{const d=getSelected();if(!d||!d.r.proposals[i]||['confirmed','done','cancelled'].includes(d.r.status))return;d.r.proposals.splice(i,1);if(!d.r.proposals.length&&d.r.status==='pending')d.r.status='todo';persist(d,'Créneau proposé retiré')};
-window.scopingCopyMessage=()=>{const d=getSelected();if(!d||!d.r.proposals.length)return;
- const msg=scopingMessageText(d.f,d.r);
- if(navigator.clipboard?.writeText)navigator.clipboard.writeText(msg).then(()=>notify('Message prêt à coller · aucun envoi effectué')).catch(()=>notify('Copie indisponible'));
- else{const box=document.createElement('textarea');box.value=msg;document.body.append(box);box.select();try{document.execCommand('copy');notify('Message copié')}catch(e){notify('Copie indisponible')}box.remove()}
+window.scopingToggleMoreSlots=()=>{
+ state.scopingTabKey='plan';
+ state.scopingSlotsExpanded=!state.scopingSlotsExpanded;render();
+ document.querySelector('.scope-see-more')?.focus({preventScroll:true});
+};
+window.scopingDuration=n=>{
+ const d=getSelected();
+ if(!d||finalCallStates.includes(d.r.status)||![15,30,45,60].includes(Number(n)))return;
+ d.r.duration=Number(n);state.scopingSlotsExpanded=false;
+ if(callStore.write(d.r)){render();document.getElementById('scope-duration')?.focus();}
+};
+window.scopingChooseSlot=(date,start,end)=>{
+ const d=getSelected();
+ if(!d||finalCallStates.includes(d.r.status))return;
+ const slot=slotsFor(d.f,d.r,14).find(x=>x.date===date&&x.start===start&&x.end===end);
+ if(!slot)return notify('Créneau occupé ou devenu indisponible.');
+ if(d.r.proposals.some(x=>x.date===date&&x.start===start&&x.end===end))return;
+ d.r.proposals.push(slot);d.r.status='pending';
+ persist(d,'Créneau préparé · '+scopeTime(slot),'plan');
+};
+window.scopingRemoveSlot=index=>{
+ const d=getSelected(),slot=d?.r.proposals[index];
+ if(!slot||!isDraft(slot)||finalCallStates.includes(d.r.status))return;
+ d.r.proposals.splice(index,1);
+ if(!d.r.proposals.length)d.r.status='todo';
+ persist(d,'Créneau préparé retiré · '+scopeTime(slot),'plan');
+};
+window.scopingConfirm=index=>{
+ const d=getSelected(), slot=d?.r.proposals[index], trainer=d&&formTrainer(d.f);
+ if(!slot||d.r.status!=='pending'||!currentAccepted(slot,trainer))return notify('Ce créneau accepté n’est plus disponible.');
+ if(trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Le créneau est désormais occupé. Choisissez un autre créneau.');
+ Object.assign(d.r,{date:slot.date,start:slot.start,end:slot.end,confirmedProposalIndex:index,status:'confirmed',trainerId:trainer.id});
+ persist(d,'Call confirmé · '+scopeTime(slot),'follow');
+};
+window.scopingMarkDone=()=>{
+ const d=getSelected();
+ if(d?.r.status==='confirmed'){d.r.status='done';persist(d,'Call marqué comme réalisé','follow');}
+};
+window.scopingCancel=()=>{
+ const d=getSelected();
+ if(!d||['done','cancelled'].includes(d.r.status))return;
+ d.r.status='cancelled';persist(d,'Call annulé','follow');
 };
 
-window.scopingConfirm=()=>{const d=getSelected();if(!d||d.r.status!=='pending')return;
- const selected=document.querySelector('input[name="scope-confirm-choice"]:checked');
- const index=Number(selected?.value);const slot=selected&&d.r.proposals[index];
- if(!slot)return notify('Sélectionnez un créneau parmi les propositions.');
- if(slot.trainerDeclined)return notify('Ce créneau a été refusé par le formateur.');
- if(!slot.trainerAccepted)return notify('Le formateur doit d’abord accepter ce créneau dans son espace.');
- if(slot.date<localDate())return notify('Le créneau choisi est passé.');
- const trainer=formTrainer(d.f);if(!trainer||(slot.respondedBy!=null&&slot.respondedBy!==trainer.id)||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Le créneau est désormais occupé.');
- d.r.date=slot.date;d.r.start=slot.start;d.r.end=slot.end;d.r.confirmedProposalIndex=index;d.r.status='confirmed';d.r.trainerId=trainer.id;
- persist(d,'Créneau validé : '+fmt(slot.date)+' · '+slot.start+'–'+slot.end+' (aucune invitation envoyée)');
-};
-
-window.scopingMarkDone=()=>{const d=getSelected();if(!d)return;if(d.r.status!=='confirmed')return notify('Confirmez d’abord la date du call.');d.r.status='done';persist(d,'Call marqué comme réalisé')};
-window.scopingCancel=()=>{const d=getSelected();if(!d)return;if(!window.confirm('Annuler ce call dans la démo ?'))return;d.r.status='cancelled';persist(d,'Call annulé')};
-window.scopingSaveDocument=key=>{
- if(!['audit','cadrage'].includes(key))return;
- const d=getSelected();if(!d)return;
- const value=document.getElementById('scope-doc-'+key)?.value.trim()||'';
- if(value&&!scopeDocumentUrl(value))return notify('Lien invalide : utilisez une URL HTTPS Google Drive, Docs ou Slides.');
- d.r.documents ||= {};
- d.r.documents[key]={url:value};
- persist(d,(key==='audit'?'Audit':'Support de cadrage')+(value?' : lien enregistré':' : lien retiré'));
-};
-window.scopingCheck=(id,checked)=>{const d=getSelected();if(!d||!PREP.some(([k])=>k===id))return;d.r.checklist[id]=checked;callStore.write(d.r);render()};
 window.scopingSaveNotes=()=>{const d=getSelected();if(!d)return;
  d.r.notes=document.getElementById('scope-notes')?.value||'';
- d.r.hubspotSync='not-configured';persist(d,'Brouillon du compte rendu enregistré · synchronisation HubSpot non configurée');
+ d.r.hubspotSync='not-configured';d.r.notesSavedAt=new Date().toISOString();
+ if(persist(d,'Brouillon du compte rendu enregistré'))notify('Compte rendu enregistré dans ce navigateur.');
 };
 window.scopingCopyHubspotNote=()=>{const d=getSelected();if(!d)return;
  const value=document.getElementById('scope-notes')?.value||'';
@@ -339,9 +654,10 @@ window.scopingOpenDeliverable=(id,category)=>{if(state.role!=='amo'||!['AUDIT','
 };
 window.scopingAddTrainerSuggestion=i=>{const d=getSelected();if(!d||!['todo','pending'].includes(d.r.status))return;const slot=d.r.trainerSuggested?.[i];if(!slot)return;
   const trainer=formTrainer(d.f);
- if(slot.date<localDate()||!trainer||(slot.trainerId!=null&&slot.trainerId!==trainer.id)||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Ce créneau alternatif n’est plus disponible.');
+ if(expired(slot)||!trainer||(slot.trainerId!=null&&slot.trainerId!==trainer.id)||trainerBusy(trainer,slot.date,slot.start,slot.end,d.f.id))return notify('Ce créneau alternatif n’est plus disponible.');
  if(d.r.proposals.some(s=>s.date===slot.date&&s.start===slot.start))return notify('Créneau déjà proposé.');
- d.r.proposals.push({...slot,trainerAccepted:true,respondedBy:trainer.id,mode:'unknown',label:'Proposé par le formateur'});
+ d.r.proposals.push({...slot,trainerAccepted:true,respondedBy:trainer.id,responseAt:slot.suggestedAt,
+   source:'trainer',mode:'unknown',label:'Proposé par le formateur'});
  d.r.trainerSuggested.splice(i,1);d.r.status='pending';persist(d,'Créneau alternatif du formateur ajouté');
 };
 
@@ -349,42 +665,48 @@ function trainerCalls(id){
  return allCalls().filter(x=>(x.record.trainerId??x.trainer?.id)===id&&x.record.status!=='cancelled');
 }
 function getTrainerCall(){
- if(state.role!=='formateur')return null;
+ if(state.role!=='formateur'||state.page!=='trainer-scoping')return null;
  const all=trainerCalls(state.trainerId);
  const chosen=all.find(x=>x.f.id===state.scopingTrainerSelected)||all[0];
  return chosen||null;
 }
+function trainerStage(f,r,trainer){
+ return callStage(f,{...r,proposals:r.proposals.filter(slot=>!isDraft(slot)&&inScope(slot,trainer))},trainer);
+}
 function trainerCallPage(){
  const assigned=trainerCalls(state.trainerId);
- const pending=assigned.filter(x=>x.record.status==='pending').length;
+ const pending=assigned.filter(x=>pendingSlots(x.record,trainerById(state.trainerId)).length).length;
  const confirmed=assigned.filter(x=>x.record.status==='confirmed').length;
- const selected=getTrainerCall();
+ const selected=getTrainerCall(), trainer=trainerById(state.trainerId);
+ const visibleSlots=selected?.record.proposals.map((slot,index)=>({slot,index})).filter(({slot,index})=>
+   (!isDraft(slot)||selected.record.confirmedProposalIndex===index)&&inScope(slot,trainer))||[];
  return `<div class="scope-root scope-trainer-root"><header class="scope-hero"><div><span class="scope-eyebrow">ESPACE FORMATEUR</span><h1>Mes calls de cadrage<span>.</span></h1><p>Consultez les propositions de créneaux, acceptez une disponibilité ou suggérez une autre date.</p></div><span class="scope-demo-chip">Démonstration locale</span></header>
  <div class="scope-statgrid"><div class="scope-stat"><span>À répondre</span><strong>${pending}</strong><small>Propositions de call</small></div><div class="scope-stat"><span>Confirmés</span><strong>${confirmed}</strong><small>Calls planifiés</small></div></div>
- <div class="scope-layout"><section class="scope-list card"><div class="scope-listhead"><h2>Mes formations</h2><span>${assigned.length} dossier(s)</span></div><div class="scope-items">${assigned.map(({f,record,client,date})=>`<button class="scope-item ${f.id===selected?.f.id?'active':''}" onclick="scopingTrainerSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${markupPill(record.status)}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta">${scopeIcon("calendar",15)} Formation : ${fmt(date)}</div><span class="scope-itemgo">Voir les créneaux ${scopeIcon("chevron",14)}</span></button>`).join('')||'<p class="scope-empty">Aucun call de cadrage associé à vos missions.</p>'}</div></section>
- ${selected?`<section class="scope-detail card"><div class="scope-detailtitle"><div><span class="scope-eyebrow">PROPOSITIONS DE CALL</span><h2>${escapeText(selected.client.name)}</h2><p>${escapeText(selected.f.title)}</p></div>${markupPill(selected.record.status)}</div><div class="scope-content"><section><div class="scope-sectionhead"><h3>Créneaux proposés par l'AMO</h3><small>${selected.record.proposals.length} proposition(s)</small></div>
+ <div class="scope-layout"><section class="scope-list card"><div class="scope-listhead"><h2>Mes formations</h2><span>${assigned.length} dossier(s)</span></div><div class="scope-items">${assigned.map(({f,record,client,date})=>`<button class="scope-item ${f.id===selected?.f.id?'active':''}" onclick="scopingTrainerSelect('${escapeText(f.id)}')"><div class="scope-itemtop"><strong>${escapeText(client.name)}</strong>${cockpitPill(trainerStage(f,record,trainer))}</div><div class="scope-itemtitle">${escapeText(f.title)}</div><div class="scope-itemmeta">${scopeIcon("calendar",15)} Formation : ${fmt(date)}</div><span class="scope-itemgo">Voir les créneaux ${scopeIcon("chevron",14)}</span></button>`).join('')||'<p class="scope-empty">Aucun call de cadrage associé à vos missions.</p>'}</div></section>
+ ${selected?`<section class="scope-detail card"><div class="scope-detailtitle"><div><span class="scope-eyebrow">PROPOSITIONS DE CALL</span><h2>${escapeText(selected.client.name)}</h2><p>${escapeText(selected.f.title)}</p></div>${cockpitPill(trainerStage(selected.f,selected.record,trainer))}</div><div class="scope-content"><section><div class="scope-sectionhead"><h3>Créneaux proposés par l'AMO</h3><small>${visibleSlots.length} proposition(s)</small></div>
  <p class="scope-help">Indiquez le créneau qui vous convient. L'AMO devra ensuite confirmer avec le client.</p>
- <div class="scope-trainer-options">${selected.record.proposals.map((slot,i)=>`<div class="scope-trainer-option"><div><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small><span>${slot.trainerAccepted?'Accepté':slot.trainerDeclined?'Refusé':'En attente de réponse'}</span></div><div class="scope-actionrow"><button class="primary tiny" ${selected.record.status!=='pending'||slot.date<localDate()?'disabled':''} onclick="scopingTrainerRespond(${i},true)">Accepter</button><button class="secondary tiny" ${selected.record.status!=='pending'||slot.date<localDate()?'disabled':''} onclick="scopingTrainerRespond(${i},false)">Refuser</button></div></div>`).join('')||'<p class="scope-empty">Aucun créneau proposé pour le moment.</p>'}</div></section>
+ <div class="scope-trainer-options">${visibleSlots.map(({slot,index:i})=>`<div class="scope-trainer-option"><div><strong>${fmt(slot.date)}</strong><small>${slot.start} – ${slot.end}</small><span>${slotStatus(selected.record,slot,i,trainer)}</span></div><div class="scope-actionrow"><button class="primary tiny" ${selected.record.status!=='pending'||expired(slot)?'disabled':''} onclick="scopingTrainerRespond(${i},true)">Accepter</button><button class="secondary tiny" ${selected.record.status!=='pending'||expired(slot)?'disabled':''} onclick="scopingTrainerRespond(${i},false)">Refuser</button></div></div>`).join('')||'<p class="scope-empty">Aucun créneau proposé pour le moment.</p>'}</div></section>
  ${['todo','pending'].includes(selected.record.status)?`<section><div class="scope-sectionhead"><h3>Proposer une autre disponibilité</h3><small>Si aucune proposition ne convient</small></div><div class="scope-trainer-alternative"><label class="scope-field"><span>Date</span><input type="date" id="scope-alt-date" min="${localDate()}"></label><label class="scope-field"><span>Début</span><input type="time" id="scope-alt-start" value="10:00"></label><label class="scope-field"><span>Fin</span><input type="time" id="scope-alt-end" value="10:30"></label><button class="secondary" onclick="scopingTrainerSuggest()">Soumettre à l'AMO</button></div></section>`:''}
  ${selected.record.status==='confirmed'?`<section class="scope-success">Call confirmé le ${fmt(selected.record.date)} à ${selected.record.start}</section>`:''}
  ${scopingNotePanel(selected.f.id,true)}</div></section>`:'<section class="scope-detail card"><p class="scope-empty">Vos prochaines propositions de calls apparaîtront ici.</p></section>'}</div>
  <p class="scope-footnote">Réponses enregistrées dans cette démonstration locale. Une synchronisation backend sera nécessaire pour partager les réponses entre plusieurs comptes et appareils.</p></div>`;
 }
 window.scopingTrainerSelect=id=>{if(state.role!=='formateur')return;state.scopingTrainerSelected=id;render();scopeFocusDetailOnMobile()};
-window.scopingTrainerRespond=(index,yes)=>{const current=getTrainerCall();if(!current)return;const r=current.record,slot=r.proposals[index];if(!slot||r.status!=='pending'||slot.date<localDate()||typeof yes!=='boolean')return;
+window.scopingTrainerRespond=(index,yes)=>{const current=getTrainerCall();if(!current)return;const r=current.record,slot=r.proposals[index];if(!slot||r.status!=='pending'||isDraft(slot)||expired(slot)||!inScope(slot,current.trainer)||typeof yes!=='boolean')return;
+ if(yes?slot.trainerAccepted:slot.trainerDeclined)return;
  if(yes&&trainerBusy(current.trainer,slot.date,slot.start,slot.end,current.f.id))return notify('Créneau désormais occupé.');
- slot.trainerAccepted=yes;slot.trainerDeclined=!yes;slot.respondedBy=state.trainerId;
+ slot.trainerAccepted=yes;slot.trainerDeclined=!yes;slot.respondedBy=state.trainerId;slot.responseAt=new Date().toISOString();
  r.trainerResponse=r.proposals.some(item=>item.trainerAccepted)?'accepted':r.proposals.every(item=>item.trainerDeclined)?'declined':'unknown';
- r.history.push({at:new Date().toISOString(),text:yes?'Formateur a accepté '+fmt(slot.date)+' '+slot.start:'Formateur a refusé '+fmt(slot.date)+' '+slot.start});callStore.write(r);render();notify(yes?'Disponibilité acceptée · en attente de validation AMO':'Créneau refusé');
+ r.history.push({at:new Date().toISOString(),text:yes?'Formateur a accepté '+fmt(slot.date)+' '+slot.start:'Formateur a refusé '+fmt(slot.date)+' '+slot.start});if(!callStore.write(r))return;render();notify(yes?'Disponibilité acceptée · en attente de validation AMO':'Créneau refusé');
 };
 window.scopingTrainerSuggest=()=>{const current=getTrainerCall();if(!current||!['todo','pending'].includes(current.record.status))return;
  const date=document.getElementById('scope-alt-date')?.value,start=document.getElementById('scope-alt-start')?.value,end=document.getElementById('scope-alt-end')?.value;
- if(!date||date<localDate()||!start||!end||start>=end)return notify('Choisissez un jour et des horaires valides.');
+ if(!date||!start||!end||expired({date,start})||start>=end)return notify('Choisissez un jour et des horaires valides.');
  if(trainerBusy(current.trainer,date,start,end,current.f.id))return notify('Conflit avec un événement connu.');
  current.record.trainerSuggested||=[];
  if(current.record.trainerSuggested.some(s=>s.date===date&&s.start===start))return notify('Déjà proposé.');
- current.record.trainerSuggested.push({date,start,end,trainerId:state.trainerId});current.record.history.push({at:new Date().toISOString(),text:'Autre créneau suggéré par le formateur'});
- callStore.write(current.record);render();notify('Créneau alternatif proposé à l’AMO dans la démonstration');
+ current.record.trainerSuggested.push({date,start,end,trainerId:state.trainerId,suggestedAt:new Date().toISOString()});current.record.history.push({at:new Date().toISOString(),text:'Autre créneau suggéré par le formateur'});
+ if(!callStore.write(current.record))return;render();notify('Créneau alternatif proposé à l’AMO dans la démonstration');
 };
 
 function sidebarLink(){
@@ -407,13 +729,14 @@ render=function(){const amo=state.role==='amo'&&state.page===PAGE,trainer=state.
  if(amo||trainer){state.page=trainer?'trainer-home':'home';previousRender();state.page=trainer?'trainer-scoping':PAGE;
   const main=document.getElementById('main-content');if(main){main.innerHTML=trainer?trainerCallPage():scopingPage();loadScopingNotes();}
   // Le rendu de base utilise temporairement l'accueil : réactualiser l'onglet actif sur la route Cadrage.
+  document.querySelector(`#sidebar .nav button[onclick="go('${trainer?'trainer-home':'home'}')"]`)?.classList.remove('active');
   const dock=document.querySelector('.mobile-dock');if(dock)dock.outerHTML=mobileDock(trainer);
   const mobileTitle=document.querySelector('.mobile-head-center strong');if(mobileTitle)mobileTitle.textContent=trainer?'Mes calls de cadrage':'Calls de cadrage';
   document.title='Certif-IA Hub — '+(trainer?'Call de cadrage':'Calls de cadrage');
   const breadcrumb=document.querySelector('.bread');if(breadcrumb)breadcrumb.textContent='Certif-IA / '+(trainer?'Formateur':'AMO')+' / '+(trainer?'Call de cadrage':'Calls de cadrage');
  }else previousRender();sidebarLink();};
 if(typeof location!=='undefined'){
- if(location.hash==='#/interne/scoping-calls'){state.role='amo';state.page=PAGE;}
+ if(location.hash===scopeHash||scopeFormationFromHash()){state.role='amo';state.page=PAGE;}
  if(location.hash==='#/formateur/trainer-scoping'){state.role='formateur';state.page='trainer-scoping';}
 }
 render();
