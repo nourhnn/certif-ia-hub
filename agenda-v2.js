@@ -93,22 +93,6 @@
     ].map(([label,value])=>`<div class="info"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`).join('');
   }
 
-  function saveAvailabilityPreferences(form) {
-    if(state.role!=='formateur'||state.page!=='trainer-calendar')return;
-    const data=new FormData(form), raw=String(data.get('target')).trim();
-    const monthlyTarget=raw===''?null:Number(raw);
-    const modality=String(data.get('modality'));
-    if((monthlyTarget!==null&&(!Number.isInteger(monthlyTarget)||monthlyTarget<0||monthlyTarget>31))||
-      !['','Présentiel','Distanciel','Hybride'].includes(modality))return flash('Vérifiez le volume et la modalité.');
-    const p=agendaProfile(state.trainerId);
-    Object.assign(p,{monthlyTarget,modality,preferredDays:data.getAll('day').filter(day=>weekdays.some(([key])=>key===day)),
-      remarks:String(data.get('remarks')).trim().slice(0,600)});
-    db.profiles ||= {};
-    const current=db.profiles[state.trainerId] ||= {name:trainerById(state.trainerId).name};
-    current.mobility=String(data.get('mobility')).trim().slice(0,200);
-    save();render();flash('Préférences enregistrées dans ce navigateur.');
-  }
-
   function saveUnavailablePeriod(form) {
     if(state.role!=='formateur'||state.page!=='trainer-calendar')return;
     const data=new FormData(form), from=String(data.get('from')), to=String(data.get('to'));
@@ -182,14 +166,16 @@
     document.getElementById('av2-week-'+date+'-'+field)?.focus({preventScroll:true});
   }
 
-  function resetAvailabilityDay(date){
-    if(state.role!=='formateur'||state.page!=='trainer-calendar'||date<availabilityWeek()||
-      date>shiftDate(availabilityWeek(),4))return;
+  function resetAvailabilityWeek(){
+    if(state.role!=='formateur'||state.page!=='trainer-calendar')return;
     const overrides=db.agendaV2?.[state.trainerId]?.weeklyOverrides;
-    if(!overrides||!Object.hasOwn(overrides,date))return;
-    delete overrides[date];
+    const week=availabilityWeek();
+    if(!overrides)return;
+    weekdays.forEach((_,i)=>delete overrides[shiftDate(week,i)]);
+    state.availabilityScope='week';
     save();render();
-    document.getElementById('av2-week-'+date+'-on')?.focus({preventScroll:true});
+    document.getElementById('av2-week-'+week+'-on')?.focus({preventScroll:true});
+    flash('Horaires habituels rétablis pour cette semaine.');
   }
 
   function v2DemoConnection(){
@@ -206,7 +192,7 @@
   function v2WeekView(){
     const p=agendaProfile(state.trainerId);
     const week=availabilityWeek(), habitual=editsHabitualWeek(p);
-    const preferences=trainerAvailabilityPreferences(state.trainerId);
+    const hasOverrides=weekdays.some((_,i)=>p.weeklyOverrides?.[shiftDate(week,i)]);
     const month=state.availabilityMonth||parisToday().slice(0,7);
     const slots=db.availability.filter(a=>a.trainerId===state.trainerId&&a.date.startsWith(month))
       .sort((a,b)=>a.date.localeCompare(b.date)||(a.start||'').localeCompare(b.start||''));
@@ -221,6 +207,7 @@
         <button class="${habitual?'selected':''}" aria-pressed="${habitual}" onclick="setAvailabilityScope('habitual')">Chaque semaine</button>
         <button class="${habitual?'':'selected'}" aria-pressed="${!habitual}" onclick="setAvailabilityScope('week')">Cette semaine seulement</button>
       </div>
+      <div class="av2-week-actions"><button class="secondary tiny" onclick="resetAvailabilityWeek()" ${hasOverrides?'':'disabled'}>Rétablir par défaut</button></div>
       <div class="av2-weekdays">${weekdays.map(([,label],i)=>{
         const date=shiftDate(week,i), d=weekdayPreference(p,date,habitual), override=p.weeklyOverrides?.[date];
         const shortDate=fmtDate(date,{day:'numeric',month:'long'});
@@ -229,17 +216,8 @@
           ${override?`<span class="item-sub">Horaire modifié pour cette date</span>`:''}</div>
           <div class="av2-times"><label><span>De</span><input id="av2-week-${date}-start" aria-label="Début ${label}" type="time" value="${esc(d.start)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${date}','start',this.value)"></label>
           <label><span>À</span><input id="av2-week-${date}-end" aria-label="Fin ${label}" type="time" value="${esc(d.end)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${date}','end',this.value)"></label></div>
-          ${override&&!habitual?`<button class="ghost tiny" aria-label="Rétablir l’horaire habituel du ${label}" onclick="resetAvailabilityDay('${date}')">Rétablir l’horaire habituel</button>`:''}</div>`;
+        </div>`;
       }).join('')}</div>
-      <form class="av2-preferences av2-spaced" onsubmit="event.preventDefault();saveAvailabilityPreferences(this)">
-        <h2>Préférences d’intervention</h2><div class="form-grid">
-        <label>Combien d’interventions Certif-IA souhaiteriez-vous réaliser par mois ?<input class="field" name="target" type="number" min="0" max="31" inputmode="numeric" value="${esc(preferences.monthlyTarget)}"></label>
-        <label>Modalité préférée<select class="field" name="modality">${['','Présentiel','Distanciel','Hybride'].map(value=>`<option value="${value}" ${preferences.modality===value?'selected':''}>${value||'Sans préférence'}</option>`).join('')}</select></label>
-        <label>Mobilité géographique<input class="field" name="mobility" maxlength="200" value="${esc(preferences.mobility)}"></label>
-        <label>Remarques visibles par l’AMO<textarea class="field" name="remarks" maxlength="600">${esc(preferences.remarks)}</textarea></label></div>
-        <fieldset class="av2-preferred"><legend>Jours privilégiés</legend>${weekdays.map(([day,label])=>`<label><input type="checkbox" name="day" value="${day}" ${preferences.days.includes(day)?'checked':''}>${label}</label>`).join('')}</fieldset>
-        <button class="primary" type="submit">Enregistrer mes préférences</button>
-      </form>
       <div class="av2-cardhead av2-spaced"><div><h2>Disponibilités mensuelles</h2><p>Les créneaux datés alimentent votre agenda existant.</p></div><button class="primary tiny" onclick="agendaV2AddException()">Ajouter un créneau</button></div>
       <label class="av2-month-field">Mois affiché<input class="field" type="month" value="${esc(month)}" onchange="if(this.value){state.availabilityMonth=this.value;render()}"></label>
       <div class="av2-exceptions">${slots.map(slot=>`<div class="line-item"><button class="ghost grow" onclick="openCalendarEvent('${esc(slot.date)}','${esc(slot.id)}',true)"><strong>${fmtDate(slot.date)}</strong> <span class="item-sub">${esc(slot.start||'Journée entière')} ${slot.end?'– '+esc(slot.end):''}</span></button>${badge(slot.status)}<button class="secondary tiny" aria-label="Supprimer le créneau du ${fmtDate(slot.date)}" onclick="deleteAvailabilitySlot('${esc(slot.id)}')">${mobileIcon('close',16)}</button></div>`).join('')||'<p class="item-sub">Aucun créneau déclaré pour ce mois.</p>'}</div>
@@ -290,7 +268,6 @@
   };
   window.trainerAvailabilityPreferences=trainerAvailabilityPreferences;
   window.availabilityPreferenceSummary=availabilityPreferenceSummary;
-  window.saveAvailabilityPreferences=saveAvailabilityPreferences;
   window.saveUnavailablePeriod=saveUnavailablePeriod;
   window.deleteAvailabilitySlot=deleteAvailabilitySlot;
   window.agendaConnectionLabel=agendaConnectionLabel;
@@ -298,7 +275,7 @@
   window.agendaV2SetWeekday=v2Weekday;
   window.moveAvailabilityWeek=moveAvailabilityWeek;
   window.setAvailabilityScope=setAvailabilityScope;
-  window.resetAvailabilityDay=resetAvailabilityDay;
+  window.resetAvailabilityWeek=resetAvailabilityWeek;
   window.agendaV2DemoConnection=v2DemoConnection;
   window.agendaV2AddException=v2AddException;
   window.agendaV2Check=agendaV2Check;

@@ -36,18 +36,15 @@ try{
   assert.equal(await monday.isChecked(),true);
   await button(page,'Semaine précédente').click();
   assert.equal(await monday.isChecked(),false);
-  await button(page,'Rétablir l’horaire habituel du Lundi').click();
+  const tuesday=page.getByRole('checkbox',{name:/^Mardi /});
+  await tuesday.check();
+  await button(page,'Rétablir par défaut').click();
   assert.equal(await monday.isChecked(),true);
+  assert.equal(await tuesday.isChecked(),false);
   await button(page,'Semaine précédente').click();
   await button(page,'Chaque semaine').click();
   await monday.uncheck();
-  const volume=page.getByLabel('Combien d’interventions Certif-IA souhaiteriez-vous réaliser par mois ?');
-  assert.equal(await volume.inputValue(),'');
-  await volume.fill('3');
-  await page.getByLabel('Modalité préférée').selectOption('Hybride');
-  await page.getByLabel('Mobilité géographique').fill('Paris et Lyon');
-  await button(page,'Enregistrer mes préférences').click();
-  assert.equal(await volume.inputValue(),'3');
+  assert.equal(await page.getByRole('heading',{name:'Préférences d’intervention'}).count(),0);
   await page.locator('summary').getByText('Bloquer une période d’indisponibilité').click();
   const d=await page.evaluate(()=>shiftDate(parisToday(),3));
   await page.getByLabel('Du',{exact:true}).fill(d);
@@ -60,6 +57,7 @@ try{
 
   const data=await page.evaluate(()=>{
     const trainerId=state.trainerId, [formation,other]=formations;
+    Object.assign(db.agendaV2[trainerId],{monthlyTarget:3,modality:'Hybride'});
     const date=shiftDate(parisToday(),20);
     const session={id:901,formationId:formation.id,date,start:'09:00',end:'17:00',status:'Planifiée',
       city:'Paris',required:2,topic:'IA générative',modality:'Présentiel',people:8};
