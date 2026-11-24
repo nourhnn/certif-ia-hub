@@ -1,10 +1,6 @@
 
 /* Agenda Formateur V2 — ajouts circonscrits à la page Formateur */
 .av2-root{display:grid;gap:18px;max-width:1200px;margin:0 auto 30px}
-.av2-hero{display:flex;gap:18px;align-items:center;justify-content:space-between;background:linear-gradient(120deg,#f5f0ff 0%,#fff 70%);border:1px solid #eae1fa;border-radius:19px;padding:26px}
-.av2-hero .headline{margin:6px 0 8px}.av2-hero p{margin:0;color:#77707f}
-.av2-eyebrow{font-size:11px;font-weight:800;letter-spacing:1.1px;color:#7134f5}
-.av2-demo-label{font-size:11px;background:#eee7fb;color:#5d32a1;border-radius:999px;padding:9px 13px;font-weight:800;white-space:nowrap}
 .av2-tabs{display:flex;gap:5px;padding:5px;background:#f0edf6;border-radius:13px;max-width:565px}
 .av2-tabs button{min-height:42px;flex:1;padding:10px 12px;border:0;background:transparent;color:#77717f;font-weight:700;border-radius:10px}
 .av2-tabs button.selected{color:#6028ce;background:#fff;box-shadow:0 2px 9px #28163a12}
@@ -32,8 +28,8 @@
 .av2-privacy svg{flex:none;color:#119b72}
 .av2-disclaimer{color:#8e8694;font-size:11px;text-align:center;margin:0}
 @media(max-width:700px){
-.av2-root{gap:13px}.av2-hero{padding:18px;align-items:flex-start;flex-direction:column;gap:10px;border-radius:15px}
-.av2-hero .headline{font-size:27px}.av2-tabs{width:100%;max-width:none}
+.av2-root{gap:13px}
+.av2-tabs{width:100%;max-width:none}
 .av2-tabs button{padding:10px 6px;font-size:12px;min-width:0}
 .av2-summary{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
 .av2-summary>div{padding:12px 9px;border-radius:12px}
@@ -50,13 +46,6 @@
   .av2-tabs{width:min(100%,565px);margin-inline:auto}
 }
 :root[data-hub-tone="dark"] .av2-root{color:var(--dark-text)}
-:root[data-hub-tone="dark"] .av2-hero{
-  background:linear-gradient(120deg,#302341 0%,#251d32 80%);
-  border-color:var(--border);
-  color:var(--dark-text);
-}
-:root[data-hub-tone="dark"] .av2-hero :is(.headline,h1){color:#f7f0ff}
-:root[data-hub-tone="dark"] .av2-hero p,
 :root[data-hub-tone="dark"] .av2-cardhead p,
 :root[data-hub-tone="dark"] .av2-summary span,
 :root[data-hub-tone="dark"] .av2-summary small,
@@ -65,8 +54,6 @@
 :root[data-hub-tone="dark"] .av2-privacy,
 :root[data-hub-tone="dark"] .av2-disclaimer,
 :root[data-hub-tone="dark"] .av2-times label{color:#ded2e9}
-:root[data-hub-tone="dark"] .av2-eyebrow{color:#d0b2ff}
-:root[data-hub-tone="dark"] .av2-demo-label{background:#44345f;color:#f0e4ff}
 :root[data-hub-tone="dark"] .av2-tabs{background:#30263e;border:1px solid #514063}
 :root[data-hub-tone="dark"] .av2-tabs button{color:#d6cae4}
 :root[data-hub-tone="dark"] .av2-tabs button:hover{background:#413153;color:#fff}

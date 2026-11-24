@@ -257,8 +257,8 @@
   trainerCalendar=function(){
     const tab=state.agendaV2Tab||'calendar';
     return `<div class="av2-root">
-      <header class="av2-hero"><div><span class="av2-eyebrow">PORTAIL FORMATEUR · AGENDA V2</span><h1 class="headline">Mon agenda</h1><p>Vos missions, vos disponibilités et vos calendriers en un seul endroit.</p></div>
-      <span class="av2-demo-label">${agendaConnectionLabel(state.trainerId)}</span></header>
+      <header>${intro('Mon <em>agenda</em>','Vos missions, vos disponibilités et vos calendriers.','ESPACE FORMATEUR')}
+        ${tab==='calendar'?'':`<p class="item-sub">${esc(agendaConnectionLabel(state.trainerId))}</p>`}</header>
       <div class="av2-tabs" role="tablist" aria-label="Sections de l'agenda">
         ${[['calendar','Calendrier'],['availability','Disponibilités'],['connections','Connexions']].map(([key,label])=>`<button type="button" role="tab" aria-selected="${key===tab}" class="${key===tab?'selected':''}" onclick="agendaV2SetTab('${key}')">${label}</button>`).join('')}
       </div>

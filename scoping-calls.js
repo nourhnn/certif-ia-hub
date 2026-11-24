@@ -523,8 +523,7 @@ function scopingPage(){
  }
  const rows=f?null:allCalls();
  return `<div class="scope-root scope-amo-v3">${f?detailMarkup(f,callFor(f)):
-   `<header class="scope-hero"><div><h1>Calls de cadrage</h1><p>Organisez vos calls et suivez les réponses des formateurs.</p></div>
-     <span class="scope-demo-chip">Démonstration locale</span></header>${statsMarkup(rows)}${listMarkup(rows)}`}
+   `<header>${intro('Calls <em>de cadrage</em>','Organisez vos calls et suivez les réponses des formateurs.')}</header>${statsMarkup(rows)}${listMarkup(rows)}`}
    <p class="scope-footnote">Suivi local dans ce navigateur. Les échanges et confirmations ne déclenchent pas d’envoi externe.</p></div>`;
 }
 
