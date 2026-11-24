@@ -88,24 +88,22 @@ function proposalUpcoming(session,person=false){
 function proposalSessionRow(session,person=false){
   return `<button class="pd-session" onclick="${person?`openModal('mission-info',${session.id})`:`openSession(${session.id})`}"><span class="pd-session-date"><strong>${session.date.slice(8)}</strong><small>${fmtDate(session.date,{month:'short'}).replace('.','')}</small></span><span class="pd-session-name"><strong>${esc(clientOf(formOf(session)).name)}</strong><small>${esc(formOf(session).title)}</small></span><span class="pd-session-location">${esc(session.city)}<small>${session.start} – ${session.end}</small></span>${badge(person?session.status:staffingLabel(session))}${mobileIcon('chevron',15)}</button>`;
 }
-function homePage(){
+function proposalAmoHome(){
   const today=parisToday();
-  const sessions=db.sessions.filter(s=>!['Réalisée','Annulée'].includes(s.status));
-  const upcoming=sessions.filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date));
-  const staff=sessions.filter(s=>openCount(s)>0);
-  const docs=db.deliverables.filter(d=>['À fournir','Refusé','En vérification'].includes(d.status));
+  const upcoming=db.sessions.filter(s=>s.date>=today && !['Réalisée','Annulée'].includes(s.status) &&
+    formOf(s) && formOf(s).status!=='Annulée').sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  const staff=upcoming.filter(s=>openCount(s)>0);
   const milestones=amoMilestones().filter(step=>step.status==='À traiter');
-  const actions=staff.slice(0,2).map(s=>proposalAction(esc(clientOf(formOf(s)).name),openCount(s)+' poste'+(openCount(s)>1?'s':'')+' à pourvoir · '+fmtDate(s.date,{day:'numeric',month:'long'}),'Staffer',`staffFor(${s.id})`,'amber'));
-  actions.push(...docs.slice(0,2).map(d=>proposalAction(esc(d.title),esc(clientOf(formOf(sessionById(d.sessionId))).name)+' · '+esc(d.status),d.versions.length?'Vérifier':'Ouvrir',d.versions.length?`openModal('review','${d.id}')`:`openFolder('${d.formationId}')`,d.status==='Refusé'?'red':'violet')));
-  return `<header class="pd-page-heading"><div><p class="pd-date">${proposalDateHeading()}</p><h1>Bonjour <span class="pd-greeting-name">Nour</span><span>.</span></h1></div><button class="secondary pd-calendar-button" onclick="go('planning')">${mobileIcon('calendar',16)} <span>Ouvrir le planning</span></button></header>
-    ${proposalStats([['Formations',formations.length,'dossiers en cours',`go('formations')`],['Staffing',staff.length,'sessions à compléter',`dashboardGo('staffing','all')`],['Formateurs',trainers.length,'profils référencés',`go('trainers')`],['Livrables',docs.length,'documents à suivre',`dashboardGo('documents','open')`]])}
+  const alerts=amoDashboardAlerts(upcoming,today);
+  return `<header class="pd-page-heading"><div><p class="pd-date">${proposalDateHeading()}</p><h1>Bonjour <span class="pd-greeting-name">Nour</span><span>.</span></h1></div><button class="secondary pd-calendar-button" aria-label="Ouvrir le planning" onclick="go('planning')">${mobileIcon('calendar',16)} <span>Ouvrir le planning</span></button></header>
+    ${proposalStats([['Formations',formations.length,'dossiers en cours',`go('formations')`],['Staffing',staff.length,'sessions à compléter',`dashboardGo('staffing','all')`],['Formateurs',trainers.length,'profils référencés',`go('trainers')`]])}
     <div class="pd-dashboard pd-amo-dashboard">
+      <section class="pd-panel amo-alerts"><header><h2>À traiter en priorité</h2><span class="pd-counter">${alerts.length}</span></header>${amoAlertRows(alerts)}</section>
       <aside class="pd-rail"><section class="pd-panel pd-week-panel"><header><h2>Cette semaine</h2><span>${fmtDate(today,{month:'long'})}</span></header>${proposalWeek()}</section>
         <div id="pd-contact-preview" aria-live="polite" aria-atomic="true">${proposalContactPreview()}</div></aside>
-      <div class="pd-work"><section class="pd-panel"><header><h2>À traiter</h2><span class="pd-counter">${actions.length}</span></header><div>${actions.join('')||'<p class="empty">Tout est à jour.</p>'}</div></section>
-      <section class="pd-panel"><header><h2>Les prochaines sessions</h2><button class="pd-text-button" onclick="go('formations')">Toutes les formations ${mobileIcon('chevron',14)}</button></header><div>${upcoming.map(s=>proposalSessionRow(s)).join('')}</div></section>
+      <section class="pd-panel amo-sessions"><header><h2>Les prochaines sessions</h2><button class="pd-text-button" onclick="go('formations')">Toutes les formations ${mobileIcon('chevron',14)}</button></header><div>${upcoming.map(s=>proposalSessionRow(s)).join('')||'<p class="empty">Aucune session à venir.</p>'}</div></section>
       <section class="pd-milestones"><div class="pd-milestones-icon">${mobileIcon('check',18)}</div><div><h2>Jalons de préparation</h2><p>${milestones.length} étapes à traiter dans les dossiers de formation</p></div><button class="secondary tiny" onclick="openModal('amo-milestones')">Consulter ${mobileIcon('chevron',14)}</button></section>
-    </div></div>`;
+    </div>`;
 }
 function trainerHome(){
   const t=trainerById(state.trainerId),today=parisToday();

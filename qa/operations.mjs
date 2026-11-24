@@ -76,7 +76,7 @@ try {
       await notice.locator('.ops-notice-title').click();
       await page.waitForURL('**/#/formateur/trainer-missions');
       await button(page,'Accepter').first().click();
-      await button(page.getByRole('navigation',{name:'Navigation principale sur téléphone'}),'Profil').click();
+      await button(page.locator('.mobile-app-head'),'Mon profil').click();
       await chooseRole(page,'amo');
       const incoming = await inbox(page);
       await incoming.locator('li').filter({hasText:'Proposition acceptée'}).first().locator('.ops-notice-title').click();
@@ -107,7 +107,7 @@ try {
       await button(page,'Accepter').first().click();
       await page.getByRole('status').filter({hasText:'Conflit'}).waitFor();
       await button(page,'Refuser').first().click();
-      await button(page.getByRole('navigation',{name:'Navigation principale sur téléphone'}),'Profil').click();
+      await button(page.locator('.mobile-app-head'),'Mon profil').click();
       await chooseRole(page,'amo');
       const panel = await inbox(page);
       await panel.locator('li').filter({hasText:'Proposition refusée'}).first().locator('.ops-notice-title').click();
@@ -289,7 +289,7 @@ try {
       await dialog(page).getByRole('heading',{name:'Préparer une proposition'}).waitFor();
       await page.keyboard.press('Escape');
       await chooseRole(page,1);
-      await button(page.getByRole('navigation',{name:'Navigation principale sur téléphone'}),'Profil').click();
+      await button(page.locator('.mobile-app-head'),'Mon profil').click();
       await page.getByText('Ponctualité documentaire',{exact:true}).waitFor();
       assert.doesNotMatch(await page.locator('#app').innerHTML(),/Note de démonstration privée|Carton jaune|Vérification corrective de démonstration/);
       await button(page,'Modifier mon profil').click();

@@ -184,6 +184,12 @@ function scopingPage(){const rows=allCalls();if(!state.scopingSelected||!formati
 function getSelected(){if(state.role!=='amo')return null;const f=formations.find(x=>x.id===state.scopingSelected);return f?{f,r:callFor(f)}:null;}
 function persist(text){const d=getSelected();if(!d)return;d.r.history.push({at:new Date().toISOString(),text});save();render();}
 function notify(text){if(typeof flash==='function')flash(text);}
+window.amoScopingStatus=id=>db.scoping?.calls?.[key({id})]?.status||'todo';
+window.openAmoScoping=id=>{
+ if(state.role!=='amo'||!formations.some(f=>f.id===id))return;
+ state.scopingSearch='';state.scopingFilter='all';state.scopingSelected=id;state.scopingSlotsExpanded=false;
+ go(PAGE);scopeFocusDetailOnMobile();
+};
 window.scopingSelect=id=>{if(!formations.some(f=>f.id===id))return;state.scopingSelected=id;state.scopingSlotsExpanded=false;render();scopeFocusDetailOnMobile();};
 window.scopingSearch=v=>{state.scopingSearch=v;const el=document.activeElement;const pos=el?.selectionStart;render();const input=document.querySelector('.scope-search input');if(input){input.focus();try{input.setSelectionRange(pos,pos)}catch(e){}}};
 window.scopingFilter=v=>{state.scopingFilter=v;render()};
