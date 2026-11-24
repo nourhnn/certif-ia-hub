@@ -1,6 +1,6 @@
-const CACHE='certifia-hub-demo-v62-trainer-scoping-note';
+const CACHE='certifia-hub-demo-v63-reporting-performance';
 const URLS=[
-  './', './index.html', './amo-phase1.js', './hub.js', './agenda-v2.js', './agenda-v2.css', './kpi-v2.js', './kpi-v2.css', './scoping-calls.js', './scoping-calls.css', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
+  './', './index.html', './amo-phase1.js', './hub.js', './reporting-v3.js', './agenda-v2.js', './agenda-v2.css', './kpi-v2.js', './kpi-v2.css', './scoping-calls.js', './scoping-calls.css', './extra.css', './proposition.css', './proposition.js', './operations.js', './operations.css', './manifest.webmanifest', './assets/certifia-logo.png',
   './favicon.ico',
   './assets/icons/apple-touch-icon.png',
   './assets/icons/favicon-16.png',

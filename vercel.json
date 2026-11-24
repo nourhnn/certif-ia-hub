@@ -1,7 +1,8 @@
 {
   "git": {
     "deploymentEnabled": {
-      "feat/v2-formateurs-staffing": false
+      "feat/v2-formateurs-staffing": false,
+      "feat/v2-reporting-performance": false
     }
   },
   "headers": [

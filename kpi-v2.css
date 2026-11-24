@@ -18,3 +18,33 @@
 :root[data-hub-tone="dark"] .hub-v2-monthly-clients{background:var(--dark-panel);border-color:var(--border);color:var(--dark-text)}
 @media(max-width:1000px){.hub-v2-five-stats{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:16px}.hub-v2-five-stats .pd-stat:nth-child(4){border-left:0;padding-left:0}}
 @media(max-width:640px){.hub-v2-five-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.hub-v2-five-stats .pd-stat{padding:10px 9px;border-left:0}.hub-v2-five-stats .pd-stat:nth-child(odd){padding-left:0}.hub-v2-five-stats .pd-stat:nth-child(even){border-left:1px solid var(--pd-line)}.hub-v2-five-stats .pd-stat:last-child{grid-column:1/-1;border-left:0;padding-left:0;border-top:1px solid var(--pd-line);padding-top:13px}.hub-v2-kpi{flex-basis:120px}}
+
+.report-period,.report-clients,.report-opportunities,.report-operations{margin:14px 0;min-width:0}
+.report-period{display:grid;gap:12px}
+.report-modes,.report-period-nav,.report-fields{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.report-period-nav strong{min-width:0;font-variant-numeric:tabular-nums}
+.report-date,.report-fields label{display:grid;gap:5px}
+.report-date{width:min(100%,245px)}
+.report-fields{align-items:end}
+.report-fields input{max-width:105px}
+.report-stats{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}
+.report-note{margin:10px 0}
+.report-opportunity{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
+.report-opportunity:last-child{border-bottom:0}
+.report-opportunity p{margin:4px 0}
+.report-opportunity label{display:grid;gap:5px}
+.report-operations summary{cursor:pointer;font-weight:700}
+.report-operations>section{margin:12px 0}
+.report-upsell-form{border:1px solid var(--border);border-radius:12px;padding:12px;margin:12px 0;min-width:0}
+.report-upsell-form legend{font-weight:700;padding-inline:5px;max-width:100%}
+.report-upsell-form [data-upsell-details]{margin-top:10px}
+.report-upsell-form [hidden]{display:none}
+.report-feedback-upsell{margin-top:16px;border-top:1px solid var(--border);padding-top:12px;overflow-wrap:anywhere}
+.report-feedback-upsell p{white-space:pre-wrap}
+@media(max-width:640px){
+  .report-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .report-stats .metric{min-width:0}
+  .report-opportunity{grid-template-columns:minmax(0,1fr)}
+  .report-opportunity .field{width:100%}
+  .report-opportunity button{justify-self:start}
+}
