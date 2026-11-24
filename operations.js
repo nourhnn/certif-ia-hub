@@ -676,7 +676,7 @@ function operationsStaffingPage() {
           const difference=(b.nps ?? -Infinity)-(a.nps ?? -Infinity);
           if(difference)return difference;
         }
-        return b.score.total-a.score.total || Number(b.experience.verified)-Number(a.experience.verified) || b.experience.sameClient-a.experience.sameClient;
+        return (b.score.total??-1)-(a.score.total??-1) || Number(b.experience.verified)-Number(a.experience.verified) || b.experience.sameClient-a.experience.sameClient;
       });
     const ratings = [...new Set(candidates.map(({t})=>t.rating).filter(Boolean))];
     const rating = ratings.includes(state.staffRating)?state.staffRating:'';
@@ -742,7 +742,7 @@ function candidateExperience(trainer, session) {
   const verified = trainer.verified?.some(skill=>normalize(skill)===normalize(session.topic)) || false;
   const finished = db.assignments.filter(a=>a.trainerId===trainer.id && a.status==='Réalisée');
   const clientId = formOf(session).clientId;
-  return {verified, finished:finished.length, sameClient:finished.filter(a=>
+  return {verified, finished:finished.length, similar:finished.some(a=>normalize(sessionById(a.sessionId)?.topic)===normalize(session.topic))&&Boolean(session.topic), sameClient:finished.filter(a=>
     formOf(sessionById(a.sessionId) || {})?.clientId===clientId).length};
 }
 
@@ -795,7 +795,7 @@ function trainerOperationalAvailability(trainer) {
     ${upcoming.map(({assignment,session})=>`<div class="line-item"><div class="grow"><strong>${esc(sessionNoticeText(session))}</strong>${staffSessionMeta(session)}</div>${badge(assignment.status)}
       <button class="secondary tiny" onclick="openSession(${session.id})">Voir la session</button></div>`).join('')||'<p class="item-sub">Aucune mission à venir enregistrée.</p>'}</section>
     <section class="ops-profile-section"><h2>Disponibilités déclarées</h2>${availabilityBadge(trainer)}
-    <p class="item-sub">${esc(db.profiles?.[trainer.id]?.mobility || 'Préférences de déplacement non renseignées.')}</p>
+    <div class="info-grid av2-summary-preferences">${window.availabilityPreferenceSummary?.(trainer.id)||''}</div>
     ${slots.map(a=>`<div class="line-item"><div class="grow"><strong>${fmtDate(a.date)}</strong><span class="item-sub">${esc(a.start&&a.end?a.start+'–'+a.end:'Toute la journée')}</span></div>${badge(a.status)}</div>`).join('')||'<p class="item-sub">Aucun créneau déclaré.</p>'}</section>`;
 }
 

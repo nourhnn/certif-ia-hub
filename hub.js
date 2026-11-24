@@ -71,12 +71,21 @@ function pctFor(list,mode='submitted'){return list.length?Math.round(100*list.fi
 function progress(value,label='Progression'){return `<div class="progress-track" role="progressbar" aria-label="${esc(label)}" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"><div style="width:${value}%"></div></div>`}
 function mapsUrl(address,city){return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent([address,city].filter(Boolean).join(', '))}
 function linkSafe(url,label){return url&&/^https:\/\//i.test(url)?`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer" class="text-link">${esc(label)} ↗</a>`:`<span class="item-sub">${esc(label)} : non renseigné</span>`}
-function compatDetails(t,s){let matches=t.skills.some(x=>x.toLowerCase()===s.topic.toLowerCase())?40:t.skills.some(x=>x.toLowerCase().includes(s.topic.toLowerCase())||s.topic.toLowerCase().includes(x.toLowerCase()))?30:10;
-const eligible=staffingAvailable(t,s);
-let a=eligible?30:0;
-let l=t.city===s.city?20:8;
-let ex=t.missions>=10?10:t.missions>=5?7:4;
-return {total:matches+a+l+ex,eligible,parts:[['Expertise et formation',matches,40],['Disponibilité connue',a,30],['Zone géographique',l,20],['Expérience',ex,10]],reasons:[matches===40?'Expertise exacte':matches===30?'Expertise apparentée':'Expertise à vérifier',a===30?'Disponible déclaré':a===0?'Indisponibilité signalée':'Disponibilité non vérifiée',l===20?'Même ville':'Mobilité à confirmer',`${t.missions} missions indiquées (démo)`]};}
+function compatDetails(t,s){
+ const skills=[...(t.skills||[]),...(t.verified||[]),...trainerProfileField(t.id).llm].filter(Boolean);
+ const normalize=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+ const topic=normalize(s.topic), expertise=skills.map(normalize).filter(Boolean);
+ const matches=!topic||!expertise.length?null:expertise.includes(topic)?40:
+   expertise.some(skill=>skill.includes(topic)||topic.includes(skill))?30:10;
+ const check=window.agendaV2Check?.(s,t.id,{sessionId:s.id});
+ const eligible=staffingAvailable(t,s);
+ const availability=check?.state==='busy'?0:check?.state==='verified'||check?.dated?30:null;
+ const location=t.city&&s.city?(t.city===s.city?20:8):null;
+ const experience=Number.isFinite(t.missions)&&t.missions>=0?(t.missions>=10?10:t.missions>=5?7:4):null;
+ const parts=[['Expertise et formation',matches,40],['Disponibilité connue',availability,30],['Zone géographique',location,20],['Expérience',experience,10]];
+ const total=parts.every(([,value])=>value!==null)?parts.reduce((sum,[,value])=>sum+value,0):null;
+ return {total,eligible,parts,check,reasons:[matches===40?'Compétence adaptée au sujet':matches===30?'Compétence apparentée':'Expertise à vérifier']};
+}
 const trainerBonusValue=5;
 function reliabilityScore(t){
  const delivered=db.deliverables.filter(d=>d.trainerId===t.id);
@@ -95,7 +104,7 @@ function reliabilityScore(t){
 }
 
 function reliabilityBadge(t){const {total:score}=reliabilityScore(t);if(score===null)return '<span class="badge">Fiabilité · non évaluée</span>';let color=score>=85?'green':score>=60?'amber':'red';return `<span class="badge ${color}" title="Score fictif illustratif — calcul métier non validé">Fiabilité ${score}% · démo</span>`;}
-function gainsEstimate(t){return t.rate*t.missions;}
+function gainsEstimate(t){return Number.isFinite(t.rate)&&t.rate>=0&&Number.isFinite(t.missions)&&t.missions>=0?t.rate*t.missions:null;}
 function money(n){return Number(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0});}
 function safeContact(value,type){if(!value)return '<span class="item-sub">Non renseigné</span>';let href=type==='phone'?'tel:'+String(value).replace(/[^+0-9]/g,''):'mailto:'+value;return `<a class="text-link" href="${esc(href)}">${esc(value)}</a>`;}
 function responseRate(t){let p=db.proposals.filter(x=>x.trainerId===t.id&&(x.sent||['Envoyée','Acceptée','Refusée','Expirée'].includes(x.status)));let a=p.filter(x=>['Acceptée','Refusée'].includes(x.status));return p.length?`${Math.round(100*a.length/p.length)} % (${a.length}/${p.length} propositions démo)`:'Aucune sollicitation mesurable';}
@@ -966,15 +975,15 @@ function trainerProfile(){
       <div class="profile-actions"><button type="button" class="secondary" onclick="changeTab('profileEdit',false)">Annuler</button><button class="primary">Enregistrer</button></div>
     </form>`:`<div class="profile-grid ops-trainer-profile"><section class="card">${cardTitle('Coordonnées')}<div class="info-grid"><div class="info"><small>E-mail</small>${safeContact(t.email,'email')}</div><div class="info"><small>Téléphone</small>${safeContact(p.phone,'phone')}</div>${detail('Ville',t.city)}<div class="info"><small>LinkedIn</small>${linkSafe(p.linkedin,'Ouvrir le profil')}</div></div></section>
       <section class="card">${cardTitle('Expérience et expertises')}<div class="profile-columns">${[...professionalFacts(t,trainerProfileField(t.id)),['Présentation',p.bio]].map(([label,value])=>professionalFactCard(label,value)).join('')}</div></section>
-      <section class="card">${cardTitle('Mes indicateurs')}${detail('Ponctualité documentaire',personalPunctuality(t.id))}${detail('Gains estimés · TJM × missions déclarées',money(gainsEstimate(t)))}${communicableMissionRatings(t.id)}</section>
+      <section class="card">${cardTitle('Mes indicateurs')}${detail('Ponctualité documentaire',personalPunctuality(t.id))}${detail('Gains estimés · TJM × missions déclarées',gainsEstimate(t)===null?'Non renseignés':money(gainsEstimate(t)))}${communicableMissionRatings(t.id)}</section>
       <section class="card ops-demo-role">${cardTitle('Profil de démonstration')}<label for="ops-return-amo">Changer d’espace</label>
       <select class="field" id="ops-return-amo" onchange="setRole(this.value)"><option value="trainer-${t.id}">Espace Formateur</option><option value="amo">Espace AMO</option></select></section></div>`}`;
 }
 
-function missionAuditDisplay(s){let d=db.deliverables.find(d=>d.formationId===s.formationId&&docCategory(d)==='AUDIT');let ready=!!d?.versions?.length;return `<div class="info"><small>Audit client</small><strong>${ready?'Reçu — démo':'En attente'}</strong><p class="item-sub">${ready?'Audit référencé dans le dossier : accès réel au document après connexion Drive.':'L’audit n’a pas encore été reçu pour cette mission.'}</p></div>`;}
+function missionAuditDisplay(s){let d=db.deliverables.find(d=>d.sessionId===s.id&&docCategory(d)==='AUDIT'&&(state.role==='amo'||trainerCanReadDocument(d)));let ready=!!d?.versions?.length;return `<div class="info"><small>Audit client</small><strong>${ready?'Reçu — démo':'En attente'}</strong><p class="item-sub">${ready?'Audit référencé dans le dossier : accès réel au document après connexion Drive.':'L’audit n’a pas encore été reçu pour cette mission.'}</p></div>`;}
 function missionPublicFeedback(s){let a=db.assignments.find(a=>a.sessionId===s.id&&a.trainerId===state.trainerId),r=a&&missionRatings[a.id];if(!r||!r.public)return '<div class="info"><small>Retour client</small><strong>Pas encore communiqué</strong></div>';return `<div class="info"><small>Évaluations communicables — données fictives</small><strong>NPS ${esc(r.nps??'—')}/10 · Note Certif ${esc(r.certif??'—')}/10 · Participants ${esc(r.participants??'—')}/10</strong><p class="item-sub">Mission ${esc(r.period)} · Ponctualité documentaire : à mesurer.</p></div>`;}
 
-function modalView(){let m=state.modal,out='';if(m.kind==='reschedule'||m.kind==='edit-session'){let s=sessionById(m.id),assigned=activeAssignments(s.id);out=modalBox('Modifier une session','Date, heures, lieu, modalité et affectations : toute modification substantielle exige une revalidation.',`<div class="form-grid"><label>Date<input class="field" id="new-date" type="date" value="${s.date}"></label><label>Début<input class="field" id="new-start" type="time" value="${s.start}"></label><label>Fin<input class="field" id="new-end" type="time" value="${s.end}"></label><label>Ville / lieu<input class="field" id="new-city" value="${esc(s.city)}"></label><label>Adresse (facultatif)<input class="field" id="new-address" value="${esc(s.address||'')}"></label><label>Modalité<select class="field" id="new-modality">${['Présentiel','Distanciel','Hybride'].map(v=>`<option ${s.modality===v?'selected':''}>${v}</option>`).join('')}</select></label><label>Formateur principal<select class="field" id="new-trainer"><option value="">Ne pas modifier</option>${trainers.map(t=>`<option value="${t.id}" ${assigned.length&&assigned[0].trainerId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label></div><div class="notif">${assigned.length} affectation(s) existante(s). Après modification, leurs statuts seront « À revalider » si nécessaire. L'AMO doit contrôler la capacité et les conflits.</div><div class="modal-actions"><button class="secondary" onclick="closeModal()">Annuler</button><button class="primary" onclick="saveSessionEdit(${s.id})">Enregistrer les modifications (démo)</button></div>`)}
+function modalView(){let m=state.modal,out='';if(state.role==='amo'&&['reschedule','edit-session'].includes(m.kind)){let s=sessionById(m.id),assigned=activeAssignments(s.id);out=modalBox('Modifier une session','Date, heures, lieu, modalité et affectations : toute modification substantielle exige une revalidation.',`<div class="form-grid"><label>Date<input class="field" id="new-date" type="date" value="${s.date}"></label><label>Début<input class="field" id="new-start" type="time" value="${s.start}"></label><label>Fin<input class="field" id="new-end" type="time" value="${s.end}"></label><label>Ville / lieu<input class="field" id="new-city" value="${esc(s.city)}"></label><label>Adresse (facultatif)<input class="field" id="new-address" value="${esc(s.address||'')}"></label><label>Modalité<select class="field" id="new-modality">${['Présentiel','Distanciel','Hybride'].map(v=>`<option ${s.modality===v?'selected':''}>${v}</option>`).join('')}</select></label><label>Formateur principal<select class="field" id="new-trainer"><option value="">Ne pas modifier</option>${trainers.map(t=>`<option value="${t.id}" ${assigned.length&&assigned[0].trainerId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label></div><div class="notif">${assigned.length} affectation(s) existante(s). Après modification, leurs statuts seront « À revalider » si nécessaire. L'AMO doit contrôler la capacité et les conflits.</div><div class="modal-actions"><button class="secondary" onclick="closeModal()">Annuler</button><button class="primary" onclick="saveSessionEdit(${s.id})">Enregistrer les modifications (démo)</button></div>`)}
 else if(m.kind==='prepare-proposal'&&state.role==='amo'){out=proposalModal()}
 else if(m.kind==='whatsapp-draft'&&state.role==='amo'){out=whatsAppPanel(m.id)}
 else if(m.kind==='client-presentation-message'){out=clientPresentationMessage()}
@@ -992,14 +1001,14 @@ else if(operationalDecisions.includes(m.kind)&&state.role==='amo'){out=staffDeci
 else if(m.kind==='agenda-formation'&&state.role==='amo'){out=agendaFormationDetails(m.id)}
 else if(m.kind==='availability'||m.kind==='calendar-event'){out=calendarEventModal(m)}
 else if(m.kind==='matching'){out=matchingDetailsModal(m.id)}
-else if(m.kind==='folder'||m.kind==='trainer-folder'){out=modalBox('Dossier de livrables',m.kind==='folder'?'Gestion interne des documents et relances':'Documents attendus pour vos missions',docFolder(m.id,m.kind==='trainer-folder')+`<div class="modal-actions"><button class="secondary" onclick="closeModal()">Fermer</button></div>`)}
-else if(m.kind==='mission-info'){let s=sessionById(m.id),f=formOf(s),c=clientOf(f),d=clientDetails[c.id];out=modalBox('Informations client pour la mission','Uniquement les informations utiles au formateur, sans notes internes confidentielles.',`<div class="info-grid">${[['Client',c.name],['Formation',f.title],['Date',fmtDate(s.date)],['Horaires',s.start+'–'+s.end],['Participants',s.people??'À préciser'],['Lieu',s.address||s.city],['Contact',d.contact],['Consignes',d.notesTrainer]].map(([k,v])=>`<div class="info"><small>${esc(k)}</small><strong>${esc(v)}</strong></div>`).join('')}</div><div class="v19-mission-extra">${missionAuditDisplay(s)}${missionPublicFeedback(s)}</div><div class="modal-actions"><a class="btn" target="_blank" rel="noopener noreferrer" href="${esc(mapsUrl(s.address,s.city))}">Ouvrir l'itinéraire ↗</a><button class="secondary" onclick="closeModal()">Fermer</button></div><p class="footnote">L’adresse précise est à renseigner ; ici le lien indique une ville fictive.</p>`)}
+else if((m.kind==='folder'&&state.role==='amo')||(m.kind==='trainer-folder'&&state.role==='formateur')){out=modalBox('Dossier de livrables',m.kind==='folder'?'Gestion interne des documents et relances':'Documents attendus pour vos missions',docFolder(m.id,m.kind==='trainer-folder')+`<div class="modal-actions"><button class="secondary" onclick="closeModal()">Fermer</button></div>`)}
+else if(m.kind==='mission-info'&&(state.role==='amo'||trainerSessionAccess(m.id))&&sessionById(m.id)){let s=sessionById(m.id),f=formOf(s),c=clientOf(f),d=clientDetails[c.id];out=modalBox('Informations client pour la mission','Uniquement les informations utiles au formateur, sans notes internes confidentielles.',`<div class="info-grid">${[['Client',c.name],['Formation',f.title],['Date',fmtDate(s.date)],['Horaires',s.start+'–'+s.end],['Participants',s.people??'À préciser'],['Lieu',s.address||s.city],['Contact',d.contact],['Consignes',d.notesTrainer]].map(([k,v])=>`<div class="info"><small>${esc(k)}</small><strong>${esc(v)}</strong></div>`).join('')}</div><div class="v19-mission-extra">${missionAuditDisplay(s)}${missionPublicFeedback(s)}</div><div class="modal-actions"><a class="btn" target="_blank" rel="noopener noreferrer" href="${esc(mapsUrl(s.address,s.city))}">Ouvrir l'itinéraire ↗</a><button class="secondary" onclick="closeModal()">Fermer</button></div><p class="footnote">L’adresse précise est à renseigner ; ici le lien indique une ville fictive.</p>`)}
 else if(m.kind==='upload'||m.kind==='upload-internal'){out=uploadPanel(m.id,m.kind==='upload-internal')}
-else if(m.kind==='review'){let d=db.deliverables.find(x=>x.id===m.id);out=modalBox('Vérifier un livrable','Choisissez une décision pour la version déposée.',`<div class="info"><small>Livrable</small><strong>${esc(d.title)}</strong></div><label class="form-label" for="review-comment">Motif du refus (facultatif)</label><textarea class="field" id="review-comment" placeholder="Ajouter un motif…"></textarea><div class="modal-actions"><button class="secondary" onclick="closeModal()">Annuler</button><button class="secondary" onclick="reviewDoc('${d.id}','Refusé')">Refuser</button><button class="primary" onclick="reviewDoc('${d.id}','Validé')">Valider (démo)</button></div>`)}
+else if(m.kind==='review'&&state.role==='amo'&&db.deliverables.some(d=>d.id===m.id)){let d=db.deliverables.find(x=>x.id===m.id);out=modalBox('Vérifier un livrable','Choisissez une décision pour la version déposée.',`<div class="info"><small>Livrable</small><strong>${esc(d.title)}</strong></div><label class="form-label" for="review-comment">Motif du refus (facultatif)</label><textarea class="field" id="review-comment" placeholder="Ajouter un motif…"></textarea><div class="modal-actions"><button class="secondary" onclick="closeModal()">Annuler</button><button class="secondary" onclick="reviewDoc('${d.id}','Refusé')">Refuser</button><button class="primary" onclick="reviewDoc('${d.id}','Validé')">Valider (démo)</button></div>`)}
 return `<div class="modal-back" role="presentation" onclick="if(event.target===this)closeModal()"><div class="modal ${isOperationalModal(m.kind)?'ops-modal':''}" role="dialog" aria-modal="true" aria-label="${({'trainer-notifications':'Centre de notifications','amo-notifications':'Centre de notifications','prepare-proposal':'Préparer une proposition','whatsapp-draft':'Brouillon WhatsApp','amo-milestones':'Jalons AMO','agenda-conflicts':'Gestion des conflits','agenda-formation':'Formation','calendar-event':'Événement agenda','document-preview':'Détail du document','google-calendar':'Connexion Google Agenda','hub-settings':'Réglages'})[m.kind]||esc(m.kind)}"><button class="modal-close" aria-label="Fermer" onclick="closeModal()">×</button>${out}</div></div>`}
-function saveSessionEdit(id){let s=sessionById(id),date=$('new-date')?.value,start=$('new-start')?.value,end=$('new-end')?.value,city=$('new-city')?.value.trim(),address=$('new-address')?.value.trim(),modality=$('new-modality')?.value,tid=Number($('new-trainer')?.value||0);if(!date||!start||!end||!city||end<=start)return flash('Date, horaires et lieu valides requis');let prev=JSON.stringify([s.date,s.start,s.end,s.city,s.address||'',s.modality]);let next=JSON.stringify([date,start,end,city,address,modality]);let changed=prev!==next;let current=activeAssignments(id);if(!changed&&(!tid||current.some(a=>a.trainerId===tid)))return flash('Aucune modification');const entry={date,start,end};const trainersToCheck=new Set([...current.map(a=>a.trainerId),...db.proposals.filter(p=>p.sessionId===s.id&&p.status==='Acceptée').map(p=>p.trainerId),...(tid?[tid]:[])]);if(date!==s.date||start!==s.start||end!==s.end){const conflict=calendarConflict(entry,null,{sessionId:s.id});if(conflict)return flash(conflict)}for(const trainerId of trainersToCheck){const conflict=calendarConflict(entry,trainerId,{sessionId:s.id,allowAvailable:true});if(conflict)return flash(conflict)}Object.assign(s,{date,start,end,city,address,modality});if(changed)s.staffingRevision=(s.staffingRevision||0)+1;if(changed||tid){current.forEach(a=>a.status='À revalider');if(tid&&!db.assignments.some(a=>a.sessionId===id&&a.trainerId===tid&&a.status==='À revalider'))db.assignments.push({id:'A'+Date.now(),sessionId:id,trainerId:tid,status:'À revalider'});}log('Modification de session démo',id+' · contrôle de revalidation requis');closeModal();flash('Modification simulée ; affectations à revalider')}
+function saveSessionEdit(id){if(state.role!=='amo')return;let s=sessionById(id),date=$('new-date')?.value,start=$('new-start')?.value,end=$('new-end')?.value,city=$('new-city')?.value.trim(),address=$('new-address')?.value.trim(),modality=$('new-modality')?.value,tid=Number($('new-trainer')?.value||0);if(!date||!start||!end||!city||end<=start)return flash('Date, horaires et lieu valides requis');let prev=JSON.stringify([s.date,s.start,s.end,s.city,s.address||'',s.modality]);let next=JSON.stringify([date,start,end,city,address,modality]);let changed=prev!==next;let current=activeAssignments(id);if(!changed&&(!tid||current.some(a=>a.trainerId===tid)))return flash('Aucune modification');const entry={date,start,end};const trainersToCheck=new Set([...current.map(a=>a.trainerId),...db.proposals.filter(p=>p.sessionId===s.id&&p.status==='Acceptée').map(p=>p.trainerId),...(tid?[tid]:[])]);if(date!==s.date||start!==s.start||end!==s.end){const conflict=calendarConflict(entry,null,{sessionId:s.id});if(conflict)return flash(conflict)}for(const trainerId of trainersToCheck){const conflict=calendarConflict(entry,trainerId,{sessionId:s.id,allowAvailable:true});if(conflict)return flash(conflict)}Object.assign(s,{date,start,end,city,address,modality});if(changed)s.staffingRevision=(s.staffingRevision||0)+1;if(changed||tid){current.forEach(a=>a.status='À revalider');if(tid&&!db.assignments.some(a=>a.sessionId===id&&a.trainerId===tid&&a.status==='À revalider'))db.assignments.push({id:'A'+Date.now(),sessionId:id,trainerId:tid,status:'À revalider'});}log('Modification de session démo',id+' · contrôle de revalidation requis');closeModal();flash('Modification simulée ; affectations à revalider')}
 function modalBox(title,desc,content){return `<h2>${title}</h2><p>${desc}</p>${content}`}
-function rescheduleSession(id){let el=$('new-date'),date=el?.value,s=sessionById(id);if(!date||!s)return flash('Date requise');if(s.date===date)return flash('La date est inchangée');let previous=s.date;s.date=date;db.assignments.filter(a=>a.sessionId===s.id&&a.status==='Confirmée').forEach(a=>a.status='À revalider');log('Report de session (démo)',`session ${id} : ${previous} → ${date}`);closeModal();flash('Session reportée ; affectations à revalider')}
+function rescheduleSession(id){if(state.role!=='amo')return;let el=$('new-date'),date=el?.value,s=sessionById(id);if(!date||!s)return flash('Date requise');if(s.date===date)return flash('La date est inchangée');let previous=s.date;s.date=date;db.assignments.filter(a=>a.sessionId===s.id&&a.status==='Confirmée').forEach(a=>a.status='À revalider');log('Report de session (démo)',`session ${id} : ${previous} → ${date}`);closeModal();flash('Session reportée ; affectations à revalider')}
 async function simulateUpload(id,internal=false){
   const file=state.uploadFile||$('upload-file')?.files?.[0];
   if(!file)return flash('Sélectionnez un fichier.');
@@ -1035,7 +1044,7 @@ function breadcrumbs(pageTitle){
 }
 
 function trainerDocuments(){
-  return db.deliverables.filter(d=>d.owner==='formateur'&&d.trainerId===state.trainerId);
+  return db.deliverables.filter(d=>d.owner==='formateur'&&d.trainerId===state.trainerId&&trainerCanReadDocument(d));
 }
 
 function openTrainerFolder(id){
@@ -1046,6 +1055,13 @@ function openTrainerFolder(id){
 function trainerNpsValue(id){
   const scores=db.assignments.filter(a=>a.trainerId===id&&a.status==='Réalisée').map(a=>missionRatings[a.id]?.nps).filter(Number.isFinite);
   return scores.length?scores.reduce((sum,n)=>sum+n,0)/scores.length:trainerProfileField(id).nps;
+}
+
+function personalNps(id){
+ const scores=db.assignments.filter(a=>a.trainerId===id&&a.status==='Réalisée')
+   .map(a=>missionRatings[a.id]).filter(r=>r?.public===true)
+   .map(r=>r.nps).filter(value=>Number.isFinite(value)&&value>=0&&value<=10);
+ return trainerNps(id,scores.length?scores.reduce((sum,value)=>sum+value,0)/scores.length:null);
 }
 
 function trainerNps(id,value=trainerNpsValue(id)){
@@ -1114,6 +1130,7 @@ function calendarConflict(entry,trainerId,options={}){
 }
 
 function openCalendarEvent(date,id,slot=false,edit=false){
+  if(slot&&state.role!=='formateur')return;
   const formation=!slot&&!edit&&state.role==='amo'&&
     (db.calendarEvents||[]).some(e=>e.trainerId===null&&e.id===id&&e.eventType==='formation');
   state.modal={kind:slot?'availability':formation?'agenda-formation':'calendar-event',id,date};
@@ -1180,13 +1197,14 @@ function saveCalendarEvent(form){
       Object.assign(entry,fields);
     }
   }
-  const conflict=calendarConflict(entry,owner);
+  const conflict=calendarConflict(entry,owner,{allowAvailable:slot&&kind==='Occupé'});
   if(conflict)return error(conflict);
   const list=slot?db.availability:(db.calendarEvents||=[]);
   const index=list.findIndex(e=>e.id===entry.id&&e.trainerId===owner);
   if(index>=0)list[index]=entry;
   else list.push(entry);
   state.calendarDate=entry.date;
+  if(slot)state.availabilityMonth=entry.date.slice(0,7);
   if(entry.eventType==='formation')state.contactAgenda=true;
   save();
   closeModal();
@@ -1627,20 +1645,22 @@ function whatsAppPanel(id){
   const duration=hours(s.end)-hours(s.start);
   const format=(duration>=6?'1 journée entière de formation':`Formation de ${s.start} à ${s.end}`)+(modes.length>1?' · Présentiel ou visio':'');
   const specialization=clientDetails[f.clientId]?.industry||s.topic||f.title;
-  const text=`Hello @${t.name} 👋🏼
+  const text=`Bonjour ${t.name.split(' ')[0]},
 
-⚡️ J’ai une nouvelle mission à te proposer.
+Nous souhaitons te proposer une mission Certif-IA.
 
 Client : ${clientOf(f).name}
-Dates : ${fmtDate(s.date,{day:'numeric',month:'long',year:'numeric'})}
+Formation : ${f.title}
+Date : ${fmtDate(s.date,{day:'numeric',month:'long',year:'numeric'})}
+Horaires : ${s.start}–${s.end}
 Lieu : ${location}
 Format : ${format}
+Sujet : ${s.topic||specialization}
+${p.conditions?'Conditions : '+p.conditions+'\n':''}
+Peux-tu nous confirmer ta disponibilité pour ce créneau ?
 
-Spécialisation : ${specialization} 🔥
-
-Es-tu disponible sur cette date ?
-
-J’attends ton retour !`;
+Merci,
+L’équipe Certif-IA`;
   return modalBox('Brouillon WhatsApp','Brouillon fictif à relire et à copier. Aucun envoi depuis le Hub.',`
     <label for="whatsapp-text" class="form-label">Message à copier</label><textarea class="field whatsapp-text" id="whatsapp-text" rows="9">${esc(text)}</textarea>
     <div class="modal-actions"><button class="secondary" onclick="closeModal()">Fermer</button><button class="primary" onclick="copyWhatsApp()">Copier le message</button></div>`);
@@ -1764,6 +1784,7 @@ async function exportMonthlyTable(){
 }
 
 function trainerSessionAccess(sessionId){
+  sessionId=Number(sessionId);
   return db.assignments.some(a=>a.sessionId===sessionId&&a.trainerId===state.trainerId&&['Confirmée','Réalisée','À revalider'].includes(a.status))
     ||db.proposals.some(p=>p.sessionId===sessionId&&p.trainerId===state.trainerId&&p.status==='Acceptée');
 }
@@ -2343,29 +2364,33 @@ function sessionFeedbackDeliverables(session){
 }
 
 function staffingCandidateCard(t,s,score=compatDetails(t,s),experience=candidateExperience(t,s),nps=trainerNpsValue(t.id)){
- const reasons=new Set([...score.reasons.filter(r=>!r.toLowerCase().includes('disponib')&&r!=='Mobilité à confirmer'),mobilitySummary(t,s)]);
+ const preferences=window.trainerAvailabilityPreferences?.(t.id);
+ const reasons=new Set([...score.reasons,mobilitySummary(t,s)]);
+ const capacity=preferences?.monthlyTarget;
+ if(preferences?.modality)reasons.add('Préférence : '+preferences.modality);
+ if(experience.similar)reasons.add('A déjà réalisé une mission sur ce sujet');
+ const scoreLabel=score.total===null?'Non calculée':score.total+' %';
  if(experience.verified)reasons.add('Expertise vérifiée');
  if(experience.sameClient)reasons.add('Est déjà intervenu chez ce client');
- return `<article class="staffing-profile"><header class="staffing-profile-head">${trainerAvatar(t,42)}<div class="grow"><button type="button" class="staffing-profile-name ops-profile-link" onclick="state.trainerDetailTab='overview';openTrainer(${t.id})">${esc(t.name)} ${mobileIcon('chevron',14)}</button><div class="staffing-location">${mobileIcon('pin',13)} ${esc(t.city)}</div></div><div class="staffing-rate"><strong>${esc(t.rate)} €</strong><span>TTC / jour</span></div>${trainerReviewButtons(t)}</header>
+ return `<article class="staffing-profile"><header class="staffing-profile-head">${trainerAvatar(t,42)}<div class="grow"><button type="button" class="staffing-profile-name ops-profile-link" onclick="state.trainerDetailTab='overview';openTrainer(${t.id})">${esc(t.name)} ${mobileIcon('chevron',14)}</button><div class="staffing-location">${mobileIcon('pin',13)} ${esc(t.city)}</div></div><div class="staffing-rate"><strong>${Number.isFinite(t.rate)?esc(money(t.rate)):'Non renseigné'}</strong><span>TTC / jour</span></div>${trainerReviewButtons(t)}</header>
  <div class="ops-candidate-facts">${trainerRatingBadge(t.rating)}<span class="ops-candidate-nps"><small>NPS indicatif</small><strong>${Number.isFinite(nps)?trainerNps(t.id,nps):'Non renseigné'}</strong></span></div>
- <div class="ops-candidate-availability"><span class="staffing-availability">${mobileIcon('check',14)} Disponible sur le créneau</span><button class="ghost tiny" aria-label="Vérifier le planning de ${esc(t.name)}" onclick="openTrainerPlanning(${t.id})">Vérifier le planning</button></div>
+ <div class="ops-candidate-availability"><span class="staffing-availability">${mobileIcon('check',14)} ${esc(score.check?.label||'Disponibilité non vérifiée')}</span><button class="ghost tiny" aria-label="Vérifier le planning de ${esc(t.name)}" onclick="openTrainerPlanning(${t.id})">Vérifier le planning</button></div>
  <div class="staffing-criteria">${[...reasons].map(r=>`<span>${esc(r)}</span>`).join('')}</div>
- <div class="ops-candidate-context">${reliabilityBadge(t)} · ${experience.finished} mission(s) terminée(s) recensée(s)</div><footer class="staffing-profile-footer"><button class="staffing-match" onclick="openModal('matching',${t.id})" aria-label="Détail de compatibilité de ${esc(t.name)} : ${score.total}%"><span>Compatibilité indicative</span><strong>${score.total}<small>%</small></strong><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button><button class="primary tiny" onclick="prepareProposal(${t.id})">Préparer une proposition ${mobileIcon('chevron',14)}</button></footer></article>`;
+ <div class="ops-candidate-context">${reliabilityBadge(t)} · ${experience.finished} mission(s) terminée(s) recensée(s) · Objectif mensuel : ${capacity??'non renseigné'}<br>Satisfaction : ${trainerSatisfaction(t.id)}</div><footer class="staffing-profile-footer"><button class="staffing-match" onclick="openModal('matching',${t.id})" aria-label="Détail de compatibilité de ${esc(t.name)} : ${scoreLabel}"><span>Compatibilité indicative</span><strong>${scoreLabel}</strong><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button><button class="primary tiny" onclick="prepareProposal(${t.id})">Préparer une proposition ${mobileIcon('chevron',14)}</button></footer></article>`;
 }
 
 function matchingDetailsModal(id){
  const t=trainerById(id),s=sessionById(state.selectedSession);
  if(state.role!=='amo'||!t||!s)return modalBox('Profil indisponible','','');
  const c=compatDetails(t,s);
- const exact=c.parts[0][1]===40,related=c.parts[0][1]===30;
  const descriptions=[
- exact?`La spécialité « ${s.topic} » figure dans les compétences déclarées de ${t.name}. Correspondance exacte : 40 points sur 40.`:related?`Une compétence déclarée est apparentée à « ${s.topic} ». Correspondance partielle : 30 points sur 40. Le périmètre de la mission reste à confirmer.`:`Aucune correspondance directe avec « ${s.topic} » dans les compétences déclarées (${t.skills.join(', ')}). La grille attribue 10 points par défaut ; ces points ne valident pas l’expertise.`,
- c.eligible?`Le ${fmtDate(s.date)}, les disponibilités déclarées couvrent tout le créneau ${s.start}–${s.end}, sans conflit détecté dans le Hub. Le profil n’est pas marqué « À ne pas staffer » : 30 points sur 30.`:`Le profil ne remplit pas les conditions de suggestion pour le ${fmtDate(s.date)}, de ${s.start} à ${s.end}. Vérifier la couverture du créneau, les conflits et le statut interne : 0 point sur 30.`,
- t.city===s.city?`Le formateur et la session sont localisés à ${s.city} : 20 points sur 20.`:`Le formateur est basé à ${t.city} et la session se déroule à ${s.city}. La grille attribue 8 points sur 20 aux villes différentes ; elle ne calcule ni distance ni temps de trajet. Confirmer la mobilité${s.modality==='Visio'?' ; la grille géographique reste appliquée même en visio':''}.`,
- `${t.missions} missions sont indiquées sur le profil. Barème : moins de 5 missions = 4 points, de 5 à 9 = 7 points, 10 et plus = 10 points. Ce critère mesure le volume déclaré, pas la satisfaction.`
+   'Les expertises et compétences IA documentées sont comparées au sujet de la session.',
+   c.check?.label || 'Disponibilité non vérifiée.',
+   'La grille conserve le critère de ville. La mobilité déclarée aide à interpréter le résultat.',
+   'Le barème utilise le nombre de missions déclaré sur le profil.'
  ];
  return modalBox('Détail de compatibilité',esc(t.name+' · '+clientOf(formOf(s)).name+' · '+fmtDate(s.date)),
- `<div class="match-overview"><div><span>Score global</span><strong>${c.total}<small>/100</small></strong></div><div class="match-overview-summary"><strong>${c.eligible?'Disponible sur le créneau':'Conditions de disponibilité non remplies'}</strong><p>${exact?'Expertise déclarée correspondante.':related?'Expertise apparentée à confirmer.':'Expertise à vérifier avant proposition.'} ${t.city!==s.city?'Mobilité à confirmer.':''}</p></div></div>
- <div class="match-breakdown">${c.parts.map(([name,points,max],i)=>`<section class="match-criterion"><header><h3>${esc(name)}</h3><span><strong>${points}</strong> / ${max} pts</span></header>${progress(Math.round(points/max*100),name)}<p>${esc(descriptions[i])}</p></section>`).join('')}</div>
+ `<div class="match-overview"><div><span>Score global</span><strong>${c.total===null?'Non calculé':c.total+' /100'}</strong></div></div>
+ <div class="match-breakdown">${c.parts.map(([name,points,max],i)=>`<section class="match-criterion"><header><h3>${esc(name)}</h3><span>${points===null?'Donnée insuffisante':points+' / '+max+' pts'}</span></header>${points===null?'':progress(Math.round(points/max*100),name)}<p>${esc(descriptions[i])}</p></section>`).join('')}</div>
  <p class="match-method">Le score additionne les quatre critères. Pondération de démonstration : expertise 40 %, disponibilité 30 %, localisation 20 %, expérience 10 %. Il aide à comparer les profils ; la confirmation du formateur reste nécessaire.</p><div class="modal-actions"><button class="secondary" onclick="closeModal()">Fermer</button></div>`);
 }

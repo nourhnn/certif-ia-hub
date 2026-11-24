@@ -4,86 +4,180 @@
   // La synchronisation Google/Outlook réelle nécessite une API et OAuth sécurisés.
   const baselineCalendar=trainerCalendar;
   const baselineConflict=calendarConflict;
-  const baselineAvailable=staffingAvailable;
-  const baselineCompat=compatDetails;
-  const baselineCard=staffingCandidateCard;
-  const weekdays=[['1','Lundi'],['2','Mardi'],['3','Mercredi'],['4','Jeudi'],['5','Vendredi'],['6','Samedi'],['0','Dimanche']];
+  const weekdays=[['1','Lundi'],['2','Mardi'],['3','Mercredi'],['4','Jeudi'],['5','Vendredi']];
   function agendaProfile(id){
     db.agendaV2 ||= {};
     db.agendaV2[id] ||= {
-      weekly:Object.fromEntries(weekdays.map(([d])=>[d,{on:!['6','0'].includes(d),start:'09:00',end:'18:00'}])),
+      weekly:Object.fromEntries(weekdays.map(([d])=>[d,{on:false,start:'09:00',end:'18:00'}])),
       demoCalendar:false
     };
     return db.agendaV2[id];
   }
-  function isBusy(session,id){
-    const items=[
-      ...(db.calendarEvents||[]).filter(e=>e.trainerId===id),
-      ...(db.availability||[]).filter(e=>e.trainerId===id&&e.status==='Occupé'),
-      ...(db.assignments||[]).filter(a=>a.trainerId===id&&['Confirmée','À revalider','Réalisée'].includes(a.status))
-        .map(a=>sessionById(a.sessionId)).filter(Boolean)
-    ];
-    return items.some(e=>e.id!==session.id&&agendaEntriesOverlap(e,session));
+  // Adaptateur de lecture pour une future synchronisation. Aucun connecteur ne
+  // renseigne ce contrat dans la démo. Les fenêtres ne contiennent aucun titre privé.
+  function agendaConnection(id) {
+    const snapshot=db.agendaV2?.[id]?.externalAvailability;
+    if(!snapshot||snapshot.status==='disconnected')return 'unknown';
+    return snapshot.status==='connected'&&Date.parse(snapshot.validUntil)>Date.now()?'connected':'unavailable';
   }
-  function agendaV2Check(session,id){
-    if(!session||!id)return {state:'unknown',label:'Non vérifié'};
-    if(isBusy(session,id))return {state:'busy',label:'Occupé'};
-    const profile=agendaProfile(id);
-    if(profile.demoCalendar)return {state:'free-demo',label:'Libre · simulation'};
-    return {state:'unknown',label:'Agenda non vérifié'};
+
+  function agendaConnectionLabel(id) {
+    const connection=agendaConnection(id);
+    return connection==='connected'?'Agenda connecté':connection==='unavailable'?'Synchronisation indisponible':
+      db.agendaV2?.[id]?.demoCalendar?'Agenda simulé':'Agenda non connecté';
   }
-  // Les déclarations hebdomadaires sont informatives : un agenda libre permet
-  // une proposition normale, y compris hors des jours ou horaires habituels.
-  staffingAvailable=function(t,s){
-    if(!t||!s)return false;
-    const result=agendaV2Check(s,t.id);
-    if(result.state==='busy')return false;
-    if(result.state==='free-demo')return true;
-    return baselineAvailable(t,s); // compatibilité avec le staffing manuel préexistant
-  };
+
+  function externalAvailability(entry,id) {
+    const snapshot=db.agendaV2?.[id]?.externalAvailability;
+    const connection=agendaConnection(id);
+    if(connection!=='connected')return {connection};
+    const windows=(Array.isArray(snapshot.windows)?snapshot.windows:[]).filter(item=>item.date===entry.date);
+    if(windows.some(item=>item.status==='busy'&&agendaEntriesOverlap(entry,item)))return {connection:'connected',busy:true};
+    const free=windows.some(item=>item.status==='free'&&item.start<=entry.start&&item.end>=entry.end);
+    return {connection:'connected',free};
+  }
+
+  function agendaV2Check(entry,id,options={}) {
+    const external=externalAvailability(entry,id);
+    if(calendarConflict(entry,id,{...options,allowAvailable:true}))return {state:'busy',label:'Occupé',connection:external.connection};
+    if(external.free)return {state:'verified',label:'Libre vérifié',connection:external.connection};
+    const profile=db.agendaV2?.[id];
+    const slots=db.availability.filter(a=>a.trainerId===id&&a.date===entry.date&&a.status==='Disponible')
+      .sort((a,b)=>(a.start||'00:00').localeCompare(b.start||'00:00'));
+    let covered=entry.start;
+    for(const slot of slots){
+      if((slot.start||'00:00')>covered)break;
+      if((slot.end||'24:00')>covered)covered=slot.end||'24:00';
+    }
+    const declared=Boolean(entry.start&&entry.end&&covered>=entry.end);
+    const weekday=entry.date&&weekdayPreference(profile,entry.date);
+    const habitual=weekday?.on&&weekday.start<=entry.start&&weekday.end>=entry.end;
+    const connectionLabel=external.connection==='unavailable'?' · synchronisation indisponible':' · agenda non vérifié';
+    if(declared||habitual)return {state:'preference',label:'Préférence déclarée'+connectionLabel,dated:declared,connection:external.connection};
+    if(profile?.demoCalendar)return {state:'simulation',label:'Libre · simulation',connection:external.connection};
+    return {state:external.connection==='unavailable'?'unavailable':'unknown',
+      label:external.connection==='unavailable'?'Synchronisation indisponible':'Disponibilité non vérifiée',connection:external.connection};
+  }
+
   calendarConflict=function(entry,id,options={}){
-    const conflict=baselineConflict(entry,id,options);
-    if(conflict&&id!==null&&id!==undefined&&state.role==='amo'){
-      return `Conflit de disponibilité le ${fmtDate(entry.date)} : créneau occupé ou mission déjà affectée. Les détails personnels sont confidentiels.`;
+    const conflict=baselineConflict(entry,id,options) || (id!=null &&
+      (externalAvailability(entry,id).busy || window.confirmedScopingConflict?.(entry,id,options.ignoreCall))
+      ? 'Un créneau occupé recouvre cette période.' : '');
+    if(conflict&&id!=null&&state.role==='amo'){
+      return `Conflit de disponibilité le ${fmtDate(entry.date)} : créneau occupé ou mission déjà affectée.`;
     }
     return conflict;
   };
-  compatDetails=function(t,s){
-    const result=baselineCompat(t,s);
-    const check=agendaV2Check(s,t.id);
-    if(check.state==='free-demo'){
-      result.parts=result.parts.map(p=>p[0]==='Disponibilité connue'?['Calendrier libre (simulation)',p[1],p[2]]:p);
-      result.reasons=result.reasons.map(r=>/disponib/i.test(r)?'Calendrier libre · simulation (hors horaires déclarés autorisé)':r);
-    }else if(check.state==='unknown'){
-      result.reasons=result.reasons.map(r=>/disponib/i.test(r)?'Agenda externe non vérifié · déclaration manuelle':r);
+
+  staffingAvailable=function(t,s){
+    if(!t||!s||['Réalisée','Annulée'].includes(s.status)||t.rating?.includes('À ne pas staffer'))return false;
+    const result=agendaV2Check(s,t.id,{sessionId:s.id});
+    return result.state==='verified'||result.state==='simulation'||result.dated===true||
+      (result.state!=='busy'&&db.agendaV2?.[t.id]?.demoCalendar===true);
+  };
+
+  function trainerAvailabilityPreferences(id) {
+    const p=db.agendaV2?.[id]||{};
+    return {monthlyTarget:p.monthlyTarget??null, days:p.preferredDays||[], modality:p.modality||'',
+      mobility:db.profiles?.[id]?.mobility||'', remarks:p.remarks||''};
+  }
+
+  function availabilityPreferenceSummary(id) {
+    const p=trainerAvailabilityPreferences(id);
+    return [
+      ['Interventions souhaitées / mois', p.monthlyTarget ?? 'Non renseigné'],
+      ['Jours privilégiés', weekdays.filter(([key])=>p.days.includes(key)).map(([,label])=>label).join(', ') || 'Non renseignés'],
+      ['Modalité préférée', p.modality || 'Non renseignée'],
+      ['Mobilité géographique', p.mobility || 'Non renseignée'],
+      ['Remarques de disponibilité', p.remarks || 'Aucune']
+    ].map(([label,value])=>`<div class="info"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`).join('');
+  }
+
+  function saveUnavailablePeriod(form) {
+    if(state.role!=='formateur'||state.page!=='trainer-calendar')return;
+    const data=new FormData(form), from=String(data.get('from')), to=String(data.get('to'));
+    const error=form.querySelector('[role="alert"]');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||to<from||to>shiftDate(from,365)){
+      error.textContent='Sélectionnez une période de 366 jours maximum.';return;
     }
-    return result;
-  };
-  staffingCandidateCard=function(t,s,...args){
-    let html=baselineCard(t,s,...args);
-    const check=agendaV2Check(s,t.id);
-    if(check.state==='free-demo')html=html.replace('Disponible sur le créneau','Libre sur le créneau · simulation');
-    else if(check.state==='unknown')html=html.replace('Disponible sur le créneau','Créneau déclaré · agenda non vérifié');
-    return html;
-  };
+    const id=state.trainerId;
+    const days=[];
+    for(let day=from;day<=to;day=shiftDate(day,1)){
+      if(!db.availability.some(a=>a.trainerId===id&&a.date===day&&a.status==='Occupé'&&!a.start&&!a.end))
+        days.push({id:crypto.randomUUID(),trainerId:id,date:day,start:'',end:'',status:'Occupé',source:'déclaration'});
+    }
+    db.availability.push(...days);
+    state.availabilityMonth=from.slice(0,7);
+    save();render();flash('Période d’indisponibilité enregistrée.');
+  }
+
+  function deleteAvailabilitySlot(id) {
+    if(state.role!=='formateur'||state.page!=='trainer-calendar')return;
+    const index=db.availability.findIndex(a=>a.id===id&&a.trainerId===state.trainerId);
+    if(index<0)return;
+    db.availability.splice(index,1);save();render();flash('Créneau supprimé.');
+  }
   function v2SetTab(tab){
     if(!['calendar','availability','connections'].includes(tab))return;
     state.agendaV2Tab=tab;
     render();
   }
-  function v2Weekday(day,field,value){
-    if(state.role!=='formateur')return;
-    const p=agendaProfile(state.trainerId);
-    const current=p.weekly[day];
-    if(!current)return;
-    if(field==='on')current.on=Boolean(value);
-    if(field==='start'||field==='end'){
-      if(!/^\d{2}:\d{2}$/.test(value))return;
-      current[field]=value;
-    }
-    if(current.start>=current.end){flash('La fin doit être postérieure au début.');render();return;}
-    save();render();
+  function weekdayPreference(profile,date,habitual=false){
+    const weekday=new Date(date+'T12:00:00').getDay();
+    if(weekday===0||weekday===6)return null;
+    return (!habitual&&profile?.weeklyOverrides?.[date]) ||
+      profile?.weekly?.[weekday] || {on:false,start:'09:00',end:'18:00'};
   }
+
+  function availabilityWeek(){
+    return state.availabilityWeek||toISO(weekStart(parisToday()));
+  }
+
+  function editsHabitualWeek(profile){
+    if(state.availabilityScope)return state.availabilityScope==='habitual';
+    const week=availabilityWeek(), end=shiftDate(week,4);
+    return !Object.keys(profile.weeklyOverrides||{}).some(date=>date>=week&&date<=end);
+  }
+
+  function moveAvailabilityWeek(offset){
+    state.availabilityWeek=shiftDate(availabilityWeek(),offset*7);
+    state.availabilityScope='week';
+    render();
+  }
+
+  function setAvailabilityScope(scope){
+    state.availabilityScope=scope==='habitual'?'habitual':'week';
+    render();
+  }
+
+  function v2Weekday(date,field,value){
+    if(state.role!=='formateur'||state.page!=='trainer-calendar'||date<availabilityWeek()||
+      date>shiftDate(availabilityWeek(),4))return;
+    const p=agendaProfile(state.trainerId);
+    const habitual=editsHabitualWeek(p);
+    const updated={...weekdayPreference(p,date,habitual)};
+    if(field==='on')updated.on=Boolean(value);
+    else if(['start','end'].includes(field)&&/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/.test(value))updated[field]=value;
+    else return render();
+    if(updated.start>=updated.end){flash('La fin doit être postérieure au début.');render();return;}
+    if(habitual)p.weekly[new Date(date+'T12:00:00').getDay()]=updated;
+    else (p.weeklyOverrides||={})[date]=updated;
+    save();render();
+    document.getElementById('av2-week-'+date+'-'+field)?.focus({preventScroll:true});
+  }
+
+  function resetAvailabilityWeek(){
+    if(state.role!=='formateur'||state.page!=='trainer-calendar')return;
+    const overrides=db.agendaV2?.[state.trainerId]?.weeklyOverrides;
+    const week=availabilityWeek();
+    if(!overrides)return;
+    weekdays.forEach((_,i)=>delete overrides[shiftDate(week,i)]);
+    state.availabilityScope='week';
+    save();render();
+    document.getElementById('av2-week-'+week+'-on')?.focus({preventScroll:true});
+    flash('Horaires habituels rétablis pour cette semaine.');
+  }
+
   function v2DemoConnection(){
     if(state.role!=='formateur')return;
     const profile=agendaProfile(state.trainerId);
@@ -92,20 +186,45 @@
     flash(profile.demoCalendar?'Simulation de calendrier activée (aucune connexion Google réelle).':'Simulation désactivée.');
   }
   function v2AddException(){
-    openCalendarEvent(state.calendarDate||parisToday(),null,true);
+    const month=state.availabilityMonth||parisToday().slice(0,7);
+    openCalendarEvent(parisToday().startsWith(month)?parisToday():month+'-01',null,true);
   }
   function v2WeekView(){
     const p=agendaProfile(state.trainerId);
-    const slots=(db.availability||[]).filter(a=>a.trainerId===state.trainerId)
-      .sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+    const week=availabilityWeek(), habitual=editsHabitualWeek(p);
+    const hasOverrides=weekdays.some((_,i)=>p.weeklyOverrides?.[shiftDate(week,i)]);
+    const month=state.availabilityMonth||parisToday().slice(0,7);
+    const slots=db.availability.filter(a=>a.trainerId===state.trainerId&&a.date.startsWith(month))
+      .sort((a,b)=>a.date.localeCompare(b.date)||(a.start||'').localeCompare(b.start||''));
     return `<section class="card av2-pane">
-      <header class="av2-cardhead"><div><h2>Ma semaine habituelle</h2><p>Les horaires déclarés expriment vos préférences, sans empêcher une proposition lorsque votre agenda connecté est libre.</p></div></header>
-      <div class="av2-weekdays">${weekdays.map(([day,label])=>{const d=p.weekly[day];return `<div class="av2-weekrow">
-        <label class="av2-daytoggle"><input type="checkbox" ${d.on?'checked':''} onchange="agendaV2SetWeekday('${day}','on',this.checked)"><strong>${label}</strong></label>
-        <div class="av2-times"><label><span>De</span><input aria-label="Début ${label}" type="time" value="${esc(d.start)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${day}','start',this.value)"></label>
-        <label><span>À</span><input aria-label="Fin ${label}" type="time" value="${esc(d.end)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${day}','end',this.value)"></label></div></div>`}).join('')}</div>
-      <div class="av2-cardhead av2-spaced"><div><h2>Exceptions et indisponibilités</h2><p>Une période explicitement bloquée reste différente d'un jour habituellement non travaillé.</p></div><button class="primary tiny" onclick="agendaV2AddException()">+ Ajouter</button></div>
-      <div class="av2-exceptions">${slots.map(slot=>`<button class="line-item clickable-row" onclick="openCalendarEvent('${esc(slot.date)}','${esc(slot.id)}',true)"><span class="grow"><strong>${fmtDate(slot.date)}</strong><span class="item-sub">${esc(slot.start||'Journée entière')} ${slot.end?'– '+esc(slot.end):''}</span></span>${badge(slot.status)}</button>`).join('')||'<p class="item-sub">Aucune exception enregistrée.</p>'}</div>
+      <header class="av2-cardhead"><div><h2>Mes disponibilités par semaine</h2><p>Les horaires habituels se répètent. Passez sur « Cette semaine seulement » pour modifier des dates précises.</p></div></header>
+      <div class="av2-weeknav" role="group" aria-label="Choisir la semaine">
+        <button class="secondary tiny" aria-label="Semaine précédente" onclick="moveAvailabilityWeek(-1)">${mobileIcon('back',16)}</button>
+        <strong aria-live="polite">Du ${fmtDate(week)} au ${fmtDate(shiftDate(week,4))}</strong>
+        <button class="secondary tiny" aria-label="Semaine suivante" onclick="moveAvailabilityWeek(1)">${mobileIcon('chevron',16)}</button>
+      </div>
+      <div class="av2-tabs av2-scope" role="group" aria-label="Appliquer les modifications">
+        <button class="${habitual?'selected':''}" aria-pressed="${habitual}" onclick="setAvailabilityScope('habitual')">Chaque semaine</button>
+        <button class="${habitual?'':'selected'}" aria-pressed="${!habitual}" onclick="setAvailabilityScope('week')">Cette semaine seulement</button>
+      </div>
+      <div class="av2-week-actions"><button class="secondary tiny" onclick="resetAvailabilityWeek()" ${hasOverrides?'':'disabled'}>Rétablir par défaut</button></div>
+      <div class="av2-weekdays">${weekdays.map(([,label],i)=>{
+        const date=shiftDate(week,i), d=weekdayPreference(p,date,habitual), override=p.weeklyOverrides?.[date];
+        const shortDate=fmtDate(date,{day:'numeric',month:'long'});
+        return `<div class="av2-weekrow">
+          <div class="av2-weekday"><label class="av2-daytoggle"><input id="av2-week-${date}-on" type="checkbox" ${d.on?'checked':''} onchange="agendaV2SetWeekday('${date}','on',this.checked)"><span class="av2-day-date"><strong>${label}</strong><time datetime="${date}">${shortDate}</time></span></label>
+          ${override?`<span class="item-sub">Horaire modifié pour cette date</span>`:''}</div>
+          <div class="av2-times"><label><span>De</span><input id="av2-week-${date}-start" aria-label="Début ${label}" type="time" value="${esc(d.start)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${date}','start',this.value)"></label>
+          <label><span>À</span><input id="av2-week-${date}-end" aria-label="Fin ${label}" type="time" value="${esc(d.end)}" ${d.on?'':'disabled'} onchange="agendaV2SetWeekday('${date}','end',this.value)"></label></div>
+        </div>`;
+      }).join('')}</div>
+      <div class="av2-cardhead av2-spaced"><div><h2>Disponibilités mensuelles</h2><p>Les créneaux datés alimentent votre agenda existant.</p></div><button class="primary tiny" onclick="agendaV2AddException()">Ajouter un créneau</button></div>
+      <label class="av2-month-field">Mois affiché<input class="field" type="month" value="${esc(month)}" onchange="if(this.value){state.availabilityMonth=this.value;render()}"></label>
+      <div class="av2-exceptions">${slots.map(slot=>`<div class="line-item"><button class="ghost grow" onclick="openCalendarEvent('${esc(slot.date)}','${esc(slot.id)}',true)"><strong>${fmtDate(slot.date)}</strong> <span class="item-sub">${esc(slot.start||'Journée entière')} ${slot.end?'– '+esc(slot.end):''}</span></button>${badge(slot.status)}<button class="secondary tiny" aria-label="Supprimer le créneau du ${fmtDate(slot.date)}" onclick="deleteAvailabilitySlot('${esc(slot.id)}')">${mobileIcon('close',16)}</button></div>`).join('')||'<p class="item-sub">Aucun créneau déclaré pour ce mois.</p>'}</div>
+      <details class="av2-spaced"><summary>Bloquer une période d’indisponibilité</summary><form class="av2-preferences" onsubmit="event.preventDefault();saveUnavailablePeriod(this)">
+        <div class="form-grid"><label>Du<input class="field" type="date" name="from" required></label><label>Au<input class="field" type="date" name="to" required></label></div>
+        <p role="alert"></p><button class="secondary" type="submit">Bloquer les journées</button>
+      </form></details>
     </section>`;
   }
   function v2Connections(){
@@ -127,7 +246,7 @@
     return `<section class="av2-summary">
       <div><span>Mes missions à venir</span><strong>${upcoming.length}</strong><small>dans la démonstration</small></div>
       <div><span>Propositions en attente</span><strong>${db.proposals.filter(p=>p.trainerId===state.trainerId&&['Envoyée','Acceptée'].includes(p.status)).length}</strong><small>à suivre</small></div>
-      <div><span>Agenda externe</span><strong class="av2-status">${agendaProfile(state.trainerId).demoCalendar?'Simulé':'Non vérifié'}</strong><small>pas de connexion réelle</small></div>
+      <div><span>Agenda externe</span><strong class="av2-status">${agendaConnectionLabel(state.trainerId)}</strong><small>Vérification des créneaux</small></div>
     </section>
     <section class="av2-calendar">${calendarUI(true)}</section>
     <section class="card av2-pane">
@@ -137,10 +256,9 @@
   }
   trainerCalendar=function(){
     const tab=state.agendaV2Tab||'calendar';
-    const p=agendaProfile(state.trainerId);
     return `<div class="av2-root">
       <header class="av2-hero"><div><span class="av2-eyebrow">PORTAIL FORMATEUR · AGENDA V2</span><h1 class="headline">Mon agenda</h1><p>Vos missions, vos disponibilités et vos calendriers en un seul endroit.</p></div>
-      <span class="av2-demo-label">${p.demoCalendar?'Calendrier simulé':'Agenda non connecté'}</span></header>
+      <span class="av2-demo-label">${agendaConnectionLabel(state.trainerId)}</span></header>
       <div class="av2-tabs" role="tablist" aria-label="Sections de l'agenda">
         ${[['calendar','Calendrier'],['availability','Disponibilités'],['connections','Connexions']].map(([key,label])=>`<button type="button" role="tab" aria-selected="${key===tab}" class="${key===tab?'selected':''}" onclick="agendaV2SetTab('${key}')">${label}</button>`).join('')}
       </div>
@@ -148,8 +266,16 @@
       <p class="av2-disclaimer">Version de démonstration : données et actions locales. Aucune synchronisation Google/Outlook ni notification externe n'est effectuée.</p>
     </div>`;
   };
+  window.trainerAvailabilityPreferences=trainerAvailabilityPreferences;
+  window.availabilityPreferenceSummary=availabilityPreferenceSummary;
+  window.saveUnavailablePeriod=saveUnavailablePeriod;
+  window.deleteAvailabilitySlot=deleteAvailabilitySlot;
+  window.agendaConnectionLabel=agendaConnectionLabel;
   window.agendaV2SetTab=v2SetTab;
   window.agendaV2SetWeekday=v2Weekday;
+  window.moveAvailabilityWeek=moveAvailabilityWeek;
+  window.setAvailabilityScope=setAvailabilityScope;
+  window.resetAvailabilityWeek=resetAvailabilityWeek;
   window.agendaV2DemoConnection=v2DemoConnection;
   window.agendaV2AddException=v2AddException;
   window.agendaV2Check=agendaV2Check;
